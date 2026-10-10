@@ -43,11 +43,16 @@
   .pjt-stage h1 { opacity: {{ 1 - cfg.title_fade }}; }
   .pjt-stage .btn {
     white-space: pre-line;
-    opacity: {{ 1 - cfg.button_fade }};
+    color: rgba(28, 25, 21, {{ 1 - cfg.button_text_fade }});
   }
   .pjt-stage .btn:not(.secondary):not(.lottery) {
-    background: {{ cfg.upload_btn_color }};
-    color: #1c1915;
+    background: color-mix(in srgb, {{ cfg.upload_btn_color }} {{ (1 - cfg.button_fade) * 100 }}%, transparent);
+  }
+  .pjt-stage .btn.secondary {
+    background: color-mix(in srgb, {{ cfg.slideshow_btn_color }} {{ (1 - cfg.button_fade) * 100 }}%, transparent);
+  }
+  .pjt-stage .btn.lottery {
+    background: color-mix(in srgb, {{ cfg.lottery_btn_color }} {{ (1 - cfg.button_fade) * 100 }}%, transparent);
   }
 </style>
 {% endblock %}

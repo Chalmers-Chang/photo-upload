@@ -59,6 +59,7 @@ h1 { font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.03em; margin: 0 0 12p
   width: 100%;
   padding: 22px 20px;
   font-size: 18px;
+  font-weight: 700;
   line-height: 1.35;
   border-radius: 16px;
   background: var(--ink);
