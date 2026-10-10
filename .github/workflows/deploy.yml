@@ -1,0 +1,27 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, chalmers-macmini]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy project to /opt/app
+        run: |
+          sudo mkdir -p /opt/app
+          sudo rsync -a --delete \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude '.cursor/' \
+            "${GITHUB_WORKSPACE}/" /opt/app/
+
+      - name: Start stack
+        working-directory: /opt/app/docker-compose
+        run: docker compose up -d --build
