@@ -20,8 +20,17 @@ jobs:
     permissions:
       contents: read
       packages: write
+      actions: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+
+      - id: meta
+        run: |
+          tag=$(shasum -a 256 docker-compose/Dockerfile | cut -c1-16)
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "image tag=${tag}"
 
       - uses: docker/login-action@v3
         with:
@@ -41,7 +50,9 @@ jobs:
           push: true
           tags: |
             ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
     needs: build
@@ -81,14 +92,25 @@ jobs:
           echo "user=${GHCR_USER}"
           echo "token set=$([ -n "${GHCR_TOKEN}" ] && echo yes || echo no)"
           echo "docker config=${DOCKER_CONFIG}"
-          echo "checking ghcr.io ..."
-          curl -sS -o /dev/null -w "ghcr.io http=%{http_code} time=%{time_total}s\n" --max-time 15 https://ghcr.io/v2/ || true
-          echo "docker login starting ..."
-          echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USER}" --password-stdin
-          echo "docker login finished"
+          python3 - <<'PY'
+          import base64, json, os
+          auth = base64.b64encode(f"{os.environ['GHCR_USER']}:{os.environ['GHCR_TOKEN']}".encode()).decode()
+          path = os.path.join(os.environ["DOCKER_CONFIG"], "config.json")
+          with open(path, "w") as f:
+              json.dump({"auths": {"ghcr.io": {"auth": auth}}}, f)
+          print("wrote docker config, skipped docker login")
+          PY
 
       - name: Start stack
         working-directory: /opt/app/photo-upload/docker-compose
         env:
-          IMAGE_TAG: ${{ github.sha }}
-        run: docker compose pull && docker compose up -d
+          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+        run: |
+          image="${IMAGE}:${IMAGE_TAG}"
+          if docker image inspect "${image}" >/dev/null 2>&1; then
+            echo "image ${image} already present, skip pull"
+          else
+            echo "pulling ${image}"
+            docker compose pull
+          fi
+          docker compose up -d
