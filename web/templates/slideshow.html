@@ -7,14 +7,22 @@
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0a09; color: #f4efe6; font-family: "PingFang TC", "Noto Sans TC", sans-serif; }
     {% if project.bkg_url %}
-    body::before {
+    html, body { background: #fff; }
+    body::before,
+    body::after {
       content: "";
       position: fixed;
       inset: 0;
-      z-index: 0;
       pointer-events: none;
+    }
+    body::before {
+      z-index: 0;
       background: url("{{ project.bkg_url }}") center / cover no-repeat;
-      opacity: {{ 1 - bkg_fade }};
+    }
+    body::after {
+      z-index: 0;
+      background: #fff;
+      opacity: {{ bkg_fade }};
     }
     {% endif %}
     .stage {

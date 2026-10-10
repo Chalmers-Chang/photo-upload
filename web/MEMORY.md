@@ -18,4 +18,4 @@
 - Blank project slug = lowercase `project_name` with symbols/spaces stripped (`a-z0-9` only). Empty result (e.g. Chinese-only name) falls back to a short hex id.
 - Project folder holds optional `pjt-home.jpg` (project home page background) and `bkg-slideshow.jpg` (slideshow backdrop), plus `-sm.jpg` thumbs (3cm / ~113px square) for admin preview. Admin uploads/deletes both files; full project delete `rmtree`s the folder. Slideshow photo has ~22px Apple-style corners and 2cm inset from the screen.
 - Do not put `url()` in a CSS custom property on the HTML and read it from `/static/style.css`. The browser resolves the path against the stylesheet. Use a real `<img class="page-bg">` for pjt.
-- pjt/bkg fade is 0–1 (`PJT_FADE` / `BKG_FADE`): 0 = full image, 1 = fully dimmed. Pjt uses img opacity over the page; slideshow uses `body::before` opacity `1 - bkg_fade` over `#0b0a09`.
+- pjt/bkg fade is 0–1 (`PJT_FADE` / `BKG_FADE`): 0 = full image, 1 = solid white overlay. Project home text sits in a glass card (2cm padding, Apple blur) centered over the photo.
