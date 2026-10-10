@@ -13,8 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Copy project to /opt/app
+      - name: Copy project to /opt/app/photo-upload
         run: |
+          dest=/opt/app/photo-upload
           echo "runner user=$(whoami)"
           ls -ld /opt/app
           if [ ! -w /opt/app ]; then
@@ -22,12 +23,13 @@ jobs:
             echo "On the Mac Mini run: sudo chown -R $(whoami) /opt/app"
             exit 1
           fi
+          mkdir -p "$dest"
           rsync -rlt --delete \
             --exclude '.git/' \
             --exclude '.github/' \
             --exclude '.cursor/' \
-            "${GITHUB_WORKSPACE}/" /opt/app/
+            "${GITHUB_WORKSPACE}/" "$dest/"
 
       - name: Start stack
-        working-directory: /opt/app/docker-compose
+        working-directory: /opt/app/photo-upload/docker-compose
         run: docker compose up -d --build
