@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 from functools import wraps
 
 from flask import (
@@ -22,6 +23,9 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = appsetting.secret_key
     app.config["MAX_CONTENT_LENGTH"] = appsetting.max_upload_mb * 1024 * 1024
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
     def admin_required(fn):
         @wraps(fn)
@@ -48,15 +52,18 @@ def create_app():
 
     @app.route("/admin/login", methods=["GET", "POST"])
     def admin_login():
+        nxt = request.args.get("next") or url_for("admin_home")
         if session.get("admin"):
-            return redirect(url_for("admin_home"))
+            return redirect(nxt)
         error = None
         if request.method == "POST":
             user = request.form.get("username") or ""
             pw = request.form.get("password") or ""
             if user == admin_config.username and pw == admin_config.password:
+                session.clear()
                 session["admin"] = True
-                return redirect(request.args.get("next") or url_for("admin_home"))
+                session.permanent = True
+                return redirect(nxt)
             error = "帳號或密碼錯誤"
         return render_template("admin_login.html", error=error)
 

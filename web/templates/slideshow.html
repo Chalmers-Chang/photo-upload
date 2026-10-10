@@ -34,15 +34,33 @@
       margin: 0;
       opacity: 0.6;
     }
+    img[hidden],
+    .empty[hidden] {
+      display: none !important;
+    }
     .caption {
       padding: 16px 24px 28px;
       text-align: center;
       font-size: clamp(18px, 3vw, 28px);
       min-height: 1.4em;
     }
+    .admin-btn {
+      position: fixed;
+      top: 16px;
+      right: 20px;
+      z-index: 20;
+      text-decoration: none;
+      border: 1px solid #ddd4c6;
+      background: #fffcf7;
+      color: #1c1915;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
+  <a class="admin-btn" href="{{ url_for('admin_home') }}">Admin</a>
   <div class="stage">
     <div class="frame">
       <img id="photo" alt="" hidden>
@@ -71,7 +89,8 @@
       }
     });
 
-    document.addEventListener("click", () => {
+    document.addEventListener("click", (e) => {
+      if (e.target.closest(".admin-btn")) return;
       const el = document.documentElement;
       if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
     }, { once: true });

@@ -24,6 +24,7 @@ a { color: inherit; }
 .topbar {
   position: sticky;
   top: 0;
+  z-index: 20;
   display: flex;
   justify-content: flex-end;
   padding: 16px 20px;

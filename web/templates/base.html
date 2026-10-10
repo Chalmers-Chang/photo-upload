@@ -7,6 +7,9 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+  <div class="topbar">
+    <a class="admin-btn" href="{{ url_for('admin_home') }}">Admin</a>
+  </div>
   {% block body %}{% endblock %}
 </body>
 </html>
