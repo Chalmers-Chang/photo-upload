@@ -102,11 +102,25 @@ def asset_path(project_id, kind):
     return photo_dir(project_id) / name
 
 
-def asset_url(project_id, kind):
-    path = asset_path(project_id, kind)
+def asset_thumb_path(project_id, kind):
+    p = asset_path(project_id, kind)
+    return p.with_name(f"{p.stem}-sm.jpg")
+
+
+def _file_url(project_id, path: Path):
     if not path.is_file():
         return None
     return f"/photos/{project_id}/{path.name}?t={int(path.stat().st_mtime)}"
+
+
+def asset_url(project_id, kind):
+    return _file_url(project_id, asset_path(project_id, kind))
+
+
+def asset_thumb_url(project_id, kind):
+    return _file_url(project_id, asset_thumb_path(project_id, kind)) or asset_url(
+        project_id, kind
+    )
 
 
 def attach_assets(project):
@@ -114,7 +128,9 @@ def attach_assets(project):
         return project
     pid = project["id"]
     project["pjt_url"] = asset_url(pid, "pjt")
+    project["pjt_thumb_url"] = asset_thumb_url(pid, "pjt")
     project["bkg_url"] = asset_url(pid, "bkg")
+    project["bkg_thumb_url"] = asset_thumb_url(pid, "bkg")
     return project
 
 

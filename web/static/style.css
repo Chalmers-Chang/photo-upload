@@ -68,13 +68,18 @@ h1 { font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.03em; margin: 0 0 12p
 .btn.danger { background: var(--err); color: #fff; font-size: 15px; padding: 10px 12px; }
 .btn.lottery { background: var(--accent); }
 .btn.small { font-size: 15px; padding: 10px 14px; width: auto; }
-.btn.has-cover {
-  min-height: 92px;
+.btn.has-cover,
+.btn.secondary.has-cover {
+  min-height: 120px;
   color: #fffcf7;
   border: 0;
-  background:
+  background-color: #1c1915;
+  background-image:
     linear-gradient(rgba(28, 25, 21, 0.42), rgba(28, 25, 21, 0.42)),
-    var(--cover) center / cover no-repeat;
+    var(--cover);
+  background-size: auto, cover;
+  background-position: center;
+  background-repeat: no-repeat;
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
 }
 .asset-grid {
@@ -91,8 +96,8 @@ h1 { font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.03em; margin: 0 0 12p
   gap: 8px;
 }
 .asset-thumb {
-  width: 100%;
-  height: 88px;
+  width: 3cm;
+  height: 3cm;
   object-fit: cover;
   border-radius: 10px;
 }

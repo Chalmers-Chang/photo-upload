@@ -16,4 +16,5 @@
 - First visit with no `device_name:{id}` shows a nickname modal (`/api/profile`). Slideshow and lottery labels use that name via the photo's `device_id`.
 - User-facing copy lives in `config/msg.py` as bilingual `中文 / English` strings. Templates get `msg` from the Flask context processor.
 - Blank project slug = lowercase `project_name` with symbols/spaces stripped (`a-z0-9` only). Empty result (e.g. Chinese-only name) falls back to a short hex id.
-- Project folder holds optional `pjt-home.jpg` (home button cover) and `bkg-slideshow.jpg` (slideshow backdrop). Admin uploads/deletes them; full project delete `rmtree`s the folder. Slideshow photo has ~22px Apple-style corners and 2cm inset from the screen.
+- Project folder holds optional `pjt-home.jpg` (home button cover) and `bkg-slideshow.jpg` (slideshow backdrop), plus `-sm.jpg` thumbs (3cm / ~113px square) for admin preview. Admin uploads/deletes both files; full project delete `rmtree`s the folder. Slideshow photo has ~22px Apple-style corners and 2cm inset from the screen.
+- `.btn.secondary { background: … }` shorthand wipes a later `.btn.has-cover` layer if that rule is invalid or same-specificity. Use longhands on `.btn.secondary.has-cover` so pjt actually shows.

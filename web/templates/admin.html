@@ -42,7 +42,7 @@
       <div class="asset-grid">
         <div class="asset-card">
           <p class="meta">{{ msg.asset_pjt }}</p>
-          {% if p.pjt_url %}<img class="asset-thumb" src="{{ p.pjt_url }}" alt="">{% endif %}
+          {% if p.pjt_thumb_url %}<img class="asset-thumb" src="{{ p.pjt_thumb_url }}" alt="">{% endif %}
           <form class="stack" method="post" action="{{ url_for('admin_save_asset', project_id=p.id, kind='pjt') }}" enctype="multipart/form-data">
             <input type="file" name="photo" accept="image/*" required>
             <button class="btn small" type="submit">{{ msg.asset_upload }}</button>
@@ -55,7 +55,7 @@
         </div>
         <div class="asset-card">
           <p class="meta">{{ msg.asset_bkg }}</p>
-          {% if p.bkg_url %}<img class="asset-thumb" src="{{ p.bkg_url }}" alt="">{% endif %}
+          {% if p.bkg_thumb_url %}<img class="asset-thumb" src="{{ p.bkg_thumb_url }}" alt="">{% endif %}
           <form class="stack" method="post" action="{{ url_for('admin_save_asset', project_id=p.id, kind='bkg') }}" enctype="multipart/form-data">
             <input type="file" name="photo" accept="image/*" required>
             <button class="btn small" type="submit">{{ msg.asset_upload }}</button>
