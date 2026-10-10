@@ -344,9 +344,17 @@ def device_photos(project_id, device_id, exclude=None):
 
 def sphere_photos(project_id, limit):
     items = sweep_expired(project_id)
+    if not items:
+        return []
     if len(items) > limit:
         items = random.sample(items, limit)
-    return [{"id": i["id"], "url": i["url"]} for i in items]
+    photos = [{"id": i["id"], "url": i["url"]} for i in items]
+    i = 0
+    while len(photos) < limit:
+        src = photos[i % len(photos)]
+        photos.append(src)
+        i += 1
+    return photos
 
 
 def draw_lottery(project_id):
@@ -367,6 +375,7 @@ def draw_lottery(project_id):
     if not winner:
         raise ValueError("目前沒有可抽獎的照片")
     t, photo = winner
+    others = device_photos(project_id, t["device_id"], exclude=photo["id"])
     return {
         "serial": t["serial"],
         "seconds": appsetting.lottery_seconds,
@@ -375,9 +384,8 @@ def draw_lottery(project_id):
             "url": photo["url"],
             "caption": photo.get("caption") or "",
             "nickname": photo.get("nickname") or "",
+            "upload_count": len(others) + 1,
         },
-        "device_photos": device_photos(
-            project_id, t["device_id"], exclude=photo["id"]
-        ),
+        "device_photos": others,
         "sphere": sphere_photos(project_id, appsetting.lottery_sphere_max),
     }

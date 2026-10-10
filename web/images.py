@@ -18,8 +18,11 @@ def save_jpeg(upload, dest: Path):
     data = upload.read()
     if not data:
         raise ValueError("沒有讀到檔案")
+    edge = appsetting.jpeg_max_edge
     img = Image.open(io.BytesIO(data))
+    if (img.format or "").upper() == "JPEG":
+        img.draft("RGB", (edge, edge))
     img = ImageOps.exif_transpose(img)
     img = img.convert("RGB")
-    img.thumbnail((appsetting.jpeg_max_edge, appsetting.jpeg_max_edge))
-    img.save(dest, "JPEG", quality=85, optimize=True)
+    img.thumbnail((edge, edge), Image.Resampling.BILINEAR)
+    img.save(dest, "JPEG", quality=80)

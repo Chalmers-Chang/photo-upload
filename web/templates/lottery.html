@@ -46,26 +46,39 @@
       backface-visibility: hidden;
       box-shadow: 0 8px 24px rgba(0,0,0,0.45);
     }
-    .result { position: absolute; inset: 0; overflow: hidden; }
-    .winner-wrap {
+    .result {
       position: absolute;
-      inset: 18% 12%;
+      inset: 0;
       display: grid;
-      place-items: center;
+      grid-template-rows: minmax(0, 1fr) auto;
+      overflow: hidden;
+    }
+    .winner-wrap {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
       z-index: 2;
     }
     .winner-wrap img {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       max-width: 100%;
       max-height: 100%;
+      width: auto;
+      height: auto;
       object-fit: contain;
+      object-position: center;
       border-radius: 16px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.55);
     }
     .label {
-      position: absolute;
-      left: 0; right: 0; bottom: 28px;
-      text-align: center;
+      position: relative;
       z-index: 3;
+      padding: 16px 24px 28px;
+      text-align: center;
       font-size: clamp(18px, 3vw, 28px);
     }
     .floater {
@@ -174,8 +187,9 @@
       scene.hidden = true;
       result.hidden = false;
       winner.src = data.winner.url;
-      const who = photoCredit(data.winner.nickname, data.winner.caption);
-      label.textContent = (who ? who + "  ·  " : "") + "序號 " + data.serial;
+      const who = (data.winner.nickname || "").trim() || "這位朋友";
+      const n = data.winner.upload_count || 1;
+      label.textContent = "恭喜 " + who + " 中獎，共上傳了 " + n + " 張照片";
       placeFloaters(data.device_photos || []);
     }
 
