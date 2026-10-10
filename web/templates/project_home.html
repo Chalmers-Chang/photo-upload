@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }}{% endblock %}
+{% block body %}
+<div class="wrap">
+  <h1>{{ project.name }}</h1>
+  <p class="lead">選一個動作。輪播會跟其他螢幕對齊同一張。</p>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('upload', slug=project.slug) }}">上傳照片</a>
+    <a class="btn secondary" href="{{ url_for('slideshow', slug=project.slug) }}">輪播照片</a>
+  </div>
+</div>
+{% endblock %}

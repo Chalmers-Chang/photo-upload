@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>輪播 · {{ project.name }}</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #0b0a09; color: #f4efe6; font-family: "PingFang TC", "Noto Sans TC", sans-serif; }
+    .stage { height: 100dvh; display: grid; grid-template-rows: 1fr auto; }
+    .frame { display: grid; place-items: center; min-height: 0; }
+    img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .empty { opacity: 0.6; padding: 24px; }
+    .caption {
+      padding: 16px 24px 28px;
+      text-align: center;
+      font-size: clamp(18px, 3vw, 28px);
+      min-height: 1.4em;
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="frame">
+      <img id="photo" alt="" hidden>
+      <p class="empty" id="empty">尚無照片</p>
+    </div>
+    <div class="caption" id="caption"></div>
+  </div>
+  <script>
+    const api = {{ url_for('slideshow_api', slug=project.slug) | tojson }};
+    const home = {{ url_for('project_home', slug=project.slug) | tojson }};
+    const img = document.getElementById("photo");
+    const empty = document.getElementById("empty");
+    const caption = document.getElementById("caption");
+    let timer = null;
+    let shownId = null;
+
+    function goHome() {
+      try { document.exitFullscreen(); } catch (e) {}
+      location.href = home;
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        goHome();
+      }
+    });
+
+    document.addEventListener("click", () => {
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    }, { once: true });
+
+    async function tick() {
+      const res = await fetch(api, { cache: "no-store" });
+      const data = await res.json();
+      if (!data.photo_id) {
+        img.hidden = true;
+        empty.hidden = false;
+        caption.textContent = "";
+        shownId = null;
+        timer = setTimeout(tick, 3000);
+        return;
+      }
+      empty.hidden = true;
+      if (shownId !== data.photo_id) {
+        img.src = data.url;
+        img.hidden = false;
+        caption.textContent = data.caption || "";
+        shownId = data.photo_id;
+      } else {
+        caption.textContent = data.caption || "";
+      }
+      const waitMs = Math.max(250, (data.show_until - data.server_now) * 1000);
+      timer = setTimeout(tick, waitMs);
+    }
+
+    tick();
+  </script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Admin{% endblock %}
+{% block body %}
+<div class="wrap">
+  <div class="row" style="justify-content:space-between">
+    <h1>專案</h1>
+    <form method="post" action="{{ url_for('admin_logout') }}">
+      <button class="btn small secondary" type="submit">登出</button>
+    </form>
+  </div>
+
+  {% for category, message in get_flashed_messages(with_categories=true) %}
+    <p class="flash {{ category }}">{{ message }}</p>
+  {% endfor %}
+
+  <div class="card">
+    <h2>新增子專案</h2>
+    <form class="stack" method="post" action="{{ url_for('admin_create_project') }}">
+      <label>名稱</label>
+      <input name="name" required placeholder="例如 婚禮">
+      <label>URL slug（可留空自動產生）</label>
+      <input name="slug" placeholder="wedding">
+      <button class="btn" type="submit">新增</button>
+    </form>
+  </div>
+
+  {% for p in projects %}
+    <div class="card">
+      <h2>{{ p.name }}</h2>
+      <p class="meta">slug: {{ p.slug }} · 照片 {{ p.photo_count }}</p>
+      <div class="urls">
+        <div>專案：<a href="{{ url_for('project_home', slug=p.slug) }}">/p/{{ p.slug }}/</a></div>
+        <div>上傳：<a href="{{ url_for('upload', slug=p.slug) }}">/p/{{ p.slug }}/upload</a></div>
+        <div>輪播：<a href="{{ url_for('slideshow', slug=p.slug) }}">/p/{{ p.slug }}/slideshow</a></div>
+      </div>
+      <div class="row">
+        <form method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}" onsubmit="return confirm('只刪 Redis，照片檔會留在磁碟。確定？');">
+          <input type="hidden" name="mode" value="redis_only">
+          <button class="btn small secondary" type="submit">只刪 Redis</button>
+        </form>
+        <form method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}" onsubmit="return confirm('會刪掉 Redis 與這個專案的照片檔。確定？');">
+          <input type="hidden" name="mode" value="redis_and_files">
+          <button class="btn danger" type="submit">刪 Redis 與照片</button>
+        </form>
+      </div>
+    </div>
+  {% else %}
+    <p class="lead">還沒有專案。</p>
+  {% endfor %}
+</div>
+{% endblock %}
