@@ -8,6 +8,6 @@
 
 ## TASTE
 
-- Public port 8000 is nginx. Config is in the `photo-upload-nginx` image (`alias` `/photos/` to the volume, proxy the rest to gunicorn on `app:8000`).
+- Baked `photo-upload-nginx` plus the OWC photo bind is enough for `compose up`; confirmed the stack starts on the Mac runner.
 - `PHOTO_DIR=/data/photos` inside the container; host path stays in compose (`HOST_PHOTO_DIR` / default OWC volume).
 - Install Python deps with `uv sync --frozen` from `python/pyproject.toml` + `python/uv.lock`, not a root `requirements.txt`.

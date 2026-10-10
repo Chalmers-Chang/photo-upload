@@ -26,7 +26,13 @@
 
   {% for p in projects %}
     <div class="card">
-      <h2>{{ p.name }}</h2>
+      <div class="card-head">
+        <h2>{{ p.name }}</h2>
+        <form method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}" onsubmit="return confirm('會刪除這個專案，包含 URL、Redis 與照片。確定？');">
+          <input type="hidden" name="mode" value="redis_and_files">
+          <button class="btn danger" type="submit">刪除專案</button>
+        </form>
+      </div>
       <p class="meta">slug: {{ p.slug }} · 照片 {{ p.photo_count }}</p>
       <div class="urls">
         <div>專案：<a href="{{ url_for('project_home', slug=p.slug) }}">/p/{{ p.slug }}/</a></div>
@@ -34,13 +40,9 @@
         <div>輪播：<a href="{{ url_for('slideshow', slug=p.slug) }}">/p/{{ p.slug }}/slideshow</a></div>
       </div>
       <div class="row">
-        <form method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}" onsubmit="return confirm('只刪 Redis，照片檔會留在磁碟。確定？');">
+        <form method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}" onsubmit="return confirm('會刪除專案與 URL，只清 Redis，照片檔會留在磁碟。確定？');">
           <input type="hidden" name="mode" value="redis_only">
           <button class="btn small secondary" type="submit">只刪 Redis</button>
-        </form>
-        <form method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}" onsubmit="return confirm('會刪掉 Redis 與這個專案的照片檔。確定？');">
-          <input type="hidden" name="mode" value="redis_and_files">
-          <button class="btn danger" type="submit">刪 Redis 與照片</button>
         </form>
       </div>
     </div>

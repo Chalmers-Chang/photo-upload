@@ -90,6 +90,14 @@ textarea { min-height: 96px; resize: vertical; }
   margin-bottom: 14px;
 }
 .card h2 { margin: 0 0 8px; font-size: 20px; }
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.card-head h2 { margin: 0; }
+.card-head form { margin: 0; flex-shrink: 0; }
 .urls { font-size: 13px; color: var(--muted); display: grid; gap: 4px; word-break: break-all; }
 .urls a { color: var(--accent); }
 .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }

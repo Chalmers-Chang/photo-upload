@@ -150,10 +150,7 @@ def create_project(name, slug):
     return get_project(pid)
 
 
-def delete_project(project_id, delete_files):
-    p = get_project(project_id)
-    if not p:
-        raise ValueError("專案不存在")
+def wipe_photos(project_id, delete_files):
     conn = r()
     ids = conn.zrange(f"photos:{project_id}", 0, -1)
     pipe = conn.pipeline()
@@ -161,14 +158,22 @@ def delete_project(project_id, delete_files):
         pipe.delete(f"photo:{project_id}:{pid}")
     pipe.delete(f"photos:{project_id}")
     pipe.delete(f"slideshow:{project_id}")
-    pipe.delete(f"project:{project_id}")
-    pipe.delete(f"slug:{p['slug']}")
-    pipe.srem("projects", project_id)
     pipe.execute()
     if delete_files:
         d = photo_dir(project_id)
         if d.exists():
             shutil.rmtree(d)
+
+
+def delete_project(project_id, delete_files):
+    p = get_project(project_id)
+    if not p:
+        raise ValueError("專案不存在")
+    wipe_photos(project_id, delete_files=delete_files)
+    conn = r()
+    conn.delete(f"project:{project_id}")
+    conn.delete(f"slug:{p['slug']}")
+    conn.srem("projects", project_id)
     return p
 
 

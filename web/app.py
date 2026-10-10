@@ -96,9 +96,9 @@ def create_app():
             flash(str(e), "error")
             return redirect(url_for("admin_home"))
         if delete_files:
-            flash(f"已刪除「{p['name']}」的 Redis 與照片", "ok")
+            flash(f"已刪除「{p['name']}」（含 URL、Redis 與照片）", "ok")
         else:
-            flash(f"已刪除「{p['name']}」的 Redis 資料，照片檔仍留在磁碟", "ok")
+            flash(f"已刪除「{p['name']}」的 URL 與 Redis，照片檔仍留在磁碟", "ok")
         return redirect(url_for("admin_home"))
 
     @app.get("/p/<slug>/")
