@@ -17,4 +17,5 @@
 - User-facing copy lives in `config/msg.py` as bilingual `中文 / English` strings. Templates get `msg` from the Flask context processor.
 - Blank project slug = lowercase `project_name` with symbols/spaces stripped (`a-z0-9` only). Empty result (e.g. Chinese-only name) falls back to a short hex id.
 - Project folder holds optional `pjt-home.jpg` (home button cover) and `bkg-slideshow.jpg` (slideshow backdrop), plus `-sm.jpg` thumbs (3cm / ~113px square) for admin preview. Admin uploads/deletes both files; full project delete `rmtree`s the folder. Slideshow photo has ~22px Apple-style corners and 2cm inset from the screen.
-- `.btn.secondary { background: … }` shorthand wipes a later `.btn.has-cover` layer if that rule is invalid or same-specificity. Use longhands on `.btn.secondary.has-cover` so pjt actually shows.
+- Do not put `url()` in a CSS custom property on the HTML and read it from `/static/style.css`. The browser resolves the path against the stylesheet, so pjt never loads. Use a real `<img class="btn-cover">` on the project home buttons.
+- pjt/bkg fade is 0–1 (`PJT_FADE` / `BKG_FADE`): 0 = full image, 1 = fully dimmed. Buttons use overlay alpha; slideshow uses `body::before` opacity `1 - bkg_fade` over `#0b0a09`.

@@ -5,8 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ msg.slideshow_title.format(name=project.name) }}</title>
   <style>
-    html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0a09{% if project.bkg_url %} url("{{ project.bkg_url }}") center / cover no-repeat{% endif %}; color: #f4efe6; font-family: "PingFang TC", "Noto Sans TC", sans-serif; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0a09; color: #f4efe6; font-family: "PingFang TC", "Noto Sans TC", sans-serif; }
+    {% if project.bkg_url %}
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background: url("{{ project.bkg_url }}") center / cover no-repeat;
+      opacity: {{ 1 - bkg_fade }};
+    }
+    {% endif %}
     .stage {
+      position: relative;
+      z-index: 1;
       height: 100%;
       height: 100dvh;
       display: grid;

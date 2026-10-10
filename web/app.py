@@ -69,7 +69,12 @@ def create_app():
 
     @app.context_processor
     def inject_admin():
-        return {"is_admin": bool(session.get("admin")), "msg": msg}
+        return {
+            "is_admin": bool(session.get("admin")),
+            "msg": msg,
+            "pjt_fade": appsetting.pjt_fade,
+            "bkg_fade": appsetting.bkg_fade,
+        }
 
     @app.after_request
     def remember_device(resp):
