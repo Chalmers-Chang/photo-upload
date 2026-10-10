@@ -159,28 +159,31 @@
     }
 
     function placeFloaters(photos) {
-      const used = [];
+      const left = [];
+      const right = [];
       photos.forEach((p, i) => {
-        const img = document.createElement("img");
-        img.src = p.url;
-        img.alt = "";
-        img.className = "floater";
-        let left, top, ok = false;
-        for (let t = 0; t < 12; t++) {
-          const edge = Math.floor(Math.random() * 4);
-          if (edge === 0) { left = 6 + Math.random() * 88; top = 6 + Math.random() * 16; }
-          else if (edge === 1) { left = 6 + Math.random() * 88; top = 78 + Math.random() * 14; }
-          else if (edge === 2) { left = 4 + Math.random() * 16; top = 12 + Math.random() * 70; }
-          else { left = 80 + Math.random() * 16; top = 12 + Math.random() * 70; }
-          ok = used.every(([x, y]) => Math.hypot(x - left, y - top) > 12);
-          if (ok) break;
-        }
-        used.push([left, top]);
-        img.style.left = left + "%";
-        img.style.top = top + "%";
-        img.style.animationDelay = (i * 0.35) + "s";
-        result.appendChild(img);
+        (i % 2 === 0 ? left : right).push(p);
       });
+      function column(list, side) {
+        const m = list.length;
+        list.forEach((p, i) => {
+          const img = document.createElement("img");
+          img.src = p.url;
+          img.alt = "";
+          img.className = "floater";
+          img.style.top = (((i + 0.5) / m) * 72 + 8) + "%";
+          if (side === "left") {
+            img.style.left = "2.5%";
+          } else {
+            img.style.left = "auto";
+            img.style.right = "2.5%";
+          }
+          img.style.animationDelay = (i * 0.28) + "s";
+          result.appendChild(img);
+        });
+      }
+      column(left, "left");
+      column(right, "right");
     }
 
     function spinSphere(durationSec) {
