@@ -1,0 +1,38 @@
+---
+description: Record failed and successful local experience in each project folder MEMORY.md, and read those files before editing that project.
+alwaysApply: true
+---
+
+# Per-project MEMORY.md
+
+Do not dump gotchas into this rule file.
+
+When you work under a project folder that has (or should have) `MEMORY.md`, **read it first**. When something fails or a approach works, **append it there** in English, under `GOTCHA` or `TASTE`. Keep entries short and concrete.
+
+Project folders in this repo:
+
+- `dags/import_apple_calendar/MEMORY.md`
+- `dags/mysql_archive_jobs/MEMORY.md`
+- `airflow.deployment/docker-compose/MEMORY.md`
+
+## GOTCHA
+
+Tried, did not work. Include the symptom and the real fix (or why it cannot work).
+
+## TASTE
+
+Tried, worked. Include the pattern to repeat.
+
+## Format for each project MEMORY.md
+
+```markdown
+# <project folder name>
+
+## GOTCHA
+
+- ...
+
+## TASTE
+
+- ...
+```
