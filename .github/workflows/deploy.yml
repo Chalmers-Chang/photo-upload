@@ -9,6 +9,7 @@ on:
 
 env:
   IMAGE: ghcr.io/chalmers-chang/photo-upload
+  IMAGE_NGINX: ghcr.io/chalmers-chang/photo-upload-nginx
 
 defaults:
   run:
@@ -43,13 +44,27 @@ jobs:
         with:
           context: .
           file: docker-compose/Dockerfile
+          target: app
           platforms: linux/arm64
           push: true
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=app
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker-compose/Dockerfile
+          target: nginx
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE_NGINX }}:latest
+            ${{ env.IMAGE_NGINX }}:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha,scope=nginx
+          cache-to: type=gha,mode=max,scope=nginx
 
   deploy:
     needs: build

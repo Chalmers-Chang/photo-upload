@@ -1,4 +1,4 @@
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-bookworm AS app
 COPY --from=ghcr.io/astral-sh/uv:0.13.0 /uv /bin/uv
 
 WORKDIR /app
@@ -16,3 +16,6 @@ COPY config ./config
 COPY web ./web
 
 CMD ["sh", "-c", "gunicorn web.wsgi:app --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-2} --timeout ${GUNICORN_TIMEOUT:-120}"]
+
+FROM nginx:1.27-alpine AS nginx
+COPY docker-compose/nginx.conf /etc/nginx/conf.d/default.conf

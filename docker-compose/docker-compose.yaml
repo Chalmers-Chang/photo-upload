@@ -13,12 +13,11 @@ services:
       - redis
 
   nginx:
-    image: nginx:1.27-alpine
+    image: ghcr.io/chalmers-chang/photo-upload-nginx:${IMAGE_TAG:-latest}
     restart: unless-stopped
     ports:
       - "8000:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - "${HOST_PHOTO_DIR:-/Volumes/OWC Envoy Pro FX/photo-upload}:/data/photos:ro"
     depends_on:
       - app
