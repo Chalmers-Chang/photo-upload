@@ -42,6 +42,8 @@ lottery_ready = "準備抽獎… / Drawing…"
 lottery_failed = "抽獎失敗 / Draw failed"
 lottery_empty = "目前沒有可抽獎的照片 / No photos available to draw"
 lottery_winner = "恭喜 {name} 中獎，共上傳了 {n} 張照片 / Congratulations {name}, {n} photo(s) uploaded"
+lottery_back = "返回 / Back"
+lottery_again = "再抽一位 / Draw again"
 guest_name = "這位朋友 / Friend"
 
 projects = "專案 / Projects"

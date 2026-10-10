@@ -12,7 +12,7 @@
 
 - Fit photos inside the viewport (`object-fit: contain`). Do not set `width/height: 100%` or small photos get stretched.
 - Admin link lives in `base.html` (and slideshow, which does not extend base). Session cookie is permanent 30 days; `/admin` skips the login form when `session["admin"]` is set.
-- One upload = one Redis ticket (`ticket_seq` serial + `device_id` cookie). Lottery is admin-only. Sphere keeps at least 30 photos (pad by repeat). Spin angular speed is exponential decay via rAF (`ω ∝ e^{-kt}`). Winner uses slideshow contain-and-center.
+- One upload = one Redis ticket (`ticket_seq` serial + `device_id` cookie). Lottery is admin-only. Sphere keeps at least 30 photos (pad by repeat). Spin angular speed is exponential decay via rAF (`ω ∝ e^{-kt}`). Winner uses slideshow contain-and-center. After the draw, top-left Back goes to project home; bottom 「再抽一位」 resets the stage and draws again.
 - First visit with no `device_name:{id}` shows a nickname modal (`/api/profile`). Slideshow and lottery labels use that name via the photo's `device_id`.
 - User-facing copy lives in `config/msg.py` as bilingual `中文 / English` strings. Templates get `msg` from the Flask context processor.
 - Blank project slug = lowercase `project_name` with symbols/spaces stripped (`a-z0-9` only). Empty result (e.g. Chinese-only name) falls back to a short hex id.
