@@ -15,7 +15,14 @@ jobs:
 
       - name: Copy project to /opt/app
         run: |
-          rsync -a --delete \
+          echo "runner user=$(whoami)"
+          ls -ld /opt/app
+          if [ ! -w /opt/app ]; then
+            echo "/opt/app is not writable by $(whoami)"
+            echo "On the Mac Mini run: sudo chown -R $(whoami) /opt/app"
+            exit 1
+          fi
+          rsync -rlt --delete \
             --exclude '.git/' \
             --exclude '.github/' \
             --exclude '.cursor/' \
