@@ -49,8 +49,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    env:
-      DOCKER_CONFIG: ${{ runner.temp }}/docker-config
     steps:
       - uses: actions/checkout@v4
 
@@ -76,7 +74,9 @@ jobs:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          export DOCKER_CONFIG="${RUNNER_TEMP}/docker-config"
           mkdir -p "${DOCKER_CONFIG}"
+          echo "DOCKER_CONFIG=${DOCKER_CONFIG}" >> "${GITHUB_ENV}"
           echo "registry=ghcr.io"
           echo "user=${GHCR_USER}"
           echo "token set=$([ -n "${GHCR_TOKEN}" ] && echo yes || echo no)"
