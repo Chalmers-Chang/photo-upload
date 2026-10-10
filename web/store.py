@@ -9,6 +9,7 @@ from pathlib import Path
 import redis
 
 from config import appsetting
+from config import msg
 from config import redis as redis_config
 
 _slug_re = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -96,6 +97,10 @@ def make_slug():
     return uuid.uuid4().hex[:10]
 
 
+def slug_from_name(name):
+    return re.sub(r"[^a-z0-9]", "", (name or "").lower())[:64]
+
+
 def get_project(project_id):
     data = r().hgetall(f"project:{project_id}")
     if not data:
@@ -128,14 +133,20 @@ def create_project(name, slug):
     name = (name or "").strip()
     slug = (slug or "").strip().lower()
     if not name:
-        raise ValueError("請輸入專案名稱")
-    if not slug:
-        slug = make_slug()
+        raise ValueError(msg.need_project_name)
+    auto = not slug
+    if auto:
+        slug = slug_from_name(name) or make_slug()
     if not valid_slug(slug):
-        raise ValueError("slug 只能用小寫英文、數字與連字號")
+        raise ValueError(msg.bad_slug)
     conn = r()
     if conn.exists(f"slug:{slug}"):
-        raise ValueError("這個 URL slug 已被使用")
+        if auto:
+            slug = f"{slug[:53]}-{make_slug()}" if slug_from_name(name) else make_slug()
+        else:
+            raise ValueError(msg.slug_taken)
+        if conn.exists(f"slug:{slug}"):
+            raise ValueError(msg.slug_taken)
     pid = uuid.uuid4().hex
     conn.sadd("projects", pid)
     conn.hset(
@@ -185,7 +196,7 @@ def wipe_photos(project_id, delete_files):
 def delete_project(project_id, delete_files):
     p = get_project(project_id)
     if not p:
-        raise ValueError("專案不存在")
+        raise ValueError(msg.project_missing)
     wipe_photos(project_id, delete_files=delete_files)
     conn = r()
     conn.delete(f"project:{project_id}")
@@ -238,7 +249,7 @@ def nickname_of(device_id):
 def set_nickname(device_id, name):
     name = (name or "").strip()
     if not name or len(name) > 20:
-        raise ValueError("請輸入 1–20 字的稱呼")
+        raise ValueError(msg.nickname_bad)
     r().set(f"device_name:{device_id}", name)
     return name
 
@@ -373,7 +384,7 @@ def draw_lottery(project_id):
         winner = (t, photo)
         break
     if not winner:
-        raise ValueError("目前沒有可抽獎的照片")
+        raise ValueError(msg.lottery_empty)
     t, photo = winner
     others = device_photos(project_id, t["device_id"], exclude=photo["id"])
     return {

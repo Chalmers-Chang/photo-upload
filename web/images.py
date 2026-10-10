@@ -4,6 +4,7 @@ from pathlib import Path
 from PIL import Image, ImageOps
 
 from config import appsetting
+from config import msg
 
 try:
     from pillow_heif import register_heif_opener
@@ -17,7 +18,7 @@ def save_jpeg(upload, dest: Path):
     dest.parent.mkdir(parents=True, exist_ok=True)
     data = upload.read()
     if not data:
-        raise ValueError("沒有讀到檔案")
+        raise ValueError(msg.empty_file)
     edge = appsetting.jpeg_max_edge
     img = Image.open(io.BytesIO(data))
     if (img.format or "").upper() == "JPEG":

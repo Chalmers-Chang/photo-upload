@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Admin 登入{% endblock %}
+{% block title %}{{ msg.admin_login_title }}{% endblock %}
 {% block body %}
   <div class="login">
-    <h1>Admin</h1>
+    <h1>{{ msg.admin }}</h1>
     {% if error %}<p class="flash error">{{ error }}</p>{% endif %}
     <form class="stack" method="post">
-      <label>帳號</label>
+      <label>{{ msg.username }}</label>
       <input name="username" autocomplete="username" required>
-      <label>密碼</label>
+      <label>{{ msg.password }}</label>
       <input name="password" type="password" autocomplete="current-password" required>
-      <button class="btn" type="submit">登入</button>
+      <button class="btn" type="submit">{{ msg.login }}</button>
     </form>
   </div>
 {% endblock %}

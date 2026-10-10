@@ -17,6 +17,7 @@ from flask import (
 
 from config import admin as admin_config
 from config import appsetting
+from config import msg
 from web import images, store
 
 
@@ -68,7 +69,7 @@ def create_app():
 
     @app.context_processor
     def inject_admin():
-        return {"is_admin": bool(session.get("admin"))}
+        return {"is_admin": bool(session.get("admin")), "msg": msg}
 
     @app.after_request
     def remember_device(resp):
@@ -112,7 +113,7 @@ def create_app():
                 session["admin"] = True
                 session.permanent = True
                 return redirect(nxt)
-            error = "帳號或密碼錯誤"
+            error = msg.login_failed
         return render_template("admin_login.html", error=error)
 
     @app.post("/admin/logout")
@@ -137,7 +138,7 @@ def create_app():
         except ValueError as e:
             flash(str(e), "error")
             return redirect(url_for("admin_home"))
-        flash(f"已建立「{p['name']}」", "ok")
+        flash(msg.project_created.format(name=p["name"]), "ok")
         return redirect(url_for("admin_home"))
 
     @app.post("/admin/projects/<project_id>/delete")
@@ -151,9 +152,9 @@ def create_app():
             flash(str(e), "error")
             return redirect(url_for("admin_home"))
         if delete_files:
-            flash(f"已刪除「{p['name']}」（含 URL、Redis 與照片）", "ok")
+            flash(msg.project_deleted.format(name=p["name"]), "ok")
         else:
-            flash(f"已刪除「{p['name']}」的 URL 與 Redis，照片檔仍留在磁碟", "ok")
+            flash(msg.project_deleted_redis.format(name=p["name"]), "ok")
         return redirect(url_for("admin_home"))
 
     @app.get("/p/<slug>/")
@@ -167,24 +168,24 @@ def create_app():
             f = request.files.get("photo")
             caption = (request.form.get("caption") or "").strip()
             if not f or not f.filename:
-                flash("請選擇照片", "error")
+                flash(msg.need_photo, "error")
                 return redirect(request.path)
             if len(caption) > 500:
-                flash("文字太長（最多 500 字）", "error")
+                flash(msg.caption_too_long, "error")
                 return redirect(request.path)
             photo_id = uuid.uuid4().hex
             dest = store.photo_path(project["id"], photo_id)
             try:
                 images.save_jpeg(f, dest)
             except Exception:
-                flash("無法讀取這張圖片，請改用 JPG / PNG / HEIC", "error")
+                flash(msg.bad_image, "error")
                 dest.unlink(missing_ok=True)
                 return redirect(request.path)
             did, _ = device_id()
             serial, chances = store.add_photo(
                 project["id"], photo_id, caption, did
             )
-            flash(f"抽獎機會 +1，目前累計 {chances} 次（序號 {serial}）", "ok")
+            flash(msg.upload_ok.format(chances=chances, serial=serial), "ok")
             return redirect(request.path)
         return render_template("upload.html", project=project)
 

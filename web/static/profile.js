@@ -27,7 +27,7 @@ async function ensureNickname() {
     });
     const out = await save.json();
     if (!save.ok) {
-      err.textContent = out.error || "無法儲存稱呼";
+      err.textContent = out.error || modal.dataset.saveError;
       err.hidden = false;
       return;
     }

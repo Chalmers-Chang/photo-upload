@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>抽獎 · {{ project.name }}</title>
+  <title>{{ msg.lottery_title.format(name=project.name) }}</title>
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0a09; color: #f4efe6; font-family: "PingFang TC", "Noto Sans TC", sans-serif; }
     .admin-btn {
@@ -101,14 +101,17 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
 </head>
 <body>
-  <a class="admin-btn" href="{{ url_for('admin_home') }}">Admin</a>
+  <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
   {% include "_name_modal.html" %}
   <div class="stage">
-    <p class="msg" id="status">準備抽獎…</p>
+    <p class="msg" id="status">{{ msg.lottery_ready }}</p>
     <div class="scene" id="scene" hidden>
       <div class="sphere" id="sphere"></div>
     </div>
-    <div class="result" id="result" hidden>
+    <div class="result" id="result" hidden
+         data-winner-tpl="{{ msg.lottery_winner }}"
+         data-guest="{{ msg.guest_name }}"
+         data-failed="{{ msg.lottery_failed }}">
       <div class="winner-wrap"><img id="winner" alt=""></div>
       <div class="label" id="label"></div>
     </div>
@@ -212,9 +215,11 @@
       winner.src = data.winner.url;
       void winner.offsetWidth;
       winner.classList.add("pop");
-      const who = (data.winner.nickname || "").trim() || "這位朋友";
+      const who = (data.winner.nickname || "").trim() || result.dataset.guest;
       const n = data.winner.upload_count || 1;
-      label.textContent = "恭喜 " + who + " 中獎，共上傳了 " + n + " 張照片";
+      label.textContent = result.dataset.winnerTpl
+        .replaceAll("{name}", who)
+        .replaceAll("{n}", String(n));
       placeFloaters(data.device_photos || []);
     }
 
@@ -222,7 +227,7 @@
       const res = await fetch(drawUrl, { method: "POST", cache: "no-store" });
       const data = await res.json();
       if (!res.ok) {
-        status.textContent = data.error || "抽獎失敗";
+        status.textContent = data.error || result.dataset.failed;
         return;
       }
       status.hidden = true;

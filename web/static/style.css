@@ -58,7 +58,8 @@ h1 { font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.03em; margin: 0 0 12p
   cursor: pointer;
   width: 100%;
   padding: 22px 20px;
-  font-size: 22px;
+  font-size: 18px;
+  line-height: 1.35;
   border-radius: 16px;
   background: var(--ink);
   color: var(--card);
