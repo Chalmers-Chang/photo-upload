@@ -17,5 +17,5 @@ gunicorn_timeout = int(os.environ.get("GUNICORN_TIMEOUT", "120"))
 lottery_seconds = int(os.environ.get("LOTTERY_SECONDS", "10"))
 lottery_sphere_max = int(os.environ.get("LOTTERY_SPHERE_MAX", "60"))
 # 0 = 原圖，1 = 完全淡掉
-pjt_fade = min(1.0, max(0.0, float(os.environ.get("PJT_FADE", "0.42"))))
-bkg_fade = min(1.0, max(0.0, float(os.environ.get("BKG_FADE", "0.45"))))
+pjt_fade = min(1.0, max(0.0, float(os.environ.get("PJT_FADE", "0.6"))))
+bkg_fade = min(1.0, max(0.0, float(os.environ.get("BKG_FADE", "0.6"))))
