@@ -72,8 +72,7 @@ def create_app():
         return {
             "is_admin": bool(session.get("admin")),
             "msg": msg,
-            "pjt_fade": appsetting.pjt_fade,
-            "bkg_fade": appsetting.bkg_fade,
+            "cfg": appsetting,
         }
 
     @app.after_request

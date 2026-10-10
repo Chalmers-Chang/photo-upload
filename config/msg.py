@@ -9,7 +9,7 @@ login_failed = "帳號或密碼錯誤 / Wrong username or password"
 site_title = "照片 / Photos"
 home_lead = "用專案連結上傳或輪播。管理請走右上角。 / Use a project link to upload or play the slideshow. Admin is at the top right."
 
-project_home_lead = "開始分享今天的照片吧～會有小驚喜唷！\nStart sharing your photos! There will be a surprise!"
+project_home_lead = "開始分享今天的照片吧～\n會有小驚喜唷！\nStart sharing your photos!\nThere will be a surprise!"
 upload_photos = "上傳照片\nUpload photos"
 play_slideshow = "輪播照片\nSlideshow"
 lottery = "抽獎\nLottery"

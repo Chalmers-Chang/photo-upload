@@ -40,14 +40,22 @@
     backdrop-filter: blur(28px) saturate(180%);
     -webkit-backdrop-filter: blur(28px) saturate(180%);
   }
-  .pjt-stage .btn { white-space: pre-line; }
+  .pjt-stage h1 { opacity: {{ 1 - cfg.title_fade }}; }
+  .pjt-stage .btn {
+    white-space: pre-line;
+    opacity: {{ 1 - cfg.button_fade }};
+  }
+  .pjt-stage .btn:not(.secondary):not(.lottery) {
+    background: {{ cfg.upload_btn_color }};
+    color: #1c1915;
+  }
 </style>
 {% endblock %}
 {% block body %}
 <div class="pjt-stage">
   {% if project.pjt_url %}
   <img src="{{ project.pjt_url }}" alt="">
-  <div class="pjt-fade" style="opacity: {{ pjt_fade }}"></div>
+  <div class="pjt-fade" style="opacity: {{ cfg.pjt_fade }}"></div>
   {% endif %}
   <div class="pjt-ui">
     <div class="glass">
