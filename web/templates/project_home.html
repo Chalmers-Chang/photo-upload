@@ -5,8 +5,12 @@
   <h1>{{ project.name }}</h1>
   <p class="lead">{{ msg.project_home_lead }}</p>
   <div class="actions">
-    <a class="btn" href="{{ url_for('upload', slug=project.slug) }}">{{ msg.upload_photos }}</a>
-    <a class="btn secondary" href="{{ url_for('slideshow', slug=project.slug) }}">{{ msg.play_slideshow }}</a>
+    <a class="btn{% if project.pjt_url %} has-cover{% endif %}"
+       {% if project.pjt_url %}style="--cover: url('{{ project.pjt_url }}')"{% endif %}
+       href="{{ url_for('upload', slug=project.slug) }}">{{ msg.upload_photos }}</a>
+    <a class="btn secondary{% if project.pjt_url %} has-cover{% endif %}"
+       {% if project.pjt_url %}style="--cover: url('{{ project.pjt_url }}')"{% endif %}
+       href="{{ url_for('slideshow', slug=project.slug) }}">{{ msg.play_slideshow }}</a>
     {% if is_admin %}
       <a class="btn lottery" href="{{ url_for('lottery', slug=project.slug) }}">{{ msg.lottery }}</a>
     {% endif %}

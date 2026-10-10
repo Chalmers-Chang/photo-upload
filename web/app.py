@@ -157,6 +157,42 @@ def create_app():
             flash(msg.project_deleted_redis.format(name=p["name"]), "ok")
         return redirect(url_for("admin_home"))
 
+    @app.post("/admin/projects/<project_id>/asset/<kind>")
+    @admin_required
+    def admin_save_asset(project_id, kind):
+        if not store.get_project(project_id):
+            flash(msg.project_missing, "error")
+            return redirect(url_for("admin_home"))
+        f = request.files.get("photo")
+        if not f or not f.filename:
+            flash(msg.need_photo, "error")
+            return redirect(url_for("admin_home"))
+        try:
+            dest = store.asset_path(project_id, kind)
+            images.save_jpeg(f, dest)
+        except ValueError as e:
+            flash(str(e), "error")
+            return redirect(url_for("admin_home"))
+        except Exception:
+            flash(msg.bad_image, "error")
+            return redirect(url_for("admin_home"))
+        flash(msg.asset_saved, "ok")
+        return redirect(url_for("admin_home"))
+
+    @app.post("/admin/projects/<project_id>/asset/<kind>/delete")
+    @admin_required
+    def admin_delete_asset(project_id, kind):
+        if not store.get_project(project_id):
+            flash(msg.project_missing, "error")
+            return redirect(url_for("admin_home"))
+        try:
+            store.asset_path(project_id, kind).unlink(missing_ok=True)
+        except ValueError as e:
+            flash(str(e), "error")
+            return redirect(url_for("admin_home"))
+        flash(msg.asset_removed, "ok")
+        return redirect(url_for("admin_home"))
+
     @app.get("/p/<slug>/")
     def project_home(slug):
         return render_template("project_home.html", project=load_project(slug))

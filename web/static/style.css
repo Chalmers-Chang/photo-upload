@@ -68,6 +68,37 @@ h1 { font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.03em; margin: 0 0 12p
 .btn.danger { background: var(--err); color: #fff; font-size: 15px; padding: 10px 12px; }
 .btn.lottery { background: var(--accent); }
 .btn.small { font-size: 15px; padding: 10px 14px; width: auto; }
+.btn.has-cover {
+  min-height: 92px;
+  color: #fffcf7;
+  border: 0;
+  background:
+    linear-gradient(rgba(28, 25, 21, 0.42), rgba(28, 25, 21, 0.42)),
+    var(--cover) center / cover no-repeat;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
+}
+.asset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+.asset-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+.asset-thumb {
+  width: 100%;
+  height: 88px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+@media (max-width: 520px) {
+  .asset-grid { grid-template-columns: 1fr; }
+}
 
 form.stack { display: grid; gap: 12px; }
 label { font-size: 14px; color: var(--muted); }

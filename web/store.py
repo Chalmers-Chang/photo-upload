@@ -89,6 +89,35 @@ def photo_url(project_id, photo_id):
     return f"/photos/{project_id}/{photo_id}.jpg"
 
 
+ASSETS = {
+    "pjt": "pjt-home.jpg",
+    "bkg": "bkg-slideshow.jpg",
+}
+
+
+def asset_path(project_id, kind):
+    name = ASSETS.get(kind)
+    if not name:
+        raise ValueError(msg.bad_asset)
+    return photo_dir(project_id) / name
+
+
+def asset_url(project_id, kind):
+    path = asset_path(project_id, kind)
+    if not path.is_file():
+        return None
+    return f"/photos/{project_id}/{path.name}?t={int(path.stat().st_mtime)}"
+
+
+def attach_assets(project):
+    if not project:
+        return project
+    pid = project["id"]
+    project["pjt_url"] = asset_url(pid, "pjt")
+    project["bkg_url"] = asset_url(pid, "bkg")
+    return project
+
+
 def valid_slug(slug):
     return bool(slug) and len(slug) <= 64 and _slug_re.match(slug)
 
@@ -106,7 +135,7 @@ def get_project(project_id):
     if not data:
         return None
     data["id"] = project_id
-    return data
+    return attach_assets(data)
 
 
 def project_by_slug(slug):

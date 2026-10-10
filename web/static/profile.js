@@ -1,7 +1,9 @@
-function photoCredit(nickname, caption) {
+function photoCredit(nickname, caption, tpl) {
   const n = (nickname || "").trim();
   const c = (caption || "").trim();
-  if (n && c) return n + "  ·  " + c;
+  if (n && c) {
+    return (tpl || "{name}：{caption}").replaceAll("{name}", n).replaceAll("{caption}", c);
+  }
   return n || c;
 }
 
