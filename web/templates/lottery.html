@@ -57,7 +57,7 @@
       position: absolute;
       top: 50%;
       left: 50%;
-      transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%) scale(0.12);
       max-width: 100%;
       max-height: 100%;
       width: auto;
@@ -66,6 +66,13 @@
       object-position: center;
       border-radius: 16px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+    }
+    .winner-wrap img.pop {
+      animation: grow 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes grow {
+      from { transform: translate(-50%, -50%) scale(0.12); }
+      to { transform: translate(-50%, -50%) scale(1); }
     }
     .label {
       position: relative;
@@ -198,7 +205,10 @@
     function showWinner(data) {
       scene.hidden = true;
       result.hidden = false;
+      winner.classList.remove("pop");
       winner.src = data.winner.url;
+      void winner.offsetWidth;
+      winner.classList.add("pop");
       const who = (data.winner.nickname || "").trim() || "這位朋友";
       const n = data.winner.upload_count || 1;
       label.textContent = "恭喜 " + who + " 中獎，共上傳了 " + n + " 張照片";
