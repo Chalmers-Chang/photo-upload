@@ -66,11 +66,7 @@ jobs:
             "${GITHUB_WORKSPACE}/" "$dest/"
 
       - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Start stack
         working-directory: /opt/app/photo-upload/docker-compose
