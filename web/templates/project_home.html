@@ -32,13 +32,16 @@
   }
   .glass {
     width: min(720px, 100%);
-    padding: 2cm;
+    padding: {{ cfg.glass_pad_cm }}cm;
     border-radius: 28px;
     background: rgba(255, 255, 255, 0.42);
     border: 1px solid rgba(255, 255, 255, 0.55);
     box-shadow: 0 8px 32px rgba(28, 25, 21, 0.08);
     backdrop-filter: blur(28px) saturate(180%);
     -webkit-backdrop-filter: blur(28px) saturate(180%);
+  }
+  @media (max-width: 640px) {
+    .glass { padding: {{ cfg.glass_pad_mobile_cm }}cm; }
   }
   .pjt-stage h1 { opacity: {{ 1 - cfg.title_fade }}; }
   .pjt-stage .btn {
