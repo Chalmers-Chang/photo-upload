@@ -12,5 +12,5 @@
 
 - Fit photos inside the viewport (`object-fit: contain`). Do not set `width/height: 100%` or small photos get stretched.
 - Admin link lives in `base.html` (and slideshow, which does not extend base). Session cookie is permanent 30 days; `/admin` skips the login form when `session["admin"]` is set.
-- One upload = one Redis ticket (`ticket_seq` serial + `device_id` cookie). Lottery is admin-only. Sphere keeps ~16 photos (pad by repeat if fewer). Winner uses the same contain-and-center layout as slideshow.
+- One upload = one Redis ticket (`ticket_seq` serial + `device_id` cookie). Lottery is admin-only. Sphere keeps at least 30 photos (pad by repeat). Spin angular speed is exponential decay via rAF (`ω ∝ e^{-kt}`). Winner uses slideshow contain-and-center.
 - First visit with no `device_name:{id}` shows a nickname modal (`/api/profile`). Slideshow and lottery labels use that name via the photo's `device_id`.

@@ -28,19 +28,12 @@
       height: 1px;
       transform-style: preserve-3d;
     }
-    .sphere.spin {
-      animation: spin {{ seconds }}s linear forwards;
-    }
-    @keyframes spin {
-      from { transform: rotateX(-16deg) rotateY(0deg); }
-      to { transform: rotateX(22deg) rotateY(1080deg); }
-    }
     .sphere img {
       position: absolute;
       left: 0;
       top: 0;
-      width: 76px;
-      height: 76px;
+      width: 64px;
+      height: 64px;
       object-fit: cover;
       border-radius: 10px;
       backface-visibility: hidden;
@@ -183,6 +176,25 @@
       });
     }
 
+    function spinSphere(durationSec) {
+      const k = -Math.log(0.02) / durationSec;
+      const yMax = 2880;
+      const xFrom = -18;
+      const xTo = 16;
+      const t0 = performance.now();
+      return new Promise((resolve) => {
+        function frame(now) {
+          const t = Math.min((now - t0) / 1000, durationSec);
+          const u = 1 - Math.exp(-k * t);
+          sphere.style.transform =
+            "rotateX(" + (xFrom + (xTo - xFrom) * u) + "deg) rotateY(" + (yMax * u) + "deg)";
+          if (t < durationSec) requestAnimationFrame(frame);
+          else resolve();
+        }
+        requestAnimationFrame(frame);
+      });
+    }
+
     function showWinner(data) {
       scene.hidden = true;
       result.hidden = false;
@@ -204,8 +216,8 @@
       const photos = data.sphere && data.sphere.length ? data.sphere : [data.winner];
       layoutSphere(photos);
       scene.hidden = false;
-      sphere.classList.add("spin");
-      window.setTimeout(() => showWinner(data), (data.seconds || seconds) * 1000);
+      await spinSphere(data.seconds || seconds);
+      showWinner(data);
     }
 
     run();
