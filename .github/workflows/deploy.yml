@@ -49,6 +49,8 @@ jobs:
     permissions:
       contents: read
       packages: read
+    env:
+      DOCKER_CONFIG: ${{ runner.temp }}/docker-config
     steps:
       - uses: actions/checkout@v4
 
@@ -74,9 +76,11 @@ jobs:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          mkdir -p "${DOCKER_CONFIG}"
           echo "registry=ghcr.io"
           echo "user=${GHCR_USER}"
           echo "token set=$([ -n "${GHCR_TOKEN}" ] && echo yes || echo no)"
+          echo "docker config=${DOCKER_CONFIG}"
           echo "checking ghcr.io ..."
           curl -sS -o /dev/null -w "ghcr.io http=%{http_code} time=%{time_total}s\n" --max-time 15 https://ghcr.io/v2/ || true
           echo "docker login starting ..."
