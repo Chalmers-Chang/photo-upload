@@ -1,7 +1,15 @@
 {% extends "base.html" %}
 {% block title %}{{ msg.upload_page_title.format(name=project.name) }}{% endblock %}
+{% block extra_head %}
+<style>
+  .wrap.upload {
+    width: min(720px, 100%);
+    padding: {{ cfg.upload_pad_cm }}cm;
+  }
+</style>
+{% endblock %}
 {% block body %}
-<div class="wrap">
+<div class="wrap upload">
   <p class="meta"><a href="{{ url_for('project_home', slug=project.slug) }}">← {{ project.name }}</a></p>
   <h1>{{ msg.upload_title }}</h1>
   {% for category, message in get_flashed_messages(with_categories=true) %}
