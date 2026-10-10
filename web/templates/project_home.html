@@ -1,24 +1,15 @@
 {% extends "base.html" %}
 {% block title %}{{ project.name }}{% endblock %}
 {% block body %}
+{% if project.pjt_url %}
+<img class="page-bg" src="{{ project.pjt_url }}" alt="" style="opacity: {{ 1 - pjt_fade }}">
+{% endif %}
 <div class="wrap">
   <h1>{{ project.name }}</h1>
   <p class="lead">{{ msg.project_home_lead }}</p>
   <div class="actions">
-    <a class="btn{% if project.pjt_url %} has-cover{% endif %}"
-       href="{{ url_for('upload', slug=project.slug) }}">
-      {% if project.pjt_url %}
-      <img class="btn-cover" src="{{ project.pjt_url }}" alt="" style="opacity: {{ 1 - pjt_fade }}">
-      {% endif %}
-      <span>{{ msg.upload_photos }}</span>
-    </a>
-    <a class="btn secondary{% if project.pjt_url %} has-cover{% endif %}"
-       href="{{ url_for('slideshow', slug=project.slug) }}">
-      {% if project.pjt_url %}
-      <img class="btn-cover" src="{{ project.pjt_url }}" alt="" style="opacity: {{ 1 - pjt_fade }}">
-      {% endif %}
-      <span>{{ msg.play_slideshow }}</span>
-    </a>
+    <a class="btn" href="{{ url_for('upload', slug=project.slug) }}">{{ msg.upload_photos }}</a>
+    <a class="btn secondary" href="{{ url_for('slideshow', slug=project.slug) }}">{{ msg.play_slideshow }}</a>
     {% if is_admin %}
       <a class="btn lottery" href="{{ url_for('lottery', slug=project.slug) }}">{{ msg.lottery }}</a>
     {% endif %}
