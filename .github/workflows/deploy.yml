@@ -7,9 +7,6 @@ on:
       - "feature/**"
   workflow_dispatch:
 
-env:
-  IMAGE: ghcr.io/chalmers-chang/photo-upload
-
 defaults:
   run:
     shell: bash --noprofile --norc -euo pipefail {0}
@@ -17,17 +14,8 @@ defaults:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v4
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: docker/setup-qemu-action@v3
 
@@ -38,17 +26,19 @@ jobs:
           context: .
           file: docker-compose/Dockerfile
           platforms: linux/arm64
-          push: true
-          tags: |
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ github.sha }}
+          push: false
+          tags: photo-upload:${{ github.sha }}
+          outputs: type=docker,dest=photo-upload.tar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: photo-upload-image
+          path: photo-upload.tar
+          retention-days: 1
 
   deploy:
     needs: build
     runs-on: [self-hosted, macOS, ARM64]
-    permissions:
-      contents: read
-      packages: read
     steps:
       - uses: actions/checkout@v4
 
@@ -69,11 +59,16 @@ jobs:
             --exclude '.cursor/' \
             "${GITHUB_WORKSPACE}/" "$dest/"
 
-      - name: Login to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - uses: actions/download-artifact@v4
+        with:
+          name: photo-upload-image
+          path: /tmp/photo-upload-image
+
+      - name: Load image
+        run: docker load -i /tmp/photo-upload-image/photo-upload.tar
 
       - name: Start stack
         working-directory: /opt/app/photo-upload/docker-compose
         env:
           IMAGE_TAG: ${{ github.sha }}
-        run: docker compose pull && docker compose up -d
+        run: docker compose up -d --pull never
