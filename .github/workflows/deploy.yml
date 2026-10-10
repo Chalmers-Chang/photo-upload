@@ -70,7 +70,18 @@ jobs:
             "${GITHUB_WORKSPACE}/" "$dest/"
 
       - name: Login to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "registry=ghcr.io"
+          echo "user=${GHCR_USER}"
+          echo "token set=$([ -n "${GHCR_TOKEN}" ] && echo yes || echo no)"
+          echo "checking ghcr.io ..."
+          curl -sS -o /dev/null -w "ghcr.io http=%{http_code} time=%{time_total}s\n" --max-time 15 https://ghcr.io/v2/ || true
+          echo "docker login starting ..."
+          echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USER}" --password-stdin
+          echo "docker login finished"
 
       - name: Start stack
         working-directory: /opt/app/photo-upload/docker-compose
