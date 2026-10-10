@@ -40,6 +40,7 @@
     backdrop-filter: blur(28px) saturate(180%);
     -webkit-backdrop-filter: blur(28px) saturate(180%);
   }
+  .pjt-stage .btn { white-space: pre-line; }
 </style>
 {% endblock %}
 {% block body %}
@@ -51,7 +52,7 @@
   <div class="pjt-ui">
     <div class="glass">
       <h1>{{ project.name }}</h1>
-      <p class="lead">{{ msg.project_home_lead }}</p>
+      <p class="lead" style="white-space: pre-line">{{ msg.project_home_lead }}</p>
       <div class="actions">
         <a class="btn" href="{{ url_for('upload', slug=project.slug) }}">{{ msg.upload_photos }}</a>
         <a class="btn secondary" href="{{ url_for('slideshow', slug=project.slug) }}">{{ msg.play_slideshow }}</a>
