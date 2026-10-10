@@ -65,6 +65,7 @@ h1 { font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.03em; margin: 0 0 12p
 }
 .btn.secondary { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
 .btn.danger { background: var(--err); color: #fff; font-size: 15px; padding: 10px 12px; }
+.btn.lottery { background: var(--accent); }
 .btn.small { font-size: 15px; padding: 10px 14px; width: auto; }
 
 form.stack { display: grid; gap: 12px; }

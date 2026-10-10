@@ -6,6 +6,7 @@ from flask import (
     Flask,
     abort,
     flash,
+    g,
     jsonify,
     redirect,
     render_template,
@@ -42,9 +43,56 @@ def create_app():
             abort(404)
         return p
 
+    def device_id():
+        if getattr(g, "device_id", None):
+            return g.device_id, g.device_id_new
+        did = request.cookies.get("device_id") or ""
+        if did and len(did) <= 64:
+            g.device_id = did
+            g.device_id_new = False
+            return did, False
+        g.device_id = uuid.uuid4().hex
+        g.device_id_new = True
+        return g.device_id, True
+
+    def with_device_cookie(resp, did, is_new):
+        if is_new:
+            resp.set_cookie(
+                "device_id",
+                did,
+                max_age=60 * 60 * 24 * 400,
+                httponly=True,
+                samesite="Lax",
+            )
+        return resp
+
+    @app.context_processor
+    def inject_admin():
+        return {"is_admin": bool(session.get("admin"))}
+
+    @app.after_request
+    def remember_device(resp):
+        did, is_new = device_id()
+        return with_device_cookie(resp, did, is_new)
+
     @app.get("/health")
     def health():
         return {"ok": True}
+
+    @app.get("/api/profile")
+    def profile_get():
+        did, _ = device_id()
+        return {"nickname": store.nickname_of(did)}
+
+    @app.post("/api/profile")
+    def profile_post():
+        did, _ = device_id()
+        payload = request.get_json(silent=True) or request.form
+        try:
+            name = store.set_nickname(did, payload.get("nickname"))
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        return jsonify({"nickname": name})
 
     @app.get("/")
     def index():
@@ -132,8 +180,11 @@ def create_app():
                 flash("無法讀取這張圖片，請改用 JPG / PNG / HEIC", "error")
                 dest.unlink(missing_ok=True)
                 return redirect(request.path)
-            store.add_photo(project["id"], photo_id, caption)
-            flash("已上傳", "ok")
+            did, _ = device_id()
+            serial, chances = store.add_photo(
+                project["id"], photo_id, caption, did
+            )
+            flash(f"抽獎機會 +1，目前累計 {chances} 次（序號 {serial}）", "ok")
             return redirect(request.path)
         return render_template("upload.html", project=project)
 
@@ -145,5 +196,23 @@ def create_app():
     def slideshow_api(slug):
         project = load_project(slug)
         return jsonify(store.slideshow_state(project["id"]))
+
+    @app.get("/p/<slug>/lottery")
+    @admin_required
+    def lottery(slug):
+        return render_template(
+            "lottery.html",
+            project=load_project(slug),
+            seconds=appsetting.lottery_seconds,
+        )
+
+    @app.post("/p/<slug>/api/lottery/draw")
+    @admin_required
+    def lottery_draw(slug):
+        project = load_project(slug)
+        try:
+            return jsonify(store.draw_lottery(project["id"]))
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
 
     return app

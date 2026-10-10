@@ -7,6 +7,9 @@
   <div class="actions">
     <a class="btn" href="{{ url_for('upload', slug=project.slug) }}">上傳照片</a>
     <a class="btn secondary" href="{{ url_for('slideshow', slug=project.slug) }}">輪播照片</a>
+    {% if is_admin %}
+      <a class="btn lottery" href="{{ url_for('lottery', slug=project.slug) }}">抽獎</a>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

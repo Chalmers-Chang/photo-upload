@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}photo-upload{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
 </head>
 <body>
   <div class="topbar">
     <a class="admin-btn" href="{{ url_for('admin_home') }}">Admin</a>
   </div>
   {% block body %}{% endblock %}
+  {% include "_name_modal.html" %}
 </body>
 </html>

@@ -1,4 +1,5 @@
 import json
+import random
 import re
 import shutil
 import time
@@ -150,6 +151,21 @@ def create_project(name, slug):
     return get_project(pid)
 
 
+def wipe_tickets(project_id):
+    conn = r()
+    serials = conn.zrange(f"tickets:{project_id}", 0, -1)
+    devices = conn.smembers(f"devices:{project_id}")
+    pipe = conn.pipeline()
+    for serial in serials:
+        pipe.delete(f"ticket:{project_id}:{serial}")
+    pipe.delete(f"tickets:{project_id}")
+    pipe.delete(f"ticket_seq:{project_id}")
+    for device_id in devices:
+        pipe.delete(f"device_photos:{project_id}:{device_id}")
+    pipe.delete(f"devices:{project_id}")
+    pipe.execute()
+
+
 def wipe_photos(project_id, delete_files):
     conn = r()
     ids = conn.zrange(f"photos:{project_id}", 0, -1)
@@ -159,6 +175,7 @@ def wipe_photos(project_id, delete_files):
     pipe.delete(f"photos:{project_id}")
     pipe.delete(f"slideshow:{project_id}")
     pipe.execute()
+    wipe_tickets(project_id)
     if delete_files:
         d = photo_dir(project_id)
         if d.exists():
@@ -177,15 +194,53 @@ def delete_project(project_id, delete_files):
     return p
 
 
-def add_photo(project_id, photo_id, caption):
+def add_ticket(project_id, photo_id, device_id):
+    now = time.time()
+    ttl = ttl_seconds()
+    conn = r()
+    serial = f"{conn.incr(f'ticket_seq:{project_id}'):06d}"
+    conn.set(
+        f"ticket:{project_id}:{serial}",
+        json.dumps(
+            {"photo_id": photo_id, "device_id": device_id, "ts": now},
+            ensure_ascii=False,
+        ),
+        ex=ttl,
+    )
+    conn.zadd(f"tickets:{project_id}", {serial: now})
+    conn.sadd(f"devices:{project_id}", device_id)
+    conn.zadd(f"device_photos:{project_id}:{device_id}", {photo_id: now})
+    count = conn.zcard(f"device_photos:{project_id}:{device_id}")
+    return serial, int(count)
+
+
+def add_photo(project_id, photo_id, caption, device_id):
     now = time.time()
     conn = r()
     conn.set(
         f"photo:{project_id}:{photo_id}",
-        json.dumps({"caption": caption, "ts": now}, ensure_ascii=False),
+        json.dumps(
+            {"caption": caption, "ts": now, "device_id": device_id},
+            ensure_ascii=False,
+        ),
         ex=ttl_seconds(),
     )
     conn.zadd(f"photos:{project_id}", {photo_id: now})
+    return add_ticket(project_id, photo_id, device_id)
+
+
+def nickname_of(device_id):
+    if not device_id:
+        return ""
+    return r().get(f"device_name:{device_id}") or ""
+
+
+def set_nickname(device_id, name):
+    name = (name or "").strip()
+    if not name or len(name) > 20:
+        raise ValueError("請輸入 1–20 字的稱呼")
+    r().set(f"device_name:{device_id}", name)
+    return name
 
 
 def load_photo(project_id, photo_id):
@@ -195,6 +250,7 @@ def load_photo(project_id, photo_id):
     data = json.loads(raw)
     data["id"] = photo_id
     data["url"] = photo_url(project_id, photo_id)
+    data["nickname"] = nickname_of(data.get("device_id"))
     return data
 
 
@@ -246,8 +302,82 @@ def slideshow_state(project_id):
             "photo_id": photo_id,
             "url": item["url"],
             "caption": item.get("caption") or "",
+            "nickname": item.get("nickname") or "",
             "server_now": float(server_now),
             "show_until": float(show_until),
             "interval": int(float(interval)),
         }
     return _empty_state(time.time(), appsetting.slideshow_interval)
+
+
+def _ticket(project_id, serial):
+    raw = r().get(f"ticket:{project_id}:{serial}")
+    if not raw:
+        return None
+    data = json.loads(raw)
+    data["serial"] = serial
+    return data
+
+
+def drop_ticket(project_id, serial):
+    t = _ticket(project_id, serial)
+    conn = r()
+    conn.zrem(f"tickets:{project_id}", serial)
+    conn.delete(f"ticket:{project_id}:{serial}")
+    if t:
+        conn.zrem(f"device_photos:{project_id}:{t.get('device_id')}", t.get("photo_id"))
+
+
+def device_photos(project_id, device_id, exclude=None):
+    ids = r().zrange(f"device_photos:{project_id}:{device_id}", 0, -1)
+    out = []
+    for pid in ids:
+        if exclude and pid == exclude:
+            continue
+        item = load_photo(project_id, pid)
+        if item is None:
+            r().zrem(f"device_photos:{project_id}:{device_id}", pid)
+            continue
+        out.append({"id": item["id"], "url": item["url"]})
+    return out
+
+
+def sphere_photos(project_id, limit):
+    items = sweep_expired(project_id)
+    if len(items) > limit:
+        items = random.sample(items, limit)
+    return [{"id": i["id"], "url": i["url"]} for i in items]
+
+
+def draw_lottery(project_id):
+    serials = list(r().zrange(f"tickets:{project_id}", 0, -1))
+    random.shuffle(serials)
+    winner = None
+    for serial in serials:
+        t = _ticket(project_id, serial)
+        if not t:
+            drop_ticket(project_id, serial)
+            continue
+        photo = load_photo(project_id, t["photo_id"])
+        if photo is None:
+            drop_ticket(project_id, serial)
+            continue
+        winner = (t, photo)
+        break
+    if not winner:
+        raise ValueError("目前沒有可抽獎的照片")
+    t, photo = winner
+    return {
+        "serial": t["serial"],
+        "seconds": appsetting.lottery_seconds,
+        "winner": {
+            "id": photo["id"],
+            "url": photo["url"],
+            "caption": photo.get("caption") or "",
+            "nickname": photo.get("nickname") or "",
+        },
+        "device_photos": device_photos(
+            project_id, t["device_id"], exclude=photo["id"]
+        ),
+        "sphere": sphere_photos(project_id, appsetting.lottery_sphere_max),
+    }

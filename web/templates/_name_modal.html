@@ -1,0 +1,12 @@
+<div id="name-modal" class="name-modal" hidden>
+  <div class="name-modal-card" role="dialog" aria-modal="true" aria-labelledby="name-modal-title">
+    <h2 id="name-modal-title">怎麼稱呼你？</h2>
+    <p>第一次使用請留下稱呼，輪播和抽獎會顯示。</p>
+    <form id="name-form">
+      <input id="name-input" name="nickname" maxlength="20" required placeholder="例如 小明" autocomplete="nickname">
+      <button type="submit">確定</button>
+    </form>
+    <p id="name-modal-error" class="name-modal-error" hidden></p>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='profile.js') }}"></script>

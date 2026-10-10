@@ -58,9 +58,11 @@
       font-size: 14px;
     }
   </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
 </head>
 <body>
   <a class="admin-btn" href="{{ url_for('admin_home') }}">Admin</a>
+  {% include "_name_modal.html" %}
   <div class="stage">
     <div class="frame">
       <img id="photo" alt="" hidden>
@@ -110,10 +112,10 @@
       if (shownId !== data.photo_id) {
         img.src = data.url;
         img.hidden = false;
-        caption.textContent = data.caption || "";
+        caption.textContent = photoCredit(data.nickname, data.caption);
         shownId = data.photo_id;
       } else {
-        caption.textContent = data.caption || "";
+        caption.textContent = photoCredit(data.nickname, data.caption);
       }
       const waitMs = Math.max(250, (data.show_until - data.server_now) * 1000);
       timer = setTimeout(tick, waitMs);

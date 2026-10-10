@@ -11,3 +11,5 @@
 
 - Fit photos inside the viewport (`object-fit: contain`). Do not set `width/height: 100%` or small photos get stretched.
 - Admin link lives in `base.html` (and slideshow, which does not extend base). Session cookie is permanent 30 days; `/admin` skips the login form when `session["admin"]` is set.
+- One upload = one Redis ticket (`ticket_seq` serial + `device_id` cookie). Lottery is admin-only. CSS 3D sphere capped at `lottery_sphere_max` (default 40) for ~10s, then winner photo center and same-device photos as sparse floaters.
+- First visit with no `device_name:{id}` shows a nickname modal (`/api/profile`). Slideshow and lottery labels use that name via the photo's `device_id`.
