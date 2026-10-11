@@ -1,6 +1,5 @@
 # Shared chrome (top-right Admin, document title)
 admin = "管理 / Admin"
-chrome_menu = "選單 / Menu"
 site_title = "照片 / Photos"
 site_credit = "@ChalmersProduction"
 

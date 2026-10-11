@@ -50,6 +50,13 @@
     min-height: 0;
     overflow: auto;
   }
+  .admin-stage .logout-form {
+    flex-shrink: 0;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    padding: 8px 0 0;
+  }
   .admin-stage .site-credit {
     flex-shrink: 0;
     margin: 0;
@@ -121,7 +128,14 @@
     text-overflow: ellipsis;
   }
   .card-head h2 .name-link:hover { text-decoration: underline; }
-  .card-head h2 a.icon-btn { flex-shrink: 0; text-decoration: none; }
+  .card-head h2 a.icon-btn {
+    flex-shrink: 0;
+    text-decoration: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+  }
+  .card-head h2 a.icon-btn svg { width: 8px; height: 8px; }
   .url-row {
     display: flex;
     align-items: center;
@@ -184,7 +198,7 @@
           <h2>
             <a class="name-link" href="{{ url_for('project_home', slug=p.slug) }}" onclick="event.stopPropagation()">{{ p.name }}</a>
             <a class="icon-btn" href="{{ url_for('project_home', slug=p.slug) }}" onclick="event.stopPropagation()" title="{{ msg.open_project }}" aria-label="{{ msg.open_project }}">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M21 14v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/></svg>
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M21 14v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/></svg>
             </a>
           </h2>
           <div class="delete-arm" onclick="event.stopPropagation()">
@@ -282,6 +296,11 @@
     <p class="lead">{{ msg.no_projects }}</p>
   {% endfor %}
 </div>
+{% if is_admin %}
+<form class="logout-form" method="post" action="{{ url_for('admin_logout') }}">
+  <button class="admin-btn" type="submit">{{ msg.logout }}</button>
+</form>
+{% endif %}
 {% include "_credit.html" %}
 </div>
 </div>
