@@ -22,6 +22,22 @@
   .project-card[open] .more::before { content: "▾ "; }
   .project-card .card-head form { cursor: default; }
   .asset-pick input { display: none; }
+  .btn.delete-project {
+    width: auto;
+    font-size: 10.5px;
+    padding: 7px 8px;
+    border-radius: 11px;
+  }
+  .delete-arm { flex-shrink: 0; }
+  .delete-confirm {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  .delete-confirm[hidden] { display: none !important; }
+  .reset-lottery { margin-top: 10px; }
 </style>
 {% endblock %}
 {% block body %}
@@ -53,16 +69,23 @@
       <summary>
         <div class="card-head">
           <h2>{{ p.name }}</h2>
-          <form method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}" onclick="event.stopPropagation()" onsubmit="return confirm({{ msg.confirm_delete_all|tojson }});">
-            <input type="hidden" name="mode" value="redis_and_files">
-            <button class="btn danger" type="submit">{{ msg.delete_project }}</button>
-          </form>
+          <div class="delete-arm" onclick="event.stopPropagation()">
+            <button type="button" class="btn danger delete-project js-delete-arm">{{ msg.delete_project }}</button>
+            <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}">
+              <input type="hidden" name="mode" value="redis_and_files">
+              <button class="btn danger delete-project" type="submit">{{ msg.delete_confirm }}</button>
+              <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
+            </form>
+          </div>
         </div>
         <div class="urls" onclick="event.stopPropagation()">
           <div>{{ msg.project_url }}：<a href="{{ url_for('project_home', slug=p.slug) }}">/p/{{ p.slug }}/</a></div>
           <div>{{ msg.upload_url }}：<a href="{{ url_for('upload', slug=p.slug) }}">/p/{{ p.slug }}/upload</a></div>
           <div>{{ msg.slideshow_url }}：<a href="{{ url_for('slideshow', slug=p.slug) }}">/p/{{ p.slug }}/slideshow</a></div>
         </div>
+        <form class="reset-lottery" method="post" action="{{ url_for('admin_reset_lottery', project_id=p.id) }}" onclick="event.stopPropagation()" onsubmit="return confirm({{ msg.confirm_reset_lottery|tojson }});">
+          <button class="btn small secondary" type="submit">{{ msg.reset_lottery }}</button>
+        </form>
         <span class="more">{{ msg.project_more }}</span>
       </summary>
       <p class="meta">{{ msg.project_meta.format(slug=p.slug, count=p.photo_count) }}</p>
@@ -98,9 +121,6 @@
           <input type="hidden" name="mode" value="redis_only">
           <button class="btn small secondary" type="submit">{{ msg.delete_redis_only }}</button>
         </form>
-        <form method="post" action="{{ url_for('admin_reset_lottery', project_id=p.id) }}" onsubmit="return confirm({{ msg.confirm_reset_lottery|tojson }});">
-          <button class="btn small secondary" type="submit">{{ msg.reset_lottery }}</button>
-        </form>
         <details class="settings">
           <summary>{{ msg.settings_title }}</summary>
           <form class="stack" method="post" action="{{ url_for('admin_save_settings', project_id=p.id) }}">
@@ -131,4 +151,23 @@
     <p class="lead">{{ msg.no_projects }}</p>
   {% endfor %}
 </div>
+<script>
+  document.querySelectorAll(".delete-arm").forEach((box) => {
+    const arm = box.querySelector(".js-delete-arm");
+    const form = box.querySelector(".delete-confirm");
+    const cancel = box.querySelector(".js-delete-cancel");
+    arm.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      arm.hidden = true;
+      form.hidden = false;
+    });
+    cancel.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      form.hidden = true;
+      arm.hidden = false;
+    });
+  });
+</script>
 {% endblock %}
