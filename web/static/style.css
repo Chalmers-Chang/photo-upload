@@ -7,6 +7,7 @@
   --accent: #9a3412;
   --ok: #3f6212;
   --err: #9f1239;
+  --edge: 2cm;
 }
 
 * { box-sizing: border-box; }
@@ -22,30 +23,22 @@ a { color: inherit; }
 .wrap { width: min(720px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 80px; }
 
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: flex;
-  justify-content: flex-end;
-  padding: 12px 20px;
-}
-.chrome-end {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  position: static;
+  height: 0;
+  padding: 0;
+  overflow: visible;
 }
 .admin-btn {
   text-decoration: none;
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--ink);
+  border: 1px solid #fff;
+  background: #fffcf7;
+  color: #1c1915;
   padding: 8px 14px;
   border-radius: 999px;
   font: inherit;
   font-size: 14px;
   cursor: pointer;
 }
-.chrome-end .admin-btn { border-color: #fff; }
 .site-credit {
   position: fixed;
   left: 0;

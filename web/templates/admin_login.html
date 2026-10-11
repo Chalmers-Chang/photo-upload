@@ -2,21 +2,9 @@
 {% block title %}{{ msg.admin_login_title }}{% endblock %}
 {% block extra_head %}
 <style>
-  html, body { height: 100%; overflow: hidden; --edge: {{ cfg.glass_pad_cm }}cm; }
+  html, body { height: 100%; overflow: hidden; --edge: 2cm; --glass: {{ cfg.glass_pad_cm }}cm; }
   @media (max-width: 640px) {
-    html, body { --edge: {{ cfg.glass_pad_mobile_cm }}cm; }
-  }
-  .topbar {
-    position: static;
-    height: 0;
-    padding: 0;
-    overflow: visible;
-  }
-  .chrome-end {
-    position: fixed;
-    top: 12px;
-    right: var(--edge);
-    z-index: 30;
+    html, body { --glass: {{ cfg.glass_pad_mobile_cm }}cm; }
   }
   .admin-stage {
     position: fixed;
@@ -24,8 +12,8 @@
     z-index: 1;
     background: var(--bg);
     display: grid;
-    padding: var(--edge);
-    padding-top: max(var(--edge), 64px);
+    padding: var(--glass);
+    padding-top: max(var(--glass), 64px);
     box-sizing: border-box;
   }
   .admin-stage > .glass {
