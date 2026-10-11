@@ -12,7 +12,7 @@
     padding: 0;
     overflow: visible;
   }
-  .admin-btn {
+  .chrome-end {
     position: fixed;
     top: 12px;
     right: var(--edge);
@@ -108,11 +108,20 @@
     margin-top: 8px;
   }
   .mode-picks input { width: auto; }
-  .card-head h2 a {
+  .card-head h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .card-head h2 .name-link {
     color: inherit;
     text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .card-head h2 a:hover { text-decoration: underline; }
+  .card-head h2 .name-link:hover { text-decoration: underline; }
+  .card-head h2 a.icon-btn { flex-shrink: 0; text-decoration: none; }
   .url-row {
     display: flex;
     align-items: center;
@@ -151,12 +160,7 @@
 <div class="admin-stage">
 <div class="glass">
 <div class="glass-body">
-  <div class="row" style="justify-content:space-between">
-    <h1>{{ msg.projects }}</h1>
-    <form method="post" action="{{ url_for('admin_logout') }}">
-      <button class="btn small secondary" type="submit">{{ msg.logout }}</button>
-    </form>
-  </div>
+  <h1>{{ msg.projects }}</h1>
 
   {% for category, message in get_flashed_messages(with_categories=true) %}
     <p class="flash {{ category }}">{{ message }}</p>
@@ -177,7 +181,12 @@
     <details class="card project-card">
       <summary>
         <div class="card-head">
-          <h2><a href="{{ url_for('project_home', slug=p.slug) }}" onclick="event.stopPropagation()">{{ p.name }}</a></h2>
+          <h2>
+            <a class="name-link" href="{{ url_for('project_home', slug=p.slug) }}" onclick="event.stopPropagation()">{{ p.name }}</a>
+            <a class="icon-btn" href="{{ url_for('project_home', slug=p.slug) }}" onclick="event.stopPropagation()" title="{{ msg.open_project }}" aria-label="{{ msg.open_project }}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M21 14v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/></svg>
+            </a>
+          </h2>
           <div class="delete-arm" onclick="event.stopPropagation()">
             <button type="button" class="btn danger delete-project js-delete-arm">{{ msg.delete_project }}</button>
             <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}">

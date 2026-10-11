@@ -31,13 +31,22 @@
       opacity: {{ cfg.bkg_fade }};
     }
     {% endif %}
-    .admin-btn, .back-btn {
-      position: fixed; top: 12px; z-index: 30;
-      text-decoration: none; border: 1px solid #ddd4c6; background: #fffcf7;
-      color: #1c1915; padding: 8px 14px; border-radius: 999px; font-size: 14px;
+    .chrome-end {
+      position: fixed;
+      top: 12px;
+      right: var(--edge);
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    .admin-btn { right: var(--edge); }
-    .back-btn { left: var(--edge); }
+    .logout-form { margin: 0; }
+    .admin-btn, .back-btn {
+      text-decoration: none; border: 1px solid #ddd4c6; background: #fffcf7;
+      color: #1c1915; padding: 8px 14px; border-radius: 999px;
+      font: inherit; font-size: 14px; cursor: pointer;
+    }
+    .back-btn { position: fixed; top: 12px; left: var(--edge); z-index: 30; }
     .reset-lottery {
       position: fixed;
       left: var(--edge);
@@ -212,7 +221,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
 </head>
 <body>
-  <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
+  {% include "_admin_chrome.html" %}
   <a class="back-btn" id="back" href="{{ url_for('project_home', slug=project.slug) }}" hidden>{{ msg.lottery_back }}</a>
   <form class="reset-lottery" method="post" action="{{ url_for('lottery_reset', slug=project.slug) }}" onsubmit="return confirm({{ msg.confirm_reset_lottery|tojson }});">
     <button type="submit">{{ msg.reset_lottery }}</button>

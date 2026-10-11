@@ -11,7 +11,7 @@
 </head>
 <body>
   <div class="topbar">
-    <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
+    {% include "_admin_chrome.html" %}
   </div>
   {% block body %}{% endblock %}
   {% block credit %}{% include "_credit.html" %}{% endblock %}

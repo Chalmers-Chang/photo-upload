@@ -120,22 +120,36 @@
       overflow: visible;
       opacity: 1;
     }
-    .admin-btn, .back-btn {
+    .chrome-end {
       position: fixed;
       top: 12px;
+      right: var(--edge, 2cm);
       z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: opacity 0.4s ease;
+    }
+    .logout-form { margin: 0; }
+    .admin-btn, .back-btn {
       text-decoration: none;
       border: 1px solid #ddd4c6;
       background: #fffcf7;
       color: #1c1915;
       padding: 8px 14px;
       border-radius: 999px;
+      font: inherit;
       font-size: 14px;
+      cursor: pointer;
+    }
+    .back-btn {
+      position: fixed;
+      top: 12px;
+      left: var(--edge, 2cm);
+      z-index: 30;
       transition: opacity 0.4s ease;
     }
-    .admin-btn { right: var(--edge, 2cm); }
-    .back-btn { left: var(--edge, 2cm); }
-    body.chrome-idle .admin-btn,
+    body.chrome-idle .chrome-end,
     body.chrome-idle .back-btn {
       opacity: 0;
       pointer-events: none;
@@ -153,7 +167,7 @@
 </head>
 <body class="mode-{{ project.slideshow_mode }}">
   <a class="back-btn" id="back" href="{{ url_for('project_home', slug=project.slug) }}">{{ msg.lottery_back }}</a>
-  <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
+  {% include "_admin_chrome.html" %}
   {% include "_name_modal.html" %}
   <div class="stage">
     <div class="credit name" id="name" data-guest="{{ msg.guest_name }}">
@@ -198,7 +212,7 @@
     }
     document.addEventListener("mousemove", bumpChrome);
     document.addEventListener("pointerdown", bumpChrome);
-    document.querySelectorAll(".admin-btn, .back-btn").forEach((el) => {
+    document.querySelectorAll(".chrome-end, .back-btn").forEach((el) => {
       el.addEventListener("mouseenter", () => {
         overChrome = true;
         showChrome();
@@ -228,7 +242,7 @@
     });
 
     document.addEventListener("click", (e) => {
-      if (e.target.closest(".admin-btn, .back-btn")) return;
+      if (e.target.closest(".chrome-end, .back-btn")) return;
       const el = document.documentElement;
       if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
     }, { once: true });

@@ -22,9 +22,16 @@
     padding-top: max(var(--edge), 64px);
     box-sizing: border-box;
   }
-  .admin-btn, .back-btn {
+  .chrome-end {
     position: fixed;
     top: 12px;
+    right: var(--edge);
+    z-index: 30;
+  }
+  .back-btn {
+    position: fixed;
+    top: 12px;
+    left: var(--edge);
     z-index: 30;
     text-decoration: none;
     border: 1px solid #ddd4c6;
@@ -34,8 +41,6 @@
     border-radius: 999px;
     font-size: 14px;
   }
-  .admin-btn { right: var(--edge); }
-  .back-btn { left: var(--edge); }
   .up-stage > .glass {
     position: relative;
     min-height: 0;

@@ -1,0 +1,8 @@
+<div class="chrome-end">
+  <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
+  {% if is_admin %}
+  <form class="logout-form" method="post" action="{{ url_for('admin_logout') }}">
+    <button class="admin-btn" type="submit">{{ msg.logout }}</button>
+  </form>
+  {% endif %}
+</div>
