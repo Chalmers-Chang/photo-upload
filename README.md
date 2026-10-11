@@ -57,7 +57,7 @@ Pushes to `main` or `feature/**` build arm64 images and run `compose pull && com
 | `LOTTERY_SPHERE_MAX` | `60` | Photos on the lottery sphere |
 | `LOTTERY_CHANCE_MAX` | `10` | Lottery tickets per device (newest photos) |
 
-Look-and-feel (`PJT_FADE`, `BKG_FADE`, button colors, glass padding) is also in `config/appsetting.py`.
+Look-and-feel (`PJT_FADE`, `BKG_FADE`, button colors, glass padding, `LOTTERY_PAD_CM`) is also in `config/appsetting.py`.
 
 **Copy and dependencies**
 

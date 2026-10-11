@@ -307,6 +307,7 @@ def wipe_tickets(project_id):
         pipe.delete(f"ticket:{project_id}:{serial}")
     pipe.delete(f"tickets:{project_id}")
     pipe.delete(f"ticket_seq:{project_id}")
+    pipe.delete(f"lottery_won:{project_id}")
     for device_id in devices:
         pipe.delete(f"device_photos:{project_id}:{device_id}")
         pipe.delete(f"device_chance:{project_id}:{device_id}")
@@ -569,10 +570,28 @@ def device_photos(project_id, device_id, exclude=None):
     return out
 
 
+def won_devices(project_id):
+    return r().smembers(f"lottery_won:{project_id}")
+
+
+def mark_won(project_id, device_id):
+    if device_id:
+        r().sadd(f"lottery_won:{project_id}", device_id)
+
+
+def reset_lottery_winners(project_id):
+    if not r().exists(f"project:{project_id}"):
+        raise ValueError(msg.project_missing)
+    r().delete(f"lottery_won:{project_id}")
+
+
 def lottery_pool(project_id):
     cap = appsetting.lottery_chance_max
+    won = won_devices(project_id)
     out = []
     for did in r().smembers(f"devices:{project_id}"):
+        if did in won:
+            continue
         for pid in r().zrevrange(f"device_photos:{project_id}:{did}", 0, cap - 1):
             item = load_photo(project_id, pid)
             if item:
@@ -597,6 +616,7 @@ def sphere_photos(project_id, limit):
 
 def draw_lottery(project_id):
     cap = appsetting.lottery_chance_max
+    won = won_devices(project_id)
     serials = list(r().zrange(f"tickets:{project_id}", 0, -1))
     random.shuffle(serials)
     winner = None
@@ -604,6 +624,8 @@ def draw_lottery(project_id):
         t = _ticket(project_id, serial)
         if not t:
             drop_ticket(project_id, serial)
+            continue
+        if t.get("device_id") in won:
             continue
         latest = latest_photo_ids(project_id, t.get("device_id"), cap)
         if t.get("photo_id") not in latest:
@@ -620,6 +642,8 @@ def draw_lottery(project_id):
     t, photo = winner
     others = device_photos(project_id, t["device_id"], exclude=photo["id"])
     cfgp = settings_of(project_id)
+    sphere = sphere_photos(project_id, cfgp["lottery_sphere_max"])
+    mark_won(project_id, t.get("device_id"))
     return {
         "serial": t["serial"],
         "seconds": cfgp["lottery_seconds"],
@@ -631,5 +655,5 @@ def draw_lottery(project_id):
             "upload_count": len(others) + 1,
         },
         "device_photos": others,
-        "sphere": sphere_photos(project_id, cfgp["lottery_sphere_max"]),
+        "sphere": sphere,
     }

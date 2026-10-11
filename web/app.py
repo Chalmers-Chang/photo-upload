@@ -210,6 +210,17 @@ def create_app():
         flash(msg.settings_saved, "ok")
         return redirect(url_for("admin_home"))
 
+    @app.post("/admin/projects/<project_id>/lottery/reset")
+    @admin_required
+    def admin_reset_lottery(project_id):
+        p = store.get_project(project_id)
+        if not p:
+            flash(msg.project_missing, "error")
+            return redirect(url_for("admin_home"))
+        store.reset_lottery_winners(project_id)
+        flash(msg.lottery_reset.format(name=p["name"]), "ok")
+        return redirect(url_for("admin_home"))
+
     @app.get("/p/<slug>/")
     def project_home(slug):
         return render_template("project_home.html", project=load_project(slug))

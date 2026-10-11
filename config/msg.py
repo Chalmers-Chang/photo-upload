@@ -100,3 +100,6 @@ set_slideshow_queue_max = "輪播 queue 最多張數 / Slideshow queue max photo
 set_slideshow_per_device = "超過 queue 上限時，每裝置只播最新幾張 / Newest photos per device when over queue max"
 set_lottery_sphere_max = "抽獎球體照片數 / Photos on the lottery sphere"
 set_lottery_seconds = "抽獎球體旋轉秒數 / Lottery spin seconds"
+reset_lottery = "重置抽獎 / Reset lottery"
+confirm_reset_lottery = "會清除中獎紀錄，所有裝置可再抽。照片不會刪。確定？ / This clears lottery winners so every device can be drawn again. Photos stay. Continue?"
+lottery_reset = "已重置「{name}」的抽獎中獎紀錄 / Reset lottery winners for “{name}”"

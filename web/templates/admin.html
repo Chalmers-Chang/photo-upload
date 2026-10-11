@@ -77,6 +77,9 @@
           <input type="hidden" name="mode" value="redis_only">
           <button class="btn small secondary" type="submit">{{ msg.delete_redis_only }}</button>
         </form>
+        <form method="post" action="{{ url_for('admin_reset_lottery', project_id=p.id) }}" onsubmit="return confirm({{ msg.confirm_reset_lottery|tojson }});">
+          <button class="btn small secondary" type="submit">{{ msg.reset_lottery }}</button>
+        </form>
         <details class="settings">
           <summary>{{ msg.settings_title }}</summary>
           <form class="stack" method="post" action="{{ url_for('admin_save_settings', project_id=p.id) }}">
