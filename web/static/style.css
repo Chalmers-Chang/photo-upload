@@ -27,7 +27,7 @@ a { color: inherit; }
   z-index: 20;
   display: flex;
   justify-content: flex-end;
-  padding: 16px 20px;
+  padding: 0.2cm 20px;
 }
 .chrome-end {
   display: flex;

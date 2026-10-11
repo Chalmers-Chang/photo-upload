@@ -57,8 +57,8 @@ lottery_again = "再抽一位 / Draw again"
 
 # Admin login (/admin/login)
 admin_login_title = "管理登入 / Admin login"
-logout = "登出 / Log out"
-login = "登入 / Log in"
+logout = "Log out"
+login = "Login"
 username = "帳號 / Username"
 password = "密碼 / Password"
 login_failed = "帳號或密碼錯誤 / Wrong username or password"

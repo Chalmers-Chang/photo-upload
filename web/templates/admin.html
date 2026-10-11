@@ -14,7 +14,7 @@
   }
   .chrome-end {
     position: fixed;
-    top: 12px;
+    top: 0.2cm;
     right: var(--edge);
     z-index: 30;
   }
@@ -82,7 +82,6 @@
   }
   .project-card .more::before { content: "▸ "; }
   .project-card[open] .more::before { content: "▾ "; }
-  .project-card .card-head form { cursor: default; }
   .asset-pick input { display: none; }
   .btn.delete-project {
     width: auto;
@@ -90,13 +89,17 @@
     padding: 7px 8px;
     border-radius: 11px;
   }
-  .delete-arm { flex-shrink: 0; }
+  .delete-arm {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-start;
+  }
   .delete-confirm {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: flex-start;
   }
   .delete-confirm[hidden] { display: none !important; }
   .mode-picks {
@@ -201,13 +204,6 @@
               <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M21 14v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/></svg>
             </a>
           </h2>
-          <div class="delete-arm" onclick="event.stopPropagation()">
-            <button type="button" class="btn danger delete-project js-delete-arm">{{ msg.delete_project }}</button>
-            <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}">
-              <button class="btn danger delete-project" type="submit">{{ msg.delete_confirm }}</button>
-              <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
-            </form>
-          </div>
         </div>
         <div class="urls" onclick="event.stopPropagation()">
           {% for label, kind, path in [
@@ -232,6 +228,13 @@
         </div>
         <span class="more">{{ msg.project_more }}</span>
       </summary>
+      <div class="delete-arm">
+        <button type="button" class="btn danger delete-project js-delete-arm">{{ msg.delete_project }}</button>
+        <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}">
+          <button class="btn danger delete-project" type="submit">{{ msg.delete_confirm }}</button>
+          <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
+        </form>
+      </div>
       <p class="meta">{{ msg.project_meta.format(slug=p.slug, count=p.photo_count) }}</p>
       <div class="asset-grid">
         {% for kind, label in [
