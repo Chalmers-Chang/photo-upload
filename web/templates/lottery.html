@@ -368,8 +368,8 @@
           const seg = Math.min(3, Math.floor(u * 4 - 1e-9));
           const local = Math.min(1, u * 4 - seg);
           const e = 1 - (1 - local) * (1 - local);
-          const from = 1 - 0.15 * seg;
-          const to = 1 - 0.15 * (seg + 1);
+          const from = 1 - 0.2 * seg;
+          const to = 1 - 0.2 * (seg + 1);
           scale = from + (to - from) * e;
         }
         const s = p.r * scale;
