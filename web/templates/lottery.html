@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ msg.lottery_title.format(name=project.name) }}</title>
+  {% include "_favicon.html" %}
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0a09; color: #f4efe6; font-family: "PingFang TC", "Noto Sans TC", sans-serif; }
     {% if project.lot_desktop_show or project.lot_mobile_show %}

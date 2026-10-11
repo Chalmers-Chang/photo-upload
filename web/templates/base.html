@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ msg.site_title }}{% endblock %}</title>
+  {% include "_favicon.html" %}
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
   {% block extra_head %}{% endblock %}

@@ -79,6 +79,8 @@ Look-and-feel (`PJT_FADE`, `BKG_FADE`, button colors, glass padding, `LOTTERY_PA
 ```
 config/           env defaults, admin login, copy
 web/              Flask app, Redis store, templates
+web/static/favicon.png   site icon (replace this PNG to swap)
+art/              source art (favicon zip, etc.)
 python/           uv lockfile only (app code is not here)
 docker-compose/   Dockerfile, compose, nginx.conf
 ```
