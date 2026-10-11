@@ -11,9 +11,9 @@ When you work under a project folder that has (or should have) `MEMORY.md`, **re
 
 Project folders in this repo:
 
-- `dags/import_apple_calendar/MEMORY.md`
-- `dags/mysql_archive_jobs/MEMORY.md`
-- `airflow.deployment/docker-compose/MEMORY.md`
+- `docker-compose/MEMORY.md`
+- `python/MEMORY.md`
+- `web/MEMORY.md`
 
 ## GOTCHA
 

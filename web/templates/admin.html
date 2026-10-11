@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}{{ msg.admin }}{% endblock %}
+{% block body %}
+<div class="wrap">
+  <div class="row" style="justify-content:space-between">
+    <h1>{{ msg.projects }}</h1>
+    <form method="post" action="{{ url_for('admin_logout') }}">
+      <button class="btn small secondary" type="submit">{{ msg.logout }}</button>
+    </form>
+  </div>
+
+  {% for category, message in get_flashed_messages(with_categories=true) %}
+    <p class="flash {{ category }}">{{ message }}</p>
+  {% endfor %}
+
+  <div class="card">
+    <h2>{{ msg.new_project }}</h2>
+    <form class="stack" method="post" action="{{ url_for('admin_create_project') }}">
+      <label>{{ msg.project_name }}</label>
+      <input name="name" required placeholder="{{ msg.project_name_placeholder }}">
+      <label>{{ msg.project_slug }}</label>
+      <input name="slug" placeholder="wedding">
+      <button class="btn" type="submit">{{ msg.project_add }}</button>
+    </form>
+  </div>
+
+  {% for p in projects %}
+    <div class="card">
+      <div class="card-head">
+        <h2>{{ p.name }}</h2>
+        <form method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}" onsubmit="return confirm({{ msg.confirm_delete_all|tojson }});">
+          <input type="hidden" name="mode" value="redis_and_files">
+          <button class="btn danger" type="submit">{{ msg.delete_project }}</button>
+        </form>
+      </div>
+      <p class="meta">{{ msg.project_meta.format(slug=p.slug, count=p.photo_count) }}</p>
+      <div class="urls">
+        <div>{{ msg.project_url }}：<a href="{{ url_for('project_home', slug=p.slug) }}">/p/{{ p.slug }}/</a></div>
+        <div>{{ msg.upload_url }}：<a href="{{ url_for('upload', slug=p.slug) }}">/p/{{ p.slug }}/upload</a></div>
+        <div>{{ msg.slideshow_url }}：<a href="{{ url_for('slideshow', slug=p.slug) }}">/p/{{ p.slug }}/slideshow</a></div>
+      </div>
+      <div class="asset-grid">
+        <div class="asset-card">
+          <p class="meta">{{ msg.asset_pjt }}</p>
+          {% if p.pjt_thumb_url %}<img class="asset-thumb" src="{{ p.pjt_thumb_url }}" alt="">{% endif %}
+          <form class="stack" method="post" action="{{ url_for('admin_save_asset', project_id=p.id, kind='pjt') }}" enctype="multipart/form-data">
+            <input type="file" name="photo" accept="image/*" required>
+            <button class="btn small" type="submit">{{ msg.asset_upload }}</button>
+          </form>
+          {% if p.pjt_url %}
+          <form method="post" action="{{ url_for('admin_delete_asset', project_id=p.id, kind='pjt') }}">
+            <button class="btn small secondary" type="submit">{{ msg.asset_delete }}</button>
+          </form>
+          {% endif %}
+        </div>
+        <div class="asset-card">
+          <p class="meta">{{ msg.asset_bkg }}</p>
+          {% if p.bkg_thumb_url %}<img class="asset-thumb" src="{{ p.bkg_thumb_url }}" alt="">{% endif %}
+          <form class="stack" method="post" action="{{ url_for('admin_save_asset', project_id=p.id, kind='bkg') }}" enctype="multipart/form-data">
+            <input type="file" name="photo" accept="image/*" required>
+            <button class="btn small" type="submit">{{ msg.asset_upload }}</button>
+          </form>
+          {% if p.bkg_url %}
+          <form method="post" action="{{ url_for('admin_delete_asset', project_id=p.id, kind='bkg') }}">
+            <button class="btn small secondary" type="submit">{{ msg.asset_delete }}</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      <div class="row">
+        <form method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}" onsubmit="return confirm({{ msg.confirm_delete_redis|tojson }});">
+          <input type="hidden" name="mode" value="redis_only">
+          <button class="btn small secondary" type="submit">{{ msg.delete_redis_only }}</button>
+        </form>
+      </div>
+    </div>
+  {% else %}
+    <p class="lead">{{ msg.no_projects }}</p>
+  {% endfor %}
+</div>
+{% endblock %}

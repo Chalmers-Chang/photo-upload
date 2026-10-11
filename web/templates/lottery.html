@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ msg.lottery_title.format(name=project.name) }}</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0a09; color: #f4efe6; font-family: "PingFang TC", "Noto Sans TC", sans-serif; }
+    .admin-btn, .back-btn {
+      position: fixed; top: 16px; z-index: 30;
+      text-decoration: none; border: 1px solid #ddd4c6; background: #fffcf7;
+      color: #1c1915; padding: 8px 14px; border-radius: 999px; font-size: 14px;
+    }
+    .admin-btn { right: 20px; }
+    .back-btn { left: 20px; }
+    .again-btn {
+      display: block;
+      margin: 0 auto 28px;
+      border: 2px solid #fff;
+      background: {{ cfg.lottery_btn_color }};
+      color: #1c1915;
+      padding: 14px 28px;
+      border-radius: 999px;
+      font: inherit;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .stage { height: 100dvh; position: relative; }
+    .msg {
+      position: absolute; inset: 0; display: grid; place-items: center;
+      margin: 0; opacity: 0.7; font-size: 22px;
+    }
+    .scene {
+      height: 100%;
+      perspective: 1100px;
+      display: grid;
+      place-items: center;
+    }
+    .sphere {
+      position: relative;
+      width: 1px;
+      height: 1px;
+      transform-style: preserve-3d;
+    }
+    .sphere img {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 64px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: 10px;
+      backface-visibility: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    }
+    .result {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto auto;
+      overflow: hidden;
+    }
+    .winner-wrap {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      z-index: 2;
+    }
+    .winner-wrap img {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.12);
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      object-position: center;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+    }
+    .winner-wrap img.pop {
+      animation: grow 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes grow {
+      from { transform: translate(-50%, -50%) scale(0.12); }
+      to { transform: translate(-50%, -50%) scale(1); }
+    }
+    .label {
+      position: relative;
+      z-index: 3;
+      padding: 16px 24px 28px;
+      text-align: center;
+      font-size: clamp(18px, 3vw, 28px);
+    }
+    .floater {
+      position: absolute;
+      width: 92px;
+      height: 92px;
+      object-fit: cover;
+      border-radius: 14px;
+      z-index: 1;
+      opacity: 0.88;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.4);
+      animation: drift 5.5s ease-in-out infinite;
+    }
+    @keyframes drift {
+      0%, 100% { transform: translate(0, 0) rotate(-7deg); }
+      50% { transform: translate(14px, -16px) rotate(8deg); }
+    }
+    [hidden] { display: none !important; }
+  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
+</head>
+<body>
+  <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
+  <a class="back-btn" id="back" href="{{ url_for('project_home', slug=project.slug) }}" hidden>{{ msg.lottery_back }}</a>
+  {% include "_name_modal.html" %}
+  <div class="stage">
+    <p class="msg" id="status">{{ msg.lottery_ready }}</p>
+    <div class="scene" id="scene" hidden>
+      <div class="sphere" id="sphere"></div>
+    </div>
+    <div class="result" id="result" hidden
+         data-winner-tpl="{{ msg.lottery_winner }}"
+         data-guest="{{ msg.guest_name }}"
+         data-failed="{{ msg.lottery_failed }}">
+      <div class="winner-wrap"><img id="winner" alt=""></div>
+      <div class="label" id="label"></div>
+      <button class="again-btn" id="again" type="button" hidden>{{ msg.lottery_again }}</button>
+    </div>
+  </div>
+  <script>
+    const drawUrl = {{ url_for('lottery_draw', slug=project.slug) | tojson }};
+    const home = {{ url_for('project_home', slug=project.slug) | tojson }};
+    const seconds = {{ seconds | tojson }};
+    const status = document.getElementById("status");
+    const scene = document.getElementById("scene");
+    const sphere = document.getElementById("sphere");
+    const result = document.getElementById("result");
+    const winner = document.getElementById("winner");
+    const label = document.getElementById("label");
+    const back = document.getElementById("back");
+    const again = document.getElementById("again");
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") location.href = home;
+    });
+
+    function spherePoints(n) {
+      const pts = [];
+      const golden = Math.PI * (3 - Math.sqrt(5));
+      for (let i = 0; i < n; i++) {
+        const y = n === 1 ? 0 : 1 - (i / (n - 1)) * 2;
+        const r = Math.sqrt(Math.max(0, 1 - y * y));
+        const theta = golden * i;
+        pts.push({ x: Math.cos(theta) * r, y, z: Math.sin(theta) * r });
+      }
+      return pts;
+    }
+
+    function layoutSphere(photos) {
+      const n = Math.max(photos.length, 1);
+      const radius = Math.min(window.innerWidth, window.innerHeight) * 0.34;
+      const pts = spherePoints(n);
+      sphere.innerHTML = "";
+      photos.forEach((p, i) => {
+        const img = document.createElement("img");
+        img.src = p.url;
+        img.alt = "";
+        const pt = pts[i];
+        const rotY = Math.atan2(pt.x, pt.z) * 180 / Math.PI;
+        const rotX = -Math.asin(pt.y) * 180 / Math.PI;
+        img.style.transform =
+          `translate(-50%, -50%) translate3d(${pt.x * radius}px, ${pt.y * radius}px, ${pt.z * radius}px) rotateY(${rotY}deg) rotateX(${rotX}deg)`;
+        sphere.appendChild(img);
+      });
+    }
+
+    function placeFloaters(photos) {
+      const left = [];
+      const right = [];
+      photos.forEach((p, i) => {
+        (i % 2 === 0 ? left : right).push(p);
+      });
+      function column(list, side) {
+        const m = list.length;
+        list.forEach((p, i) => {
+          const img = document.createElement("img");
+          img.src = p.url;
+          img.alt = "";
+          img.className = "floater";
+          img.style.top = (((i + 0.5) / m) * 72 + 8) + "%";
+          if (side === "left") {
+            img.style.left = "2.5%";
+          } else {
+            img.style.left = "auto";
+            img.style.right = "2.5%";
+          }
+          img.style.animationDelay = (i * 0.28) + "s";
+          result.appendChild(img);
+        });
+      }
+      column(left, "left");
+      column(right, "right");
+    }
+
+    function spinSphere(durationSec) {
+      const k = -Math.log(0.02) / durationSec;
+      const yMax = 2880;
+      const xFrom = -18;
+      const xTo = 16;
+      const t0 = performance.now();
+      return new Promise((resolve) => {
+        function frame(now) {
+          const t = Math.min((now - t0) / 1000, durationSec);
+          const u = 1 - Math.exp(-k * t);
+          sphere.style.transform =
+            "rotateX(" + (xFrom + (xTo - xFrom) * u) + "deg) rotateY(" + (yMax * u) + "deg)";
+          if (t < durationSec) requestAnimationFrame(frame);
+          else resolve();
+        }
+        requestAnimationFrame(frame);
+      });
+    }
+
+    function showWinner(data) {
+      scene.hidden = true;
+      result.hidden = false;
+      back.hidden = false;
+      again.hidden = false;
+      winner.classList.remove("pop");
+      winner.src = data.winner.url;
+      void winner.offsetWidth;
+      winner.classList.add("pop");
+      const who = (data.winner.nickname || "").trim() || result.dataset.guest;
+      const n = data.winner.upload_count || 1;
+      label.textContent = result.dataset.winnerTpl
+        .replaceAll("{name}", who)
+        .replaceAll("{n}", String(n));
+      placeFloaters(data.device_photos || []);
+    }
+
+    function reset() {
+      result.querySelectorAll(".floater").forEach((el) => el.remove());
+      result.hidden = true;
+      scene.hidden = true;
+      back.hidden = true;
+      again.hidden = true;
+      status.hidden = false;
+      status.textContent = {{ msg.lottery_ready | tojson }};
+      sphere.style.transform = "";
+      winner.classList.remove("pop");
+      winner.removeAttribute("src");
+    }
+
+    async function run() {
+      const res = await fetch(drawUrl, { method: "POST", cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok) {
+        status.textContent = data.error || result.dataset.failed;
+        back.hidden = false;
+        return;
+      }
+      status.hidden = true;
+      const photos = data.sphere && data.sphere.length ? data.sphere : [data.winner];
+      layoutSphere(photos);
+      scene.hidden = false;
+      await spinSphere(data.seconds || seconds);
+      showWinner(data);
+    }
+
+    again.addEventListener("click", () => {
+      reset();
+      run();
+    });
+
+    run();
+  </script>
+</body>
+</html>

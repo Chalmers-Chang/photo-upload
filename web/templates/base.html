@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ msg.site_title }}{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <div class="topbar">
+    <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
+  </div>
+  {% block body %}{% endblock %}
+  {% include "_name_modal.html" %}
+</body>
+</html>

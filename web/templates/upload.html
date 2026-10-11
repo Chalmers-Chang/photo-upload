@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ msg.upload_page_title.format(name=project.name) }}{% endblock %}
+{% block extra_head %}
+<style>
+  .wrap.upload {
+    width: min(720px, 100%);
+    padding: {{ cfg.upload_pad_cm }}cm;
+  }
+</style>
+{% endblock %}
+{% block body %}
+<div class="wrap upload">
+  <p class="meta"><a href="{{ url_for('project_home', slug=project.slug) }}">← {{ project.name }}</a></p>
+  <h1>{{ msg.upload_title }}</h1>
+  {% for category, message in get_flashed_messages(with_categories=true) %}
+    <p class="flash {{ category }}">{{ message }}</p>
+  {% endfor %}
+  <form class="stack" method="post" enctype="multipart/form-data">
+    <label>{{ msg.photo_label }}</label>
+    <input type="file" name="photo" accept="image/*" required>
+    <label>{{ msg.caption_label }}</label>
+    <textarea name="caption" maxlength="500" placeholder="{{ msg.caption_placeholder }}"></textarea>
+    <button class="btn" type="submit">{{ msg.upload_submit }}</button>
+  </form>
+</div>
+{% endblock %}

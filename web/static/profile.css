@@ -1,0 +1,36 @@
+.name-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(28, 25, 21, 0.55);
+}
+.name-modal[hidden] { display: none !important; }
+.name-modal-card {
+  width: min(360px, 100%);
+  background: #fffcf7;
+  color: #1c1915;
+  border-radius: 16px;
+  padding: 22px 20px 20px;
+  font-family: "PingFang TC", "Noto Sans TC", sans-serif;
+}
+.name-modal-card h2 { margin: 0 0 8px; font-size: 22px; }
+.name-modal-card p { margin: 0 0 16px; color: #6b6459; font-size: 14px; }
+.name-modal-card form { display: grid; gap: 12px; }
+.name-modal-card input,
+.name-modal-card button {
+  font: inherit;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #ddd4c6;
+}
+.name-modal-card button {
+  border: 0;
+  background: #1c1915;
+  color: #fffcf7;
+  cursor: pointer;
+  font-size: 18px;
+}
+.name-modal-error { color: #9f1239; font-size: 14px; margin: 8px 0 0; }

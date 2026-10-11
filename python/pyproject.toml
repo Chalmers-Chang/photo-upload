@@ -1,0 +1,14 @@
+[project]
+name = "photo-upload"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3.0,<4",
+    "gunicorn>=22.0,<24",
+    "redis>=5.0,<6",
+    "pillow>=10.0,<12",
+    "pillow-heif>=0.18,<1",
+]
+
+[tool.uv]
+package = false

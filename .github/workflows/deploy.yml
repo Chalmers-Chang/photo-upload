@@ -7,22 +7,77 @@ on:
       - "feature/**"
   workflow_dispatch:
 
+env:
+  IMAGE: ghcr.io/chalmers-chang/photo-upload
+  IMAGE_NGINX: ghcr.io/chalmers-chang/photo-upload-nginx
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      actions: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        run: echo "tag=${GITHUB_SHA}" >> "${GITHUB_OUTPUT}"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker-compose/Dockerfile
+          target: app
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=app
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker-compose/Dockerfile
+          target: nginx
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE_NGINX }}:latest
+            ${{ env.IMAGE_NGINX }}:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha,scope=nginx
+          cache-to: type=gha,mode=max,scope=nginx
+
   deploy:
+    needs: build
     runs-on: [self-hosted, macOS, ARM64]
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v4
 
       - name: Copy project to /opt/app/photo-upload
         run: |
           dest=/opt/app/photo-upload
-          echo "runner user=$(whoami)"
-          ls -ld /opt/app
-          if [ ! -w /opt/app ]; then
-            echo "/opt/app is not writable by $(whoami)"
-            echo "On the Mac Mini run: sudo chown -R $(whoami) /opt/app"
-            exit 1
-          fi
           mkdir -p "$dest"
           rsync -rlt --delete \
             --exclude '.git/' \
@@ -30,6 +85,31 @@ jobs:
             --exclude '.cursor/' \
             "${GITHUB_WORKSPACE}/" "$dest/"
 
+      - name: Auth GHCR
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          export DOCKER_CONFIG="${RUNNER_TEMP}/docker-config"
+          mkdir -p "${DOCKER_CONFIG}"
+          echo "DOCKER_CONFIG=${DOCKER_CONFIG}" >> "${GITHUB_ENV}"
+          python3 - <<'PY'
+          import base64, json, os
+          auth = base64.b64encode(f"{os.environ['GHCR_USER']}:{os.environ['GHCR_TOKEN']}".encode()).decode()
+          path = os.path.join(os.environ["DOCKER_CONFIG"], "config.json")
+          with open(path, "w") as f:
+              json.dump({"auths": {"ghcr.io": {"auth": auth}}}, f)
+          PY
+
       - name: Start stack
         working-directory: /opt/app/photo-upload/docker-compose
-        run: docker compose up -d --build
+        env:
+          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+        run: |
+          if docker compose version >/dev/null 2>&1; then
+            compose() { docker compose "$@"; }
+          else
+            compose() { docker-compose "$@"; }
+          fi
+          compose pull
+          compose up -d

@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ msg.slideshow_title.format(name=project.name) }}</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0a09; color: #f4efe6; font-family: "PingFang TC", "Noto Sans TC", sans-serif; }
+    {% if project.bkg_url %}
+    html, body { background: #fff; }
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+    body::before {
+      z-index: 0;
+      background: url("{{ project.bkg_url }}") center / cover no-repeat;
+    }
+    body::after {
+      z-index: 0;
+      background: #fff;
+      opacity: {{ cfg.bkg_fade }};
+    }
+    {% endif %}
+    .stage {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      height: 100dvh;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      overflow: hidden;
+      padding: 2cm;
+      box-sizing: border-box;
+    }
+    .frame { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+    img {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      object-position: center;
+      border-radius: 22px;
+    }
+    .empty {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      margin: 0;
+      opacity: 0.6;
+    }
+    img[hidden],
+    .empty[hidden] {
+      display: none !important;
+    }
+    .caption {
+      padding: 16px 8px 0;
+      text-align: center;
+      font-size: clamp(18px, 3vw, 28px);
+      min-height: 1.4em;
+      text-shadow: 0 1px 10px rgba(0,0,0,0.65);
+    }
+    .admin-btn {
+      position: fixed;
+      top: 16px;
+      right: 20px;
+      z-index: 20;
+      text-decoration: none;
+      border: 1px solid #ddd4c6;
+      background: #fffcf7;
+      color: #1c1915;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 14px;
+    }
+  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
+</head>
+<body>
+  <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
+  {% include "_name_modal.html" %}
+  <div class="stage">
+    <div class="frame">
+      <img id="photo" alt="" hidden>
+      <p class="empty" id="empty">{{ msg.no_photos }}</p>
+    </div>
+    <div class="caption" id="caption" data-tpl="{{ msg.slideshow_credit }}" data-guest="{{ msg.guest_name }}"></div>
+  </div>
+  <script>
+    const api = {{ url_for('slideshow_api', slug=project.slug) | tojson }};
+    const home = {{ url_for('project_home', slug=project.slug) | tojson }};
+    const img = document.getElementById("photo");
+    const empty = document.getElementById("empty");
+    const caption = document.getElementById("caption");
+    let timer = null;
+    let shownId = null;
+
+    function goHome() {
+      try { document.exitFullscreen(); } catch (e) {}
+      location.href = home;
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        goHome();
+      }
+    });
+
+    document.addEventListener("click", (e) => {
+      if (e.target.closest(".admin-btn")) return;
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    }, { once: true });
+
+    async function tick() {
+      const res = await fetch(api, { cache: "no-store" });
+      const data = await res.json();
+      if (!data.photo_id) {
+        img.hidden = true;
+        empty.hidden = false;
+        caption.textContent = "";
+        shownId = null;
+        timer = setTimeout(tick, 3000);
+        return;
+      }
+      empty.hidden = true;
+      if (shownId !== data.photo_id) {
+        img.src = data.url;
+        img.hidden = false;
+        caption.textContent = photoCredit(
+          data.nickname || caption.dataset.guest,
+          data.caption,
+          caption.dataset.tpl
+        );
+        shownId = data.photo_id;
+      } else {
+        caption.textContent = photoCredit(
+          data.nickname || caption.dataset.guest,
+          data.caption,
+          caption.dataset.tpl
+        );
+      }
+      const waitMs = Math.max(250, (data.show_until - data.server_now) * 1000);
+      timer = setTimeout(tick, waitMs);
+    }
+
+    tick();
+  </script>
+</body>
+</html>

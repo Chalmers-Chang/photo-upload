@@ -1,5 +1,33 @@
 services:
   app:
-    build:
-      context: ..
-      dockerfile: docker-compose/Dockerfile
+    image: ghcr.io/chalmers-chang/photo-upload:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      PHOTO_DIR: /data/photos
+      REDIS_URL: redis://redis:6379/0
+      GUNICORN_WORKERS: "2"
+      GUNICORN_TIMEOUT: "120"
+    volumes:
+      - "${HOST_PHOTO_DIR:-/Volumes/OWC Envoy Pro FX/photo-upload}:/data/photos"
+    depends_on:
+      - redis
+
+  nginx:
+    image: ghcr.io/chalmers-chang/photo-upload-nginx:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - "${HOST_PHOTO_DIR:-/Volumes/OWC Envoy Pro FX/photo-upload}:/data/photos:ro"
+    depends_on:
+      - app
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:
