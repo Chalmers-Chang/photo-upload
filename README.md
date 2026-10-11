@@ -63,7 +63,7 @@ docker compose up -d
 
 1. `/admin` 建專案（可填 slug，空白則從名稱產生）
 2. 訪客走 `/p/<slug>/` → 上傳或輪播
-3. 每個專案可傳 `pjt-`（專案首頁背景）與 `bkg-`（輪播背景）
+3. 每個專案可傳桌面／手機各一張：`pjt-desktop`、`pjt-mobile`（首頁背景）、`bkg-desktop`、`bkg-mobile`（輪播背景）
 4. 抽獎僅管理員：`/p/<slug>/lottery`
 
 ## 目錄

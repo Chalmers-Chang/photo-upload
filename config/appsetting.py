@@ -14,6 +14,10 @@ photo_dir = os.environ.get(
 )
 # Seconds each slideshow photo stays on screen
 slideshow_interval = int(os.environ.get("SLIDESHOW_INTERVAL", "8"))
+# Slideshow queue max length
+slideshow_queue_max = int(os.environ.get("SLIDESHOW_QUEUE_MAX", "100"))
+# When total photos exceed the queue max, keep this many newest per device
+slideshow_per_device = int(os.environ.get("SLIDESHOW_PER_DEVICE", "5"))
 # Redis TTL in days for photo/lottery records (files are not auto-deleted)
 record_ttl_days = int(os.environ.get("RECORD_TTL_DAYS", "20"))
 # Max upload size per photo (MB)
@@ -28,6 +32,8 @@ gunicorn_timeout = int(os.environ.get("GUNICORN_TIMEOUT", "120"))
 lottery_seconds = int(os.environ.get("LOTTERY_SECONDS", "10"))
 # Max photos shown on the lottery sphere
 lottery_sphere_max = int(os.environ.get("LOTTERY_SPHERE_MAX", "60"))
+# Max lottery tickets per device; draw uses that many newest photos (uploads stay unlimited)
+lottery_chance_max = int(os.environ.get("LOTTERY_CHANCE_MAX", "10"))
 
 
 def _unit(name, default):

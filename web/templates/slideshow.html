@@ -6,7 +6,7 @@
   <title>{{ msg.slideshow_title.format(name=project.name) }}</title>
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0a09; color: #f4efe6; font-family: "PingFang TC", "Noto Sans TC", sans-serif; }
-    {% if project.bkg_url %}
+    {% if project.bkg_desktop_show or project.bkg_mobile_show %}
     html, body { background: #fff; }
     body::before,
     body::after {
@@ -17,7 +17,12 @@
     }
     body::before {
       z-index: 0;
-      background: url("{{ project.bkg_url }}") center / cover no-repeat;
+      background: url("{{ project.bkg_desktop_show or project.bkg_mobile_show }}") center / cover no-repeat;
+    }
+    @media (max-width: 640px) {
+      body::before {
+        background-image: url("{{ project.bkg_mobile_show or project.bkg_desktop_show }}");
+      }
     }
     body::after {
       z-index: 0;

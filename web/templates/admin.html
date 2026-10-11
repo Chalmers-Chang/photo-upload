@@ -40,38 +40,54 @@
         <div>{{ msg.slideshow_url }}：<a href="{{ url_for('slideshow', slug=p.slug) }}">/p/{{ p.slug }}/slideshow</a></div>
       </div>
       <div class="asset-grid">
+        {% for kind, label in [
+          ("pjt-desktop", msg.asset_pjt_desktop),
+          ("pjt-mobile", msg.asset_pjt_mobile),
+          ("bkg-desktop", msg.asset_bkg_desktop),
+          ("bkg-mobile", msg.asset_bkg_mobile),
+        ] %}
+        {% set key = kind.replace("-", "_") %}
         <div class="asset-card">
-          <p class="meta">{{ msg.asset_pjt }}</p>
-          {% if p.pjt_thumb_url %}<img class="asset-thumb" src="{{ p.pjt_thumb_url }}" alt="">{% endif %}
-          <form class="stack" method="post" action="{{ url_for('admin_save_asset', project_id=p.id, kind='pjt') }}" enctype="multipart/form-data">
+          <p class="meta">{{ label }}</p>
+          {% if p[key + "_thumb_url"] %}<img class="asset-thumb" src="{{ p[key + "_thumb_url"] }}" alt="">{% endif %}
+          <form class="stack" method="post" action="{{ url_for('admin_save_asset', project_id=p.id, kind=kind) }}" enctype="multipart/form-data">
             <input type="file" name="photo" accept="image/*" required>
             <button class="btn small" type="submit">{{ msg.asset_upload }}</button>
           </form>
-          {% if p.pjt_url %}
-          <form method="post" action="{{ url_for('admin_delete_asset', project_id=p.id, kind='pjt') }}">
+          {% if p[key + "_url"] %}
+          <form method="post" action="{{ url_for('admin_delete_asset', project_id=p.id, kind=kind) }}">
             <button class="btn small secondary" type="submit">{{ msg.asset_delete }}</button>
           </form>
           {% endif %}
         </div>
-        <div class="asset-card">
-          <p class="meta">{{ msg.asset_bkg }}</p>
-          {% if p.bkg_thumb_url %}<img class="asset-thumb" src="{{ p.bkg_thumb_url }}" alt="">{% endif %}
-          <form class="stack" method="post" action="{{ url_for('admin_save_asset', project_id=p.id, kind='bkg') }}" enctype="multipart/form-data">
-            <input type="file" name="photo" accept="image/*" required>
-            <button class="btn small" type="submit">{{ msg.asset_upload }}</button>
-          </form>
-          {% if p.bkg_url %}
-          <form method="post" action="{{ url_for('admin_delete_asset', project_id=p.id, kind='bkg') }}">
-            <button class="btn small secondary" type="submit">{{ msg.asset_delete }}</button>
-          </form>
-          {% endif %}
-        </div>
+        {% endfor %}
       </div>
-      <div class="row">
+      <div class="row card-foot">
         <form method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}" onsubmit="return confirm({{ msg.confirm_delete_redis|tojson }});">
           <input type="hidden" name="mode" value="redis_only">
           <button class="btn small secondary" type="submit">{{ msg.delete_redis_only }}</button>
         </form>
+        <details class="settings">
+          <summary>{{ msg.settings_title }}</summary>
+          <form class="stack" method="post" action="{{ url_for('admin_save_settings', project_id=p.id) }}">
+            <label>{{ msg.set_slideshow_interval }}
+              <input type="number" name="slideshow_interval" min="1" max="120" value="{{ p.slideshow_interval }}" required>
+            </label>
+            <label>{{ msg.set_slideshow_queue_max }}
+              <input type="number" name="slideshow_queue_max" min="1" max="500" value="{{ p.slideshow_queue_max }}" required>
+            </label>
+            <label>{{ msg.set_slideshow_per_device }}
+              <input type="number" name="slideshow_per_device" min="1" max="50" value="{{ p.slideshow_per_device }}" required>
+            </label>
+            <label>{{ msg.set_lottery_sphere_max }}
+              <input type="number" name="lottery_sphere_max" min="1" max="200" value="{{ p.lottery_sphere_max }}" required>
+            </label>
+            <label>{{ msg.set_lottery_seconds }}
+              <input type="number" name="lottery_seconds" min="1" max="60" value="{{ p.lottery_seconds }}" required>
+            </label>
+            <button class="btn small" type="submit">{{ msg.settings_save }}</button>
+          </form>
+        </details>
       </div>
     </div>
   {% else %}
