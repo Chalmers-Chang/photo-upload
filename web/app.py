@@ -253,17 +253,23 @@ def create_app():
     def upload(slug):
         project = load_project(slug)
         if request.method == "POST":
+            xhr = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+            def reply(text, error=False):
+                if xhr:
+                    key = "error" if error else "message"
+                    return jsonify({key: text}), (400 if error else 200)
+                flash(text, "error" if error else "ok")
+                return redirect(request.path)
+
             files = [f for f in request.files.getlist("photo") if f and f.filename]
             caption = (request.form.get("caption") or "").strip()
             if not files:
-                flash(msg.need_photo, "error")
-                return redirect(request.path)
+                return reply(msg.need_photo, error=True)
             if len(files) > 5:
-                flash(msg.upload_too_many, "error")
-                return redirect(request.path)
+                return reply(msg.upload_too_many, error=True)
             if len(caption) > 500:
-                flash(msg.caption_too_long, "error")
-                return redirect(request.path)
+                return reply(msg.caption_too_long, error=True)
             did, _ = device_id()
             saved = 0
             serial = ""
@@ -283,25 +289,18 @@ def create_app():
                 saved += 1
                 at_cap = at_cap or capped
             if not saved:
-                flash(msg.bad_image, "error")
-                return redirect(request.path)
+                return reply(msg.bad_image, error=True)
             store.rebuild_slideshow_queue(project["id"])
             cap = appsetting.lottery_chance_max
             if at_cap:
-                flash(
-                    msg.upload_ok_capped.format(max=cap, serial=serial, n=saved),
-                    "ok",
-                )
+                text = msg.upload_ok_capped.format(max=cap, serial=serial, n=saved)
             elif saved == 1:
-                flash(msg.upload_ok.format(chances=chances, serial=serial), "ok")
+                text = msg.upload_ok.format(chances=chances, serial=serial)
             else:
-                flash(
-                    msg.upload_ok_many.format(
-                        n=saved, chances=chances, serial=serial
-                    ),
-                    "ok",
+                text = msg.upload_ok_many.format(
+                    n=saved, chances=chances, serial=serial
                 )
-            return redirect(request.path)
+            return reply(text)
         return render_template("upload.html", project=project)
 
     @app.get("/p/<slug>/slideshow")
