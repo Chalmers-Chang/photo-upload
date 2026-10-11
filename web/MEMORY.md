@@ -10,7 +10,7 @@
 
 ## TASTE
 
-- Admin project card: top-right 「刪除專案」 removes Redis, photo files, project record, and slug URLs (`/p/<slug>/` 404). 「只刪 Redis」 also drops the project/URLs but leaves files on disk. Bottom-right settings store per-project `slideshow_interval`, `slideshow_fade`, `slideshow_queue_max`, `slideshow_per_device`, `lottery_sphere_max`, `lottery_seconds` on the Redis project hash; create copies defaults from `config/appsetting.py`. `slideshow_fade` is seconds (0–3, default 0.8; 0 = hard cut).
+- Admin project card is a closed `<details>` by default; summary shows name, 「刪除專案」, and the three URLs. 「刪除專案」 removes Redis, photo files, project record, and slug URLs (`/p/<slug>/` 404). 「只刪 Redis」 also drops the project/URLs but leaves files on disk. Bottom-right settings store per-project `slideshow_interval`, `slideshow_fade`, `slideshow_queue_max`, `slideshow_per_device`, `lottery_sphere_max`, `lottery_seconds` on the Redis project hash; create copies defaults from `config/appsetting.py`. `slideshow_fade` is seconds (0–3, default 0.8; 0 = hard cut).
 
 - Fit photos inside the viewport (`object-fit: contain`). Do not set `width/height: 100%` or small photos get stretched.
 - Admin link lives in `base.html` (and slideshow, which does not extend base). Session cookie is permanent 30 days; `/admin` skips the login form when `session["admin"]` is set.

@@ -6,6 +6,21 @@
     width: min(720px, 100%);
     padding: {{ cfg.admin_pad_cm }}cm;
   }
+  .project-card > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+  .project-card > summary::-webkit-details-marker,
+  .project-card > summary::marker { display: none; content: none; }
+  .project-card .more {
+    display: block;
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .project-card .more::before { content: "▸ "; }
+  .project-card[open] .more::before { content: "▾ "; }
+  .project-card .card-head form { cursor: default; }
 </style>
 {% endblock %}
 {% block body %}
@@ -33,20 +48,23 @@
   </div>
 
   {% for p in projects %}
-    <div class="card">
-      <div class="card-head">
-        <h2>{{ p.name }}</h2>
-        <form method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}" onsubmit="return confirm({{ msg.confirm_delete_all|tojson }});">
-          <input type="hidden" name="mode" value="redis_and_files">
-          <button class="btn danger" type="submit">{{ msg.delete_project }}</button>
-        </form>
-      </div>
+    <details class="card project-card">
+      <summary>
+        <div class="card-head">
+          <h2>{{ p.name }}</h2>
+          <form method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}" onclick="event.stopPropagation()" onsubmit="return confirm({{ msg.confirm_delete_all|tojson }});">
+            <input type="hidden" name="mode" value="redis_and_files">
+            <button class="btn danger" type="submit">{{ msg.delete_project }}</button>
+          </form>
+        </div>
+        <div class="urls" onclick="event.stopPropagation()">
+          <div>{{ msg.project_url }}：<a href="{{ url_for('project_home', slug=p.slug) }}">/p/{{ p.slug }}/</a></div>
+          <div>{{ msg.upload_url }}：<a href="{{ url_for('upload', slug=p.slug) }}">/p/{{ p.slug }}/upload</a></div>
+          <div>{{ msg.slideshow_url }}：<a href="{{ url_for('slideshow', slug=p.slug) }}">/p/{{ p.slug }}/slideshow</a></div>
+        </div>
+        <span class="more">{{ msg.project_more }}</span>
+      </summary>
       <p class="meta">{{ msg.project_meta.format(slug=p.slug, count=p.photo_count) }}</p>
-      <div class="urls">
-        <div>{{ msg.project_url }}：<a href="{{ url_for('project_home', slug=p.slug) }}">/p/{{ p.slug }}/</a></div>
-        <div>{{ msg.upload_url }}：<a href="{{ url_for('upload', slug=p.slug) }}">/p/{{ p.slug }}/upload</a></div>
-        <div>{{ msg.slideshow_url }}：<a href="{{ url_for('slideshow', slug=p.slug) }}">/p/{{ p.slug }}/slideshow</a></div>
-      </div>
       <div class="asset-grid">
         {% for kind, label in [
           ("pjt-desktop", msg.asset_pjt_desktop),
@@ -105,7 +123,7 @@
           </form>
         </details>
       </div>
-    </div>
+    </details>
   {% else %}
     <p class="lead">{{ msg.no_projects }}</p>
   {% endfor %}
