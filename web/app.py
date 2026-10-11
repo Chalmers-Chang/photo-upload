@@ -27,7 +27,7 @@ from web import images, store
 def create_app():
     app = Flask(__name__)
     app.secret_key = appsetting.secret_key
-    app.config["MAX_CONTENT_LENGTH"] = appsetting.max_upload_mb * 1024 * 1024
+    app.config["MAX_CONTENT_LENGTH"] = appsetting.max_upload_mb * 5 * 1024 * 1024
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -253,35 +253,54 @@ def create_app():
     def upload(slug):
         project = load_project(slug)
         if request.method == "POST":
-            f = request.files.get("photo")
+            files = [f for f in request.files.getlist("photo") if f and f.filename]
             caption = (request.form.get("caption") or "").strip()
-            if not f or not f.filename:
+            if not files:
                 flash(msg.need_photo, "error")
+                return redirect(request.path)
+            if len(files) > 5:
+                flash(msg.upload_too_many, "error")
                 return redirect(request.path)
             if len(caption) > 500:
                 flash(msg.caption_too_long, "error")
                 return redirect(request.path)
-            photo_id = uuid.uuid4().hex
-            dest = store.photo_path(project["id"], photo_id)
-            try:
-                images.save_jpeg(f, dest)
-            except Exception:
-                flash(msg.bad_image, "error")
-                dest.unlink(missing_ok=True)
-                return redirect(request.path)
             did, _ = device_id()
-            serial, chances, at_cap = store.add_photo(
-                project["id"], photo_id, caption, did
-            )
+            saved = 0
+            serial = ""
+            chances = 0
+            at_cap = False
+            for f in files:
+                photo_id = uuid.uuid4().hex
+                dest = store.photo_path(project["id"], photo_id)
+                try:
+                    images.save_jpeg(f, dest)
+                except Exception:
+                    dest.unlink(missing_ok=True)
+                    continue
+                serial, chances, capped = store.add_photo(
+                    project["id"], photo_id, caption, did, rebuild=False
+                )
+                saved += 1
+                at_cap = at_cap or capped
+            if not saved:
+                flash(msg.bad_image, "error")
+                return redirect(request.path)
+            store.rebuild_slideshow_queue(project["id"])
+            cap = appsetting.lottery_chance_max
             if at_cap:
                 flash(
-                    msg.upload_ok_capped.format(
-                        max=appsetting.lottery_chance_max, serial=serial
+                    msg.upload_ok_capped.format(max=cap, serial=serial, n=saved),
+                    "ok",
+                )
+            elif saved == 1:
+                flash(msg.upload_ok.format(chances=chances, serial=serial), "ok")
+            else:
+                flash(
+                    msg.upload_ok_many.format(
+                        n=saved, chances=chances, serial=serial
                     ),
                     "ok",
                 )
-            else:
-                flash(msg.upload_ok.format(chances=chances, serial=serial), "ok")
             return redirect(request.path)
         return render_template("upload.html", project=project)
 

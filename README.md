@@ -50,7 +50,7 @@ Pushes to `main` or `feature/**` build arm64 images and run `compose pull && com
 | `SLIDESHOW_QUEUE_MAX` | `100` | Slideshow queue cap |
 | `SLIDESHOW_PER_DEVICE` | `5` | Newest photos per device when over the cap |
 | `RECORD_TTL_DAYS` | `20` | Redis record TTL (files are not auto-deleted) |
-| `MAX_UPLOAD_MB` | `20` | Per-photo cap; nginx `client_max_body_size` is 25m |
+| `MAX_UPLOAD_MB` | `20` | Per-photo cap; batch is 5 photos; nginx `client_max_body_size` is 110m |
 | `JPEG_MAX_EDGE` | `2560` | Longest edge after upload |
 | `GUNICORN_WORKERS` | `2` | |
 | `GUNICORN_TIMEOUT` | `120` | Keep high for large uploads |

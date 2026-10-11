@@ -389,7 +389,7 @@ def add_ticket(project_id, photo_id, device_id):
     return serial, int(n)
 
 
-def add_photo(project_id, photo_id, caption, device_id):
+def add_photo(project_id, photo_id, caption, device_id, rebuild=True):
     now = time.time()
     conn = r()
     conn.set(
@@ -413,7 +413,8 @@ def add_photo(project_id, photo_id, caption, device_id):
         drop_oldest_ticket(project_id, device_id)
         r().set(f"device_chance:{project_id}:{device_id}", cap, ex=ttl_seconds())
         n = cap
-    rebuild_slideshow_queue(project_id)
+    if rebuild:
+        rebuild_slideshow_queue(project_id)
     return serial, n, at_cap
 
 
