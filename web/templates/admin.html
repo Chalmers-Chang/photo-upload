@@ -2,9 +2,70 @@
 {% block title %}{{ msg.admin }}{% endblock %}
 {% block extra_head %}
 <style>
-  .wrap.admin {
+  html, body { height: 100%; overflow: hidden; --edge: 2cm; --glass: {{ cfg.glass_pad_cm }}cm; }
+  @media (max-width: 640px) {
+    html, body { --glass: {{ cfg.glass_pad_mobile_cm }}cm; }
+  }
+  .admin-stage {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background: var(--bg);
+    display: grid;
+    padding: var(--glass);
+    padding-top: max(var(--glass), 64px);
+    box-sizing: border-box;
+  }
+  .admin-stage > .glass {
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 24px 24px 16px;
+    box-sizing: border-box;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 8px 32px rgba(28, 25, 21, 0.08);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+  }
+  .admin-stage .glass-body {
     width: min(720px, 100%);
-    padding: {{ cfg.admin_pad_cm }}cm;
+    margin: 0 auto;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+  .admin-stage .logout-form {
+    flex-shrink: 0;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    padding: 12px 0 4px;
+  }
+  .logout-form .admin-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    white-space: nowrap;
+    min-height: 44px;
+    padding: 10px 18px;
+    line-height: 1.3;
+    color: #1c1915;
+    background: #fffcf7;
+    border: 1px solid #fff;
+  }
+  .admin-stage .site-credit {
+    flex-shrink: 0;
+    margin: 0;
+    padding: 10px 0 8px;
+    pointer-events: none;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: rgba(28, 25, 21, 0.28);
   }
   .project-card > summary {
     list-style: none;
@@ -20,7 +81,6 @@
   }
   .project-card .more::before { content: "▸ "; }
   .project-card[open] .more::before { content: "▾ "; }
-  .project-card .card-head form { cursor: default; }
   .asset-pick input { display: none; }
   .btn.delete-project {
     width: auto;
@@ -28,26 +88,95 @@
     padding: 7px 8px;
     border-radius: 11px;
   }
-  .delete-arm { flex-shrink: 0; }
+  .delete-arm {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-start;
+  }
   .delete-confirm {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: flex-start;
   }
   .delete-confirm[hidden] { display: none !important; }
-  .reset-lottery { margin-top: 10px; }
+  .mode-picks {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin: 0;
+  }
+  .mode-picks legend { font-size: 14px; color: var(--muted); padding: 0 4px; }
+  .mode-picks label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--ink);
+    margin-top: 8px;
+  }
+  .mode-picks input { width: auto; }
+  .card-head h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .card-head h2 .name-link {
+    color: inherit;
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .card-head h2 .name-link:hover { text-decoration: underline; }
+  .card-head h2 a.icon-btn {
+    flex-shrink: 0;
+    text-decoration: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+  }
+  .card-head h2 a.icon-btn svg { width: 8px; height: 8px; }
+  .url-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .icon-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .icon-btn:hover { background: var(--bg); }
+  .icon-btn svg { display: block; }
+  .qr-dialog {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px;
+    width: min(360px, calc(100% - 32px));
+    background: var(--card);
+    color: var(--ink);
+    text-align: center;
+  }
+  .qr-dialog::backdrop { background: rgba(28, 25, 21, 0.4); }
+  .qr-dialog h2 { margin: 0 0 8px; font-size: 20px; }
+  .qr-dialog img { width: min(240px, 100%); height: auto; margin: 12px 0; }
+  .qr-dialog .row { justify-content: center; }
 </style>
 {% endblock %}
 {% block body %}
-<div class="wrap admin">
-  <div class="row" style="justify-content:space-between">
-    <h1>{{ msg.projects }}</h1>
-    <form method="post" action="{{ url_for('admin_logout') }}">
-      <button class="btn small secondary" type="submit">{{ msg.logout }}</button>
-    </form>
-  </div>
+<div class="admin-stage">
+<div class="glass">
+<div class="glass-body">
+  <h1>{{ msg.projects }}</h1>
 
   {% for category, message in get_flashed_messages(with_categories=true) %}
     <p class="flash {{ category }}">{{ message }}</p>
@@ -68,26 +197,43 @@
     <details class="card project-card">
       <summary>
         <div class="card-head">
-          <h2>{{ p.name }}</h2>
-          <div class="delete-arm" onclick="event.stopPropagation()">
-            <button type="button" class="btn danger delete-project js-delete-arm">{{ msg.delete_project }}</button>
-            <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}">
-              <input type="hidden" name="mode" value="redis_and_files">
-              <button class="btn danger delete-project" type="submit">{{ msg.delete_confirm }}</button>
-              <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
-            </form>
-          </div>
+          <h2>
+            <a class="name-link" href="{{ url_for('project_home', slug=p.slug) }}" onclick="event.stopPropagation()">{{ p.name }}</a>
+            <a class="icon-btn" href="{{ url_for('project_home', slug=p.slug) }}" onclick="event.stopPropagation()" title="{{ msg.open_project }}" aria-label="{{ msg.open_project }}">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M21 14v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/></svg>
+            </a>
+          </h2>
         </div>
         <div class="urls" onclick="event.stopPropagation()">
-          <div>{{ msg.project_url }}：<a href="{{ url_for('project_home', slug=p.slug) }}">/p/{{ p.slug }}/</a></div>
-          <div>{{ msg.upload_url }}：<a href="{{ url_for('upload', slug=p.slug) }}">/p/{{ p.slug }}/upload</a></div>
-          <div>{{ msg.slideshow_url }}：<a href="{{ url_for('slideshow', slug=p.slug) }}">/p/{{ p.slug }}/slideshow</a></div>
+          {% for label, kind, path in [
+            (msg.project_url, "home", url_for("project_home", slug=p.slug, _external=True)),
+            (msg.upload_url, "upload", url_for("upload", slug=p.slug, _external=True)),
+            (msg.slideshow_url, "slideshow", url_for("slideshow", slug=p.slug, _external=True)),
+          ] %}
+          <div class="url-row">
+            <span>{{ label }}</span>
+            <button type="button" class="icon-btn js-copy" data-url="{{ path }}" title="{{ msg.copy_url }}" aria-label="{{ msg.copy_url }}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="11" height="13" rx="2"/><path d="M5 16V6a2 2 0 0 1 2-2h10"/></svg>
+            </button>
+            <button type="button" class="icon-btn js-qr" title="{{ msg.qr_open }}" aria-label="{{ msg.qr_open }}"
+              data-name="{{ p.name }}"
+              data-kind="{{ label }}"
+              data-png="{{ url_for('admin_qr', project_id=p.id, kind=kind) }}"
+              data-file="{{ p.slug }}-{{ kind }}.png">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm12-2h2v2h-2v-2zm4 0h2v2h-2v-2zm-4 4h2v2h-2v-2zm4 0h2v6h-2v-2h-2v-2h2v-2zm-4 4h2v2h-2v-2z"/></svg>
+            </button>
+          </div>
+          {% endfor %}
         </div>
-        <form class="reset-lottery" method="post" action="{{ url_for('admin_reset_lottery', project_id=p.id) }}" onclick="event.stopPropagation()" onsubmit="return confirm({{ msg.confirm_reset_lottery|tojson }});">
-          <button class="btn small secondary" type="submit">{{ msg.reset_lottery }}</button>
-        </form>
         <span class="more">{{ msg.project_more }}</span>
       </summary>
+      <div class="delete-arm">
+        <button type="button" class="btn danger delete-project js-delete-arm">{{ msg.delete_project }}</button>
+        <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}">
+          <button class="btn danger delete-project" type="submit">{{ msg.delete_confirm }}</button>
+          <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
+        </form>
+      </div>
       <p class="meta">{{ msg.project_meta.format(slug=p.slug, count=p.photo_count) }}</p>
       <div class="asset-grid">
         {% for kind, label in [
@@ -116,14 +262,15 @@
         </div>
         {% endfor %}
       </div>
-      <div class="row card-foot">
-        <form method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}" onsubmit="return confirm({{ msg.confirm_delete_redis|tojson }});">
-          <input type="hidden" name="mode" value="redis_only">
-          <button class="btn small secondary" type="submit">{{ msg.delete_redis_only }}</button>
-        </form>
+      <div class="asset-grid card-foot">
         <details class="settings">
           <summary>{{ msg.settings_title }}</summary>
           <form class="stack" method="post" action="{{ url_for('admin_save_settings', project_id=p.id) }}">
+            <fieldset class="mode-picks">
+              <legend>{{ msg.set_slideshow_mode }}</legend>
+              <label><input type="radio" name="slideshow_mode" value="wall" {% if p.slideshow_mode != "full" %}checked{% endif %}> {{ msg.slideshow_mode_wall }}</label>
+              <label><input type="radio" name="slideshow_mode" value="full" {% if p.slideshow_mode == "full" %}checked{% endif %}> {{ msg.slideshow_mode_full }}</label>
+            </fieldset>
             <label>{{ msg.set_slideshow_interval }}
               <input type="number" name="slideshow_interval" min="1" max="120" value="{{ p.slideshow_interval }}" required>
             </label>
@@ -151,6 +298,23 @@
     <p class="lead">{{ msg.no_projects }}</p>
   {% endfor %}
 </div>
+{% if is_admin %}
+<form class="logout-form" method="post" action="{{ url_for('admin_logout') }}">
+  <button class="admin-btn" type="submit">{{ msg.logout }}</button>
+</form>
+{% endif %}
+{% include "_credit.html" %}
+</div>
+</div>
+<dialog class="qr-dialog" id="qr-modal">
+  <h2 id="qr-name"></h2>
+  <p class="meta" id="qr-kind"></p>
+  <img id="qr-img" alt="">
+  <div class="row">
+    <a class="btn small" id="qr-download" download>{{ msg.qr_download }}</a>
+    <button class="btn small secondary" type="button" id="qr-close">{{ msg.qr_close }}</button>
+  </div>
+</dialog>
 <script>
   document.querySelectorAll(".delete-arm").forEach((box) => {
     const arm = box.querySelector(".js-delete-arm");
@@ -169,5 +333,50 @@
       arm.hidden = false;
     });
   });
+
+  const copied = {{ msg.copied_url | tojson }};
+  document.querySelectorAll(".js-copy").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(btn.dataset.url);
+      } catch (err) {
+        const ta = document.createElement("textarea");
+        ta.value = btn.dataset.url;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+      }
+      const prev = btn.title;
+      btn.title = copied;
+      setTimeout(() => { btn.title = prev; }, 1500);
+    });
+  });
+
+  const qrModal = document.getElementById("qr-modal");
+  const qrName = document.getElementById("qr-name");
+  const qrKind = document.getElementById("qr-kind");
+  const qrImg = document.getElementById("qr-img");
+  const qrDl = document.getElementById("qr-download");
+  document.querySelectorAll(".js-qr").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      qrName.textContent = btn.dataset.name;
+      qrKind.textContent = btn.dataset.kind;
+      qrImg.src = btn.dataset.png;
+      qrImg.alt = btn.dataset.kind;
+      qrDl.href = btn.dataset.png;
+      qrDl.download = btn.dataset.file;
+      qrModal.showModal();
+    });
+  });
+  document.getElementById("qr-close").addEventListener("click", () => qrModal.close());
+  qrModal.addEventListener("click", (e) => {
+    if (e.target === qrModal) qrModal.close();
+  });
 </script>
 {% endblock %}
+{% block credit %}{% endblock %}

@@ -1,7 +1,9 @@
+import io
 import uuid
 from datetime import timedelta
 from functools import wraps
 
+import qrcode
 from flask import (
     Flask,
     abort,
@@ -11,6 +13,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     session,
     url_for,
 )
@@ -24,7 +27,7 @@ from web import images, store
 def create_app():
     app = Flask(__name__)
     app.secret_key = appsetting.secret_key
-    app.config["MAX_CONTENT_LENGTH"] = appsetting.max_upload_mb * 1024 * 1024
+    app.config["MAX_CONTENT_LENGTH"] = appsetting.max_upload_mb * 5 * 1024 * 1024
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -148,17 +151,12 @@ def create_app():
     @app.post("/admin/projects/<project_id>/delete")
     @admin_required
     def admin_delete_project(project_id):
-        mode = request.form.get("mode")
-        delete_files = mode == "redis_and_files"
         try:
-            p = store.delete_project(project_id, delete_files=delete_files)
+            p = store.delete_project(project_id, delete_files=True)
         except ValueError as e:
             flash(str(e), "error")
             return redirect(url_for("admin_home"))
-        if delete_files:
-            flash(msg.project_deleted.format(name=p["name"]), "ok")
-        else:
-            flash(msg.project_deleted_redis.format(name=p["name"]), "ok")
+        flash(msg.project_deleted.format(name=p["name"]), "ok")
         return redirect(url_for("admin_home"))
 
     @app.post("/admin/projects/<project_id>/asset/<kind>")
@@ -210,16 +208,33 @@ def create_app():
         flash(msg.settings_saved, "ok")
         return redirect(url_for("admin_home"))
 
-    @app.post("/admin/projects/<project_id>/lottery/reset")
+    @app.post("/p/<slug>/lottery/reset")
     @admin_required
-    def admin_reset_lottery(project_id):
+    def lottery_reset(slug):
+        project = load_project(slug)
+        store.reset_lottery_winners(project["id"])
+        return redirect(url_for("lottery", slug=slug))
+
+    _qr_pages = {
+        "home": "project_home",
+        "upload": "upload",
+        "slideshow": "slideshow",
+    }
+
+    @app.get("/admin/projects/<project_id>/qr/<kind>.png")
+    @admin_required
+    def admin_qr(project_id, kind):
+        endpoint = _qr_pages.get(kind)
         p = store.get_project(project_id)
-        if not p:
-            flash(msg.project_missing, "error")
-            return redirect(url_for("admin_home"))
-        store.reset_lottery_winners(project_id)
-        flash(msg.lottery_reset.format(name=p["name"]), "ok")
-        return redirect(url_for("admin_home"))
+        if not endpoint or not p:
+            abort(404)
+        qr = qrcode.QRCode(border=2, box_size=10)
+        qr.add_data(url_for(endpoint, slug=p["slug"], _external=True))
+        qr.make(fit=True)
+        buf = io.BytesIO()
+        qr.make_image(fill_color="black", back_color="white").save(buf, format="PNG")
+        buf.seek(0)
+        return send_file(buf, mimetype="image/png")
 
     @app.get("/p/<slug>/")
     def project_home(slug):
@@ -229,28 +244,54 @@ def create_app():
     def upload(slug):
         project = load_project(slug)
         if request.method == "POST":
-            f = request.files.get("photo")
+            xhr = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+            def reply(text, error=False):
+                if xhr:
+                    key = "error" if error else "message"
+                    return jsonify({key: text}), (400 if error else 200)
+                flash(text, "error" if error else "ok")
+                return redirect(request.path)
+
+            files = [f for f in request.files.getlist("photo") if f and f.filename]
             caption = (request.form.get("caption") or "").strip()
-            if not f or not f.filename:
-                flash(msg.need_photo, "error")
-                return redirect(request.path)
+            if not files:
+                return reply(msg.need_photo, error=True)
+            if len(files) > 5:
+                return reply(msg.upload_too_many, error=True)
             if len(caption) > 500:
-                flash(msg.caption_too_long, "error")
-                return redirect(request.path)
-            photo_id = uuid.uuid4().hex
-            dest = store.photo_path(project["id"], photo_id)
-            try:
-                images.save_jpeg(f, dest)
-            except Exception:
-                flash(msg.bad_image, "error")
-                dest.unlink(missing_ok=True)
-                return redirect(request.path)
+                return reply(msg.caption_too_long, error=True)
             did, _ = device_id()
-            serial, chances = store.add_photo(
-                project["id"], photo_id, caption, did
-            )
-            flash(msg.upload_ok.format(chances=chances, serial=serial), "ok")
-            return redirect(request.path)
+            saved = 0
+            serial = ""
+            chances = 0
+            at_cap = False
+            for f in files:
+                photo_id = uuid.uuid4().hex
+                dest = store.photo_path(project["id"], photo_id)
+                try:
+                    images.save_jpeg(f, dest)
+                except Exception:
+                    dest.unlink(missing_ok=True)
+                    continue
+                serial, chances, capped = store.add_photo(
+                    project["id"], photo_id, caption, did, rebuild=False
+                )
+                saved += 1
+                at_cap = at_cap or capped
+            if not saved:
+                return reply(msg.bad_image, error=True)
+            store.rebuild_slideshow_queue(project["id"])
+            cap = appsetting.lottery_chance_max
+            if at_cap:
+                text = msg.upload_ok_capped.format(max=cap, serial=serial, n=saved)
+            elif saved == 1:
+                text = msg.upload_ok.format(chances=chances, serial=serial)
+            else:
+                text = msg.upload_ok_many.format(
+                    n=saved, chances=chances, serial=serial
+                )
+            return reply(text)
         return render_template("upload.html", project=project)
 
     @app.get("/p/<slug>/slideshow")

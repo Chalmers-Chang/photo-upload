@@ -4,9 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ msg.slideshow_title.format(name=project.name) }}</title>
+  {% include "_favicon.html" %}
   <style>
-    html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0a09; color: #f4efe6; font-family: "PingFang TC", "Noto Sans TC", sans-serif; }
-    {% if project.bkg_desktop_show or project.bkg_mobile_show %}
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0a09; color: #f4efe6; font-family: "PingFang TC", "Noto Sans TC", sans-serif; --edge: 2cm; }
+    {% if project.slideshow_mode == "full" %}
+    html, body { background: #f4efe6; color: #1c1915; }
+    {% elif project.bkg_desktop_show or project.bkg_mobile_show %}
     html, body { background: #fff; }
     body::before,
     body::after {
@@ -39,7 +42,8 @@
       grid-template-columns: minmax(0, 1fr);
       grid-template-rows: auto minmax(0, 1fr) auto;
       overflow: hidden;
-      padding: 2cm;
+      padding: var(--edge);
+      padding-top: max(var(--edge), 64px);
       box-sizing: border-box;
       min-width: 0;
     }
@@ -107,27 +111,62 @@
     .credit span {
       grid-area: 1 / 1;
       opacity: 0;
+      height: 0;
+      overflow: hidden;
       transition: opacity {{ project.slideshow_fade }}s ease;
     }
-    .credit span.on { opacity: 1; }
-    .admin-btn {
+    .credit span.on {
+      height: auto;
+      overflow: visible;
+      opacity: 1;
+    }
+    .chrome-end {
       position: fixed;
-      top: 16px;
-      right: 20px;
-      z-index: 20;
+      top: 12px;
+      right: var(--edge, 2cm);
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: opacity 0.4s ease;
+    }
+    .admin-btn, .back-btn {
       text-decoration: none;
-      border: 1px solid #ddd4c6;
+      border: 1px solid #fff;
       background: #fffcf7;
       color: #1c1915;
       padding: 8px 14px;
       border-radius: 999px;
+      font: inherit;
       font-size: 14px;
+      cursor: pointer;
     }
+    .back-btn {
+      position: fixed;
+      top: 12px;
+      left: var(--edge, 2cm);
+      z-index: 30;
+      transition: opacity 0.4s ease;
+    }
+    body.chrome-idle .chrome-end,
+    body.chrome-idle .back-btn {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .mode-full .stage {
+      grid-template-rows: minmax(0, 1fr);
+      padding: 0;
+      padding-top: 64px;
+    }
+    .mode-full .credit { display: none !important; }
+    .mode-full img { border-radius: 0; }
+    .mode-full .empty { color: #6b6459; }
   </style>
   <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
 </head>
-<body>
-  <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
+<body class="mode-{{ project.slideshow_mode }}">
+  <a class="back-btn" id="back" href="{{ url_for('project_home', slug=project.slug) }}">{{ msg.lottery_back }}</a>
+  {% include "_admin_chrome.html" %}
   {% include "_name_modal.html" %}
   <div class="stage">
     <div class="credit name" id="name" data-guest="{{ msg.guest_name }}">
@@ -145,20 +184,54 @@
   <script>
     const api = {{ url_for('slideshow_api', slug=project.slug) | tojson }};
     const home = {{ url_for('project_home', slug=project.slug) | tojson }};
+    const full = {{ (project.slideshow_mode == "full") | tojson }};
     const slides = [...document.querySelectorAll(".slide")];
     const names = [...document.querySelectorAll("#name span")];
     const notes = [...document.querySelectorAll("#note span")];
     const empty = document.getElementById("empty");
     const nameBox = document.getElementById("name");
     let timer = null;
+    let chromeIdle = 0;
+    let overChrome = false;
     let shownId = null;
     let front = 0;
     let gen = 0;
+
+    function showChrome() {
+      document.body.classList.remove("chrome-idle");
+    }
+    function hideChrome() {
+      if (overChrome) return;
+      document.body.classList.add("chrome-idle");
+    }
+    function bumpChrome() {
+      showChrome();
+      clearTimeout(chromeIdle);
+      chromeIdle = setTimeout(hideChrome, 5000);
+    }
+    document.addEventListener("mousemove", bumpChrome);
+    document.addEventListener("pointerdown", bumpChrome);
+    document.querySelectorAll(".chrome-end, .back-btn").forEach((el) => {
+      el.addEventListener("mouseenter", () => {
+        overChrome = true;
+        showChrome();
+      });
+      el.addEventListener("mouseleave", () => {
+        overChrome = false;
+        bumpChrome();
+      });
+    });
+    bumpChrome();
 
     function goHome() {
       try { document.exitFullscreen(); } catch (e) {}
       location.href = home;
     }
+
+    document.getElementById("back").addEventListener("click", (e) => {
+      e.preventDefault();
+      goHome();
+    });
 
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
@@ -168,7 +241,7 @@
     });
 
     document.addEventListener("click", (e) => {
-      if (e.target.closest(".admin-btn")) return;
+      if (e.target.closest(".chrome-end, .back-btn")) return;
       const el = document.documentElement;
       if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
     }, { once: true });
@@ -222,14 +295,16 @@
       img.src = data.url;
       await waitLoad(img);
       if (my !== gen) return;
-      const lab = labels(data);
+      const lab = full ? { name: "", note: "" } : labels(data);
       img.classList.add("on");
       showLayer(names, next, lab.name);
       showLayer(notes, next, lab.note);
       if (next !== front) {
         slides[front].classList.remove("on");
         names[front].classList.remove("on");
+        names[front].textContent = "";
         notes[front].classList.remove("on");
+        notes[front].textContent = "";
       }
       empty.hidden = true;
       front = next;
@@ -255,9 +330,11 @@
         present(data);
       } else {
         empty.hidden = true;
-        const lab = labels(data);
-        showLayer(names, front, lab.name);
-        showLayer(notes, front, lab.note);
+        if (!full) {
+          const lab = labels(data);
+          showLayer(names, front, lab.name);
+          showLayer(notes, front, lab.note);
+        }
       }
       const waitMs = Math.max(250, (data.show_until - data.server_now) * 1000);
       timer = setTimeout(tick, waitMs);

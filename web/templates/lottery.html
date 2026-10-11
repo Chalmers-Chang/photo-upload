@@ -4,8 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ msg.lottery_title.format(name=project.name) }}</title>
+  {% include "_favicon.html" %}
   <style>
-    html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0a09; color: #f4efe6; font-family: "PingFang TC", "Noto Sans TC", sans-serif; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0a09; color: #f4efe6; font-family: "PingFang TC", "Noto Sans TC", sans-serif; --edge: {{ cfg.lottery_pad_cm }}cm; }
     {% if project.lot_desktop_show or project.lot_mobile_show %}
     html, body { background: #fff; }
     body::before,
@@ -30,14 +31,43 @@
       opacity: {{ cfg.bkg_fade }};
     }
     {% endif %}
-    .admin-btn, .back-btn {
-      position: fixed; top: 16px; z-index: 30;
-      text-decoration: none; border: 1px solid #ddd4c6; background: #fffcf7;
-      color: #1c1915; padding: 8px 14px; border-radius: 999px; font-size: 14px;
+    .chrome-end {
+      position: fixed;
+      top: 12px;
+      right: var(--edge);
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    .admin-btn { right: 20px; }
-    .back-btn { left: 20px; }
+    .admin-btn, .back-btn {
+      text-decoration: none; border: 1px solid #fff; background: #fffcf7;
+      color: #1c1915; padding: 8px 14px; border-radius: 999px;
+      font: inherit; font-size: 14px; cursor: pointer;
+    }
+    .back-btn { position: fixed; top: 12px; left: var(--edge); z-index: 30; }
+    .reset-lottery {
+      position: fixed;
+      left: var(--edge);
+      bottom: 12px;
+      z-index: 30;
+      margin: 0;
+    }
+    .reset-lottery button {
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: #fff;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
+    }
     .again-btn {
+      position: relative;
+      z-index: 5;
       display: block;
       margin: 0 auto 28px;
       border: 2px solid #fff;
@@ -85,8 +115,17 @@
       display: grid;
       grid-template-rows: minmax(0, 1fr) auto auto;
       overflow: hidden;
-      padding: {{ cfg.lottery_pad_cm }}cm;
+      padding: var(--edge);
+      padding-top: max(var(--edge), 64px);
       box-sizing: border-box;
+    }
+    .sparkles {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
     }
     .winner-wrap {
       position: relative;
@@ -118,42 +157,82 @@
     }
     .label {
       position: relative;
-      z-index: 3;
+      z-index: 5;
       padding: 16px 24px 28px;
       text-align: center;
       font-size: clamp(18px, 3vw, 28px);
       text-shadow: 0 1px 10px rgba(0,0,0,0.65);
+      white-space: pre-line;
     }
     .floater {
       position: absolute;
-      width: 92px;
-      height: 92px;
       object-fit: cover;
       border-radius: 14px;
-      z-index: 1;
+      z-index: 3;
       opacity: 0.88;
+      cursor: pointer;
       box-shadow: 0 10px 24px rgba(0,0,0,0.4);
       animation: drift 5.5s ease-in-out infinite;
     }
+    .floater.on { outline: 2px solid rgba(255, 251, 235, 0.9); }
+    .floater-dim {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      background: rgba(28, 25, 21, 0.82);
+      cursor: pointer;
+    }
+    .floater-preview {
+      position: fixed;
+      z-index: 41;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      max-width: min(72%, 72vh);
+      max-height: min(72%, 72vh);
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      border-radius: 22px;
+      cursor: pointer;
+      box-shadow: 0 18px 36px rgba(0, 0, 0, 0.35);
+    }
     @keyframes drift {
-      0%, 100% { transform: translate(0, 0) rotate(-7deg); }
-      50% { transform: translate(14px, -16px) rotate(8deg); }
+      0%, 100% { transform: translate(0, 0) rotate(-6deg); }
+      50% { transform: translate(8px, -10px) rotate(5deg); }
+    }
+    .site-credit {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 12px;
+      z-index: 25;
+      margin: 0;
+      pointer-events: none;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      color: rgba(28, 25, 21, 0.28);
     }
     [hidden] { display: none !important; }
   </style>
   <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
 </head>
 <body>
-  <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
+  {% include "_admin_chrome.html" %}
   <a class="back-btn" id="back" href="{{ url_for('project_home', slug=project.slug) }}" hidden>{{ msg.lottery_back }}</a>
+  <form class="reset-lottery" method="post" action="{{ url_for('lottery_reset', slug=project.slug) }}" onsubmit="return confirm({{ msg.confirm_reset_lottery|tojson }});">
+    <button type="submit">{{ msg.reset_lottery }}</button>
+  </form>
   {% include "_name_modal.html" %}
   <div class="stage">
+    <canvas class="sparkles" id="sparkles" hidden></canvas>
     <p class="msg" id="status">{{ msg.lottery_ready }}</p>
     <div class="scene" id="scene" hidden>
       <div class="sphere" id="sphere"></div>
     </div>
     <div class="result" id="result" hidden
-         data-winner-tpl="{{ msg.lottery_winner }}"
          data-guest="{{ msg.guest_name }}"
          data-failed="{{ msg.lottery_failed }}">
       <div class="winner-wrap"><img id="winner" alt=""></div>
@@ -165,6 +244,7 @@
     const drawUrl = {{ url_for('lottery_draw', slug=project.slug) | tojson }};
     const home = {{ url_for('project_home', slug=project.slug) | tojson }};
     const seconds = {{ seconds | tojson }};
+    const winnerTpl = {{ msg.lottery_winner | tojson }};
     const status = document.getElementById("status");
     const scene = document.getElementById("scene");
     const sphere = document.getElementById("sphere");
@@ -173,9 +253,241 @@
     const label = document.getElementById("label");
     const back = document.getElementById("back");
     const again = document.getElementById("again");
+    const sparkleCvs = document.getElementById("sparkles");
+    const sparkleCtx = sparkleCvs.getContext("2d", { alpha: true });
+    const SPARKLE_GATHER = 2000;
+    const SPARKLE_BURST = 5000;
+    const SPARKLE_TINTS = [
+      "#f6e08a", "#ffe9b0", "#f6e08a", "#ffe9b0", "#ebcf6e",
+      "#d8dde3", "#c5ccd4", "#e8eef2",
+      "#f4efe6", "#fffcf7",
+    ];
+    const SPHERE_Y_MAX = 2880;
+    const SPHERE_X_FROM = -18;
+    const SPHERE_X_TO = 16;
+    const SPARKLE_BOB = (96 / 2.54) * 0.25;
+    let sparkleRaf = 0;
+    let sparkleOn = false;
+    let sparkleMode = "gather";
+    let sparkleT0 = 0;
+    let sparkleLast = 0;
+    let sparkleGatherSec = 10;
+    let dots = [];
+    let floaterPhotos = [];
+
+    function sizeSparkles() {
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const w = sparkleCvs.clientWidth;
+      const h = sparkleCvs.clientHeight;
+      sparkleCvs.width = Math.max(1, Math.floor(w * dpr));
+      sparkleCvs.height = Math.max(1, Math.floor(h * dpr));
+      sparkleCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { w, h };
+    }
+
+    function sphereU(t, durationSec) {
+      const k = -Math.log(0.02) / durationSec;
+      return 1 - Math.exp(-k * Math.min(Math.max(t, 0), durationSec));
+    }
+
+    function makeDots(w, h, gatherSec) {
+      const cx = w * 0.5;
+      const cy = h * 0.48;
+      const maxR = Math.min(w, h) * 0.42;
+      dots = [];
+      for (let i = 0; i < SPARKLE_GATHER; i++) {
+        dots.push({
+          cx, cy,
+          x: cx,
+          y: cy,
+          vx: 0,
+          vy: 0,
+          ang: Math.random() * Math.PI * 2,
+          lift: (Math.random() * 2 - 1) * 0.38,
+          spawn: Math.random() * gatherSec,
+          rMax: maxR * (0.2 + Math.random() * 0.8),
+          breath: 0.55 + (i % 6) * 0.2,
+          phase: (i % 4) * (Math.PI / 2) + (Math.random() - 0.5) * 0.4,
+          ox: Math.random() * Math.PI * 2,
+          r: 0.7 + Math.random() * 1.3,
+          color: SPARKLE_TINTS[i % SPARKLE_TINTS.length],
+        });
+      }
+    }
+
+    function gatherPos(p, t) {
+      if (t < p.spawn) return null;
+      const u = sphereU(t, sparkleGatherSec);
+      const rotY = SPHERE_Y_MAX * Math.PI / 180 * u;
+      const rotX = (SPHERE_X_FROM + (SPHERE_X_TO - SPHERE_X_FROM) * u) * Math.PI / 180;
+      const rad = p.rMax * (0.08 + 0.92 * u);
+      let x = Math.cos(p.ang) * rad;
+      let y = p.lift * rad;
+      let z = Math.sin(p.ang) * rad;
+      const cy = Math.cos(rotY);
+      const sy = Math.sin(rotY);
+      const x1 = x * cy + z * sy;
+      const z1 = -x * sy + z * cy;
+      const cxr = Math.cos(rotX);
+      const sxr = Math.sin(rotX);
+      const y1 = y * cxr - z1 * sxr;
+      const z2 = y * sxr + z1 * cxr;
+      const s = 1100 / (1100 + z2);
+      return {
+        x: p.cx + x1 * s,
+        y: p.cy + y1 * s,
+        ang: p.ang + rotY,
+      };
+    }
+
+    function tickSparkles(now) {
+      sparkleRaf = 0;
+      if (!sparkleOn || document.hidden) return;
+      const w = sparkleCvs.clientWidth;
+      const h = sparkleCvs.clientHeight;
+      sparkleCtx.globalCompositeOperation = "destination-out";
+      sparkleCtx.fillStyle = "rgba(0,0,0,0.16)";
+      sparkleCtx.fillRect(0, 0, w, h);
+      sparkleCtx.globalCompositeOperation = "source-over";
+      const t = (now - sparkleT0) / 1000;
+      sparkleLast = now;
+      for (const p of dots) {
+        let x;
+        let y;
+        let breathe;
+        if (sparkleMode === "gather") {
+          const pos = gatherPos(p, t);
+          if (!pos) continue;
+          breathe = 0.5 + 0.5 * Math.sin(t * p.breath + p.phase);
+          x = pos.x;
+          y = pos.y;
+        } else {
+          const age = (now - p.burstAt) / 1000;
+          const u = 1 - Math.exp(-3.2 * age);
+          breathe = 0.5 + 0.5 * Math.sin(t * p.breath + p.phase);
+          x = p.x0 + (p.tx - p.x0) * u;
+          y = p.y0 + (p.ty - p.y0) * u + Math.sin(t * p.bob + p.phase) * SPARKLE_BOB * u;
+        }
+        const alpha = (0.85 + 0.15 * breathe) * 0.2;
+        let scale = 1;
+        if (sparkleMode === "burst") {
+          const age = (now - p.burstAt) / 1000;
+          const u = Math.min(1, Math.max(0, age));
+          const seg = Math.min(3, Math.floor(u * 4 - 1e-9));
+          const local = Math.min(1, u * 4 - seg);
+          const e = 1 - (1 - local) * (1 - local);
+          const from = 1 - 0.2 * seg;
+          const to = 1 - 0.2 * (seg + 1);
+          scale = from + (to - from) * e;
+        }
+        const s = p.r * scale;
+        if (sparkleMode === "gather" && p.lx != null) {
+          sparkleCtx.globalAlpha = alpha * 0.45;
+          sparkleCtx.strokeStyle = p.color;
+          sparkleCtx.lineWidth = Math.max(0.8, s);
+          sparkleCtx.lineCap = "round";
+          sparkleCtx.beginPath();
+          sparkleCtx.moveTo(p.lx, p.ly);
+          sparkleCtx.lineTo(x, y);
+          sparkleCtx.stroke();
+        }
+        sparkleCtx.globalAlpha = alpha;
+        sparkleCtx.fillStyle = p.color;
+        sparkleCtx.beginPath();
+        sparkleCtx.arc(x, y, Math.max(0.4, s), 0, Math.PI * 2);
+        sparkleCtx.fill();
+        p.lx = x;
+        p.ly = y;
+      }
+      sparkleCtx.globalAlpha = 1;
+      sparkleRaf = requestAnimationFrame(tickSparkles);
+    }
+
+    function startSparkles(gatherSec) {
+      sparkleCvs.hidden = false;
+      const { w, h } = sizeSparkles();
+      makeDots(w, h, gatherSec);
+      sparkleGatherSec = gatherSec;
+      sparkleMode = "gather";
+      sparkleT0 = performance.now();
+      sparkleLast = sparkleT0;
+      sparkleOn = true;
+      if (!sparkleRaf) tickSparkles(sparkleT0);
+    }
+
+    function burstSparkles() {
+      const t = (performance.now() - sparkleT0) / 1000;
+      const w = sparkleCvs.clientWidth;
+      const h = sparkleCvs.clientHeight;
+      const parents = [];
+      for (const p of dots) {
+        const pos = gatherPos(p, t) || { x: p.cx, y: p.cy };
+        parents.push({ p, x: pos.x, y: pos.y });
+      }
+      const cols = Math.ceil(Math.sqrt(SPARKLE_BURST * w / h));
+      const rows = Math.ceil(SPARKLE_BURST / cols);
+      const now = performance.now();
+      const out = [];
+      for (let i = 0; i < SPARKLE_BURST; i++) {
+        const src = parents[i % parents.length];
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const tx = ((col + 0.5 + (Math.random() - 0.5) * 0.85) / cols) * w;
+        const ty = ((row + 0.5 + (Math.random() - 0.5) * 0.85) / rows) * h;
+        out.push({
+          x0: src.x + (Math.random() - 0.5) * 8,
+          y0: src.y + (Math.random() - 0.5) * 8,
+          tx,
+          ty,
+          burstAt: now,
+          bob: 0.4 + Math.random() * 0.7,
+          breath: 0.55 + (i % 6) * 0.2,
+          phase: (i % 4) * (Math.PI / 2) + (Math.random() - 0.5) * 0.4,
+          ox: Math.random() * Math.PI * 2,
+          r: (0.6 + Math.random() * 1.1) * 3,
+          color: SPARKLE_TINTS[i % SPARKLE_TINTS.length],
+        });
+      }
+      dots = out;
+      sparkleMode = "burst";
+      sparkleLast = now;
+    }
+
+    function stopSparkles() {
+      sparkleOn = false;
+      sparkleCvs.hidden = true;
+      if (sparkleRaf) {
+        cancelAnimationFrame(sparkleRaf);
+        sparkleRaf = 0;
+      }
+      sparkleCtx.setTransform(1, 0, 0, 1, 0, 0);
+      sparkleCtx.clearRect(0, 0, sparkleCvs.width, sparkleCvs.height);
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        if (sparkleRaf) {
+          cancelAnimationFrame(sparkleRaf);
+          sparkleRaf = 0;
+        }
+      } else if (sparkleOn) {
+        tickSparkles(performance.now());
+      }
+    });
 
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") location.href = home;
+      if (e.key === "Escape") {
+        if (document.querySelector(".floater-preview")) {
+          e.preventDefault();
+          closePreview();
+          return;
+        }
+        location.href = home;
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      if (floaterPhotos.length && !result.hidden) placeFloaters(floaterPhotos);
     });
 
     function spherePoints(n) {
@@ -208,46 +520,121 @@
       });
     }
 
-    function placeFloaters(photos) {
-      const left = [];
-      const right = [];
-      photos.forEach((p, i) => {
-        (i % 2 === 0 ? left : right).push(p);
-      });
-      function column(list, side) {
-        const m = list.length;
-        list.forEach((p, i) => {
-          const img = document.createElement("img");
-          img.src = p.url;
-          img.alt = "";
-          img.className = "floater";
-          img.style.top = (((i + 0.5) / m) * 72 + 8) + "%";
-          if (side === "left") {
-            img.style.left = "2.5%";
-          } else {
-            img.style.left = "auto";
-            img.style.right = "2.5%";
-          }
-          img.style.animationDelay = (i * 0.28) + "s";
-          result.appendChild(img);
-        });
+    function closePreview() {
+      document.querySelectorAll(".floater-dim, .floater-preview").forEach((el) => el.remove());
+      result.querySelectorAll(".floater.on").forEach((el) => el.classList.remove("on"));
+    }
+
+    function openPreview(thumb) {
+      closePreview();
+      thumb.classList.add("on");
+      const dim = document.createElement("div");
+      dim.className = "floater-dim";
+      dim.addEventListener("click", closePreview);
+      const big = document.createElement("img");
+      big.className = "floater-preview";
+      big.src = thumb.src;
+      big.alt = "";
+      const box = photoBox();
+      if (box) {
+        big.style.left = ((box.left + box.right) / 2) + "px";
+        big.style.top = ((box.top + box.bottom) / 2) + "px";
       }
-      column(left, "left");
-      column(right, "right");
+      big.addEventListener("click", closePreview);
+      document.body.appendChild(dim);
+      document.body.appendChild(big);
+    }
+
+    result.addEventListener("click", (e) => {
+      const thumb = e.target.closest(".floater");
+      if (!thumb) return;
+      if (thumb.classList.contains("on")) closePreview();
+      else openPreview(thumb);
+    });
+
+    function jitter(i, k) {
+      const u = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
+      return u - Math.floor(u);
+    }
+
+    function photoBox() {
+      const wrap = winner.closest(".winner-wrap");
+      const wr = wrap.getBoundingClientRect();
+      const nw = winner.naturalWidth;
+      const nh = winner.naturalHeight;
+      if (!nw || !nh || wr.width < 8 || wr.height < 8) return null;
+      const scale = Math.min(wr.width / nw, wr.height / nh);
+      const w = nw * scale;
+      const h = nh * scale;
+      const left = wr.left + (wr.width - w) / 2;
+      const top = wr.top + (wr.height - h) / 2;
+      return { left, top, right: left + w, bottom: top + h, wrap: wr };
+    }
+
+    function packColumn(list, band, origin, start, stagger) {
+      const n = Math.min(list.length, 5);
+      const bw = band.x1 - band.x0;
+      const bh = band.y1 - band.y0;
+      if (bw < 36 || bh < 36 || !n) return;
+      const want = 88 * 2.5;
+      let size = Math.min(want, bw - 8, bh / n - 8);
+      if (size < 36) return;
+      const extra = stagger ? size * 0.42 : 0;
+      const room = bh - extra;
+      const gap = n === 1 ? Math.max(0, (room - size) / 2) : Math.max(8, (room - n * size) / (n + 1));
+      const sway = Math.min(size * 0.18, Math.max(0, (bw - size) / 2 - 4));
+      for (let i = 0; i < n; i++) {
+        const xMid = band.x0 + (bw - size) / 2;
+        const x = xMid + ((i % 2 === 0) ? -sway : sway);
+        const y = band.y0 + extra + gap + i * (size + gap);
+        const img = document.createElement("img");
+        img.src = list[i].url;
+        img.alt = "";
+        img.className = "floater";
+        img.style.width = size + "px";
+        img.style.height = size + "px";
+        img.style.left = (x - origin.left) + "px";
+        img.style.top = (y - origin.top) + "px";
+        img.style.animationDelay = (jitter(start + i, 3) * 2.4) + "s";
+        result.appendChild(img);
+      }
+    }
+
+    function placeFloaters(photos) {
+      closePreview();
+      result.querySelectorAll(".floater").forEach((el) => el.remove());
+      if (!photos.length) return;
+      const box = photoBox();
+      const rr = result.getBoundingClientRect();
+      if (!box) return;
+      const pad = 8;
+      const left = {
+        x0: rr.left + pad,
+        y0: box.wrap.top + pad,
+        x1: box.left - pad,
+        y1: box.wrap.bottom - pad,
+      };
+      const right = {
+        x0: box.right + pad,
+        y0: box.wrap.top + pad,
+        x1: rr.right - pad,
+        y1: box.wrap.bottom - pad,
+      };
+      const L = [];
+      const R = [];
+      photos.slice(0, 10).forEach((p, i) => (i % 2 === 0 ? L : R).push(p));
+      packColumn(L.slice(0, 5), left, rr, 0, false);
+      packColumn(R.slice(0, 5), right, rr, 1, true);
     }
 
     function spinSphere(durationSec) {
-      const k = -Math.log(0.02) / durationSec;
-      const yMax = 2880;
-      const xFrom = -18;
-      const xTo = 16;
-      const t0 = performance.now();
+      const t0 = sparkleT0 || performance.now();
       return new Promise((resolve) => {
         function frame(now) {
           const t = Math.min((now - t0) / 1000, durationSec);
-          const u = 1 - Math.exp(-k * t);
+          const u = sphereU(t, durationSec);
           sphere.style.transform =
-            "rotateX(" + (xFrom + (xTo - xFrom) * u) + "deg) rotateY(" + (yMax * u) + "deg)";
+            "rotateX(" + (SPHERE_X_FROM + (SPHERE_X_TO - SPHERE_X_FROM) * u) + "deg) rotateY(" + (SPHERE_Y_MAX * u) + "deg)";
           if (t < durationSec) requestAnimationFrame(frame);
           else resolve();
         }
@@ -264,15 +651,22 @@
       winner.src = data.winner.url;
       void winner.offsetWidth;
       winner.classList.add("pop");
+      burstSparkles();
       const who = (data.winner.nickname || "").trim() || result.dataset.guest;
       const n = data.winner.upload_count || 1;
-      label.textContent = result.dataset.winnerTpl
+      label.textContent = winnerTpl
         .replaceAll("{name}", who)
         .replaceAll("{n}", String(n));
-      placeFloaters(data.device_photos || []);
+      floaterPhotos = data.device_photos || [];
+      const layout = () => placeFloaters(floaterPhotos);
+      if (winner.complete && winner.naturalWidth) layout();
+      else winner.addEventListener("load", layout, { once: true });
     }
 
     function reset() {
+      stopSparkles();
+      closePreview();
+      floaterPhotos = [];
       result.querySelectorAll(".floater").forEach((el) => el.remove());
       result.hidden = true;
       scene.hidden = true;
@@ -297,8 +691,12 @@
       const photos = data.sphere && data.sphere.length ? data.sphere : [data.winner];
       layoutSphere(photos);
       scene.hidden = false;
-      await spinSphere(data.seconds || seconds);
+      const spinSec = data.seconds || seconds;
+      startSparkles(spinSec);
+      const spinning = spinSphere(spinSec);
+      await new Promise((r) => setTimeout(r, Math.max(0, spinSec - 0.5) * 1000));
       showWinner(data);
+      await spinning;
     }
 
     again.addEventListener("click", () => {
@@ -308,5 +706,6 @@
 
     run();
   </script>
+  {% include "_credit.html" %}
 </body>
 </html>

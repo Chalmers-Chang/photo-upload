@@ -2,25 +2,229 @@
 {% block title %}{{ msg.upload_page_title.format(name=project.name) }}{% endblock %}
 {% block extra_head %}
 <style>
-  .wrap.upload {
-    width: min(720px, 100%);
-    padding: {{ cfg.upload_pad_cm }}cm;
+  html, body { height: 100%; overflow: hidden; --edge: 2cm; --glass: {{ cfg.glass_pad_cm }}cm; }
+  @media (max-width: 640px) {
+    html, body { --glass: {{ cfg.glass_pad_mobile_cm }}cm; }
+  }
+  .up-stage {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background: var(--bg);
+    display: grid;
+    padding: var(--glass);
+    padding-top: max(var(--glass), 64px);
+    box-sizing: border-box;
+  }
+  .back-btn {
+    position: fixed;
+    top: 12px;
+    left: var(--edge);
+    z-index: 30;
+    text-decoration: none;
+    border: 1px solid #fff;
+    background: #fffcf7;
+    color: #1c1915;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 14px;
+  }
+  .up-stage > .glass {
+    position: relative;
+    min-height: 0;
+    overflow: auto;
+    display: grid;
+    place-items: center;
+    padding: 24px 24px 40px;
+    box-sizing: border-box;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 8px 32px rgba(28, 25, 21, 0.08);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+  }
+  .glass-body { width: min(720px, 100%); }
+  .up-stage .site-credit {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 12px;
+    z-index: 3;
+    margin: 0;
+    pointer-events: none;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: rgba(28, 25, 21, 0.28);
+  }
+  .progress-veil {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: 2cm;
+    box-sizing: border-box;
+  }
+  .progress-veil[hidden] { display: none !important; }
+  .progress-glass {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    gap: 18px;
+    align-content: center;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 8px 32px rgba(28, 25, 21, 0.08);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+  }
+  .pie {
+    position: relative;
+    width: min(42vw, 220px);
+    aspect-ratio: 1;
+  }
+  .pie svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  .pie .track {
+    fill: none;
+    stroke: rgba(28, 25, 21, 0.12);
+    stroke-width: 10;
+  }
+  .pie .fill {
+    fill: none;
+    stroke: #d4af37;
+    stroke-width: 10;
+    stroke-linecap: round;
+  }
+  .pie .pct {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: clamp(22px, 4vw, 36px);
+    font-weight: 700;
+    color: rgba(28, 25, 21, 0.72);
+  }
+  .progress-label {
+    margin: 0;
+    text-align: center;
+    white-space: pre-line;
+    color: rgba(28, 25, 21, 0.48);
+    font-weight: 700;
+    font-size: clamp(16px, 2.4vw, 22px);
   }
 </style>
 {% endblock %}
 {% block body %}
-<div class="wrap upload">
-  <p class="meta"><a href="{{ url_for('project_home', slug=project.slug) }}">← {{ project.name }}</a></p>
-  <h1>{{ msg.upload_title }}</h1>
-  {% for category, message in get_flashed_messages(with_categories=true) %}
-    <p class="flash {{ category }}">{{ message }}</p>
-  {% endfor %}
-  <form class="stack" method="post" enctype="multipart/form-data">
-    <label>{{ msg.photo_label }}</label>
-    <input type="file" name="photo" accept="image/*" required>
-    <label>{{ msg.caption_label }}</label>
-    <textarea name="caption" maxlength="500" placeholder="{{ msg.caption_placeholder }}"></textarea>
-    <button class="btn" type="submit">{{ msg.upload_submit }}</button>
-  </form>
+<a class="back-btn" href="{{ url_for('project_home', slug=project.slug) }}">{{ msg.lottery_back }}</a>
+<div class="up-stage">
+  <div class="glass">
+    <div class="glass-body">
+      <h1>{{ msg.upload_title }}</h1>
+      {% for category, message in get_flashed_messages(with_categories=true) %}
+        <p class="flash {{ category }}">{{ message }}</p>
+      {% endfor %}
+      <form class="stack" id="upload-form" method="post" enctype="multipart/form-data">
+        <label>{{ msg.photo_label }}</label>
+        <input type="file" name="photo" accept="image/*" multiple required>
+        <label>{{ msg.caption_label }}</label>
+        <textarea name="caption" maxlength="500" placeholder="{{ msg.caption_placeholder }}"></textarea>
+        <button class="btn" type="submit">{{ msg.upload_submit }}</button>
+      </form>
+    </div>
+    {% include "_credit.html" %}
+  </div>
 </div>
+<div class="progress-veil" id="progress" hidden>
+  <div class="progress-glass">
+    <div class="pie">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <circle class="track" cx="60" cy="60" r="45"></circle>
+        <circle class="fill" id="pie-fill" cx="60" cy="60" r="45"
+                stroke-dasharray="282.7" stroke-dashoffset="282.7"></circle>
+      </svg>
+      <span class="pct" id="pie-pct">0%</span>
+    </div>
+    <p class="progress-label" id="progress-label">{{ msg.upload_progress }}</p>
+  </div>
+</div>
+<script>
+  const pick = document.querySelector("input[name=photo]");
+  const form = document.getElementById("upload-form");
+  const veil = document.getElementById("progress");
+  const fill = document.getElementById("pie-fill");
+  const pctEl = document.getElementById("pie-pct");
+  const label = document.getElementById("progress-label");
+  const tooMany = {{ msg.upload_too_many | tojson }};
+  const uploading = {{ msg.upload_progress | tojson }};
+  const processing = {{ msg.upload_processing | tojson }};
+  const failed = {{ msg.upload_failed | tojson }};
+  const RING = 2 * Math.PI * 45;
+
+  pick.addEventListener("change", () => {
+    if (pick.files.length <= 5) return;
+    const dt = new DataTransfer();
+    [...pick.files].slice(0, 5).forEach((f) => dt.items.add(f));
+    pick.files = dt.files;
+    alert(tooMany);
+  });
+
+  const saved = sessionStorage.getItem("uploadFlash");
+  if (saved) {
+    sessionStorage.removeItem("uploadFlash");
+    const p = document.createElement("p");
+    p.className = "flash ok";
+    p.textContent = saved;
+    form.before(p);
+  }
+
+  function setPct(n) {
+    const v = Math.max(0, Math.min(100, n));
+    fill.style.strokeDashoffset = String(RING * (1 - v / 100));
+    pctEl.textContent = Math.round(v) + "%";
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!pick.files.length) return;
+    veil.hidden = false;
+    setPct(0);
+    label.textContent = uploading;
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", form.action || location.href);
+    xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+    xhr.upload.addEventListener("progress", (ev) => {
+      if (!ev.lengthComputable) return;
+      const p = ev.loaded / ev.total;
+      setPct(p * 100);
+      if (p >= 1) label.textContent = processing;
+    });
+    xhr.addEventListener("load", () => {
+      let data = {};
+      try { data = JSON.parse(xhr.responseText); } catch (err) {}
+      if (xhr.status >= 400 || data.error) {
+        veil.hidden = true;
+        alert(data.error || failed);
+        return;
+      }
+      setPct(100);
+      if (data.message) sessionStorage.setItem("uploadFlash", data.message);
+      location.reload();
+    });
+    xhr.addEventListener("error", () => {
+      veil.hidden = true;
+      alert(failed);
+    });
+    xhr.send(new FormData(form));
+  });
+</script>
 {% endblock %}
+{% block credit %}{% endblock %}

@@ -8,6 +8,7 @@ dependencies = [
     "redis>=5.0,<6",
     "pillow>=10.0,<12",
     "pillow-heif>=0.18,<1",
+    "qrcode>=8.2",
 ]
 
 [tool.uv]

@@ -180,6 +180,7 @@ SETTINGS = {
     "slideshow_queue_max": "slideshow_queue_max",
     "slideshow_per_device": "slideshow_per_device",
     "slideshow_fade": "slideshow_fade",
+    "slideshow_mode": "slideshow_mode",
     "lottery_sphere_max": "lottery_sphere_max",
     "lottery_seconds": "lottery_seconds",
 }
@@ -193,12 +194,22 @@ SETTING_BOUNDS = {
     "lottery_seconds": (1, 60),
 }
 
+SETTING_ENUMS = {
+    "slideshow_mode": ("wall", "full"),
+}
+
 
 def default_settings():
     return {k: getattr(appsetting, k) for k in SETTINGS}
 
 
 def _parse_setting(k, v):
+    allowed = SETTING_ENUMS.get(k)
+    if allowed:
+        s = str(v or "").strip()
+        if s not in allowed:
+            raise ValueError(msg.bad_setting)
+        return s
     lo, hi = SETTING_BOUNDS[k]
     if isinstance(lo, float):
         n = round(float(v), 1)
@@ -225,7 +236,7 @@ def update_project_settings(project_id, form):
     if not r().exists(f"project:{project_id}"):
         raise ValueError(msg.project_missing)
     mapping = {}
-    for k in SETTING_BOUNDS:
+    for k in SETTINGS:
         try:
             n = _parse_setting(k, form.get(k))
         except (TypeError, ValueError):
@@ -378,7 +389,7 @@ def add_ticket(project_id, photo_id, device_id):
     return serial, int(n)
 
 
-def add_photo(project_id, photo_id, caption, device_id):
+def add_photo(project_id, photo_id, caption, device_id, rebuild=True):
     now = time.time()
     conn = r()
     conn.set(
@@ -394,15 +405,17 @@ def add_photo(project_id, photo_id, caption, device_id):
     conn.zadd(f"device_photos:{project_id}:{device_id}", {photo_id: now})
     cap = appsetting.lottery_chance_max
     chances = chance_count(project_id, device_id)
-    if chances >= cap:
+    at_cap = chances >= cap
+    if at_cap:
         drop_oldest_ticket(project_id, device_id)
     serial, n = add_ticket(project_id, photo_id, device_id)
     if n > cap:
         drop_oldest_ticket(project_id, device_id)
         r().set(f"device_chance:{project_id}:{device_id}", cap, ex=ttl_seconds())
         n = cap
-    rebuild_slideshow_queue(project_id)
-    return serial, n
+    if rebuild:
+        rebuild_slideshow_queue(project_id)
+    return serial, n, at_cap
 
 
 def nickname_of(device_id):
