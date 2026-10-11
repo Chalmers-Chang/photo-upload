@@ -172,6 +172,20 @@
       0%, 100% { transform: translate(0, 0) rotate(-6deg); }
       50% { transform: translate(8px, -10px) rotate(5deg); }
     }
+    .site-credit {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 12px;
+      z-index: 25;
+      margin: 0;
+      pointer-events: none;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      color: rgba(28, 25, 21, 0.28);
+    }
     [hidden] { display: none !important; }
   </style>
   <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
@@ -643,5 +657,6 @@
 
     run();
   </script>
+  {% include "_credit.html" %}
 </body>
 </html>

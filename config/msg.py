@@ -1,6 +1,7 @@
 # Shared chrome (top-right Admin, document title)
 admin = "管理 / Admin"
 site_title = "照片 / Photos"
+site_credit = "@ChalmersProduction"
 
 # Site landing (/)
 home_lead = "用專案連結上傳或輪播。管理請走右上角。 / Use a project link to upload or play the slideshow. Admin is at the top right."
