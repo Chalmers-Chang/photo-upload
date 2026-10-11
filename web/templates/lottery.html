@@ -159,6 +159,7 @@
   <a class="back-btn" id="back" href="{{ url_for('project_home', slug=project.slug) }}" hidden>{{ msg.lottery_back }}</a>
   {% include "_name_modal.html" %}
   <div class="stage">
+    <canvas class="sparkles" id="sparkles" hidden></canvas>
     <p class="msg" id="status">{{ msg.lottery_ready }}</p>
     <div class="scene" id="scene" hidden>
       <div class="sphere" id="sphere"></div>
@@ -166,7 +167,6 @@
     <div class="result" id="result" hidden
          data-guest="{{ msg.guest_name }}"
          data-failed="{{ msg.lottery_failed }}">
-      <canvas class="sparkles" id="sparkles" hidden></canvas>
       <div class="winner-wrap"><img id="winner" alt=""></div>
       <div class="label" id="label"></div>
       <button class="again-btn" id="again" type="button" hidden>{{ msg.lottery_again }}</button>
@@ -187,8 +187,12 @@
     const again = document.getElementById("again");
     const sparkleCvs = document.getElementById("sparkles");
     const sparkleCtx = sparkleCvs.getContext("2d", { alpha: true });
+    const SPARKLE_N = 800;
     let sparkleRaf = 0;
     let sparkleOn = false;
+    let sparkleMode = "gather";
+    let sparkleT0 = 0;
+    let sparkleLast = 0;
     let dots = [];
 
     function sizeSparkles() {
@@ -201,23 +205,28 @@
       return { w, h };
     }
 
-    function makeDots(w, h) {
+    function makeDots(w, h, gatherSec) {
       const gold = ["#fff6d2", "#f4e4a6", "#e0c15a", "#d4af37"];
+      const cx = w * 0.5;
+      const cy = h * 0.48;
+      const maxR = Math.min(w, h) * 0.26;
       dots = [];
-      for (let i = 0; i < 160; i++) {
+      for (let i = 0; i < SPARKLE_N; i++) {
         dots.push({
-          x: Math.random() * w,
-          y: Math.random() * h,
-          ampX: 8 + Math.random() * 18,
-          ampY: 12 + Math.random() * 24,
-          ox: Math.random() * Math.PI * 2,
-          oy: Math.random() * Math.PI * 2,
-          fx: 0.28 + Math.random() * 0.4,
-          fy: 0.22 + Math.random() * 0.35,
-          breath: 0.55 + Math.random() * 0.7,
+          cx, cy,
+          x: cx,
+          y: cy,
+          vx: 0,
+          vy: 0,
+          ang: Math.random() * Math.PI * 2,
+          spawn: Math.random() * gatherSec,
+          rMax: maxR * (0.08 + Math.random() * 0.92),
+          grow: 0.08 + Math.random() * 0.14,
+          breath: 0.7 + Math.random() * 0.9,
           phase: Math.random() * Math.PI * 2,
-          r: 1.1 + Math.random() * 2.2,
-          color: gold[(Math.random() * gold.length) | 0],
+          ox: Math.random() * Math.PI * 2,
+          r: 0.35 + Math.random() * 0.65,
+          color: gold[i & 3],
         });
       }
     }
@@ -225,30 +234,79 @@
     function tickSparkles(now) {
       sparkleRaf = 0;
       if (!sparkleOn || document.hidden) return;
-      const t = now / 1000;
       const w = sparkleCvs.clientWidth;
       const h = sparkleCvs.clientHeight;
       sparkleCtx.clearRect(0, 0, w, h);
+      const t = (now - sparkleT0) / 1000;
+      const dt = Math.min(0.05, (now - sparkleLast) / 1000);
+      sparkleLast = now;
+      const damp = Math.exp(-1.15 * dt);
       for (const p of dots) {
-        const breathe = 0.5 + 0.5 * Math.sin(t * p.breath + p.phase);
-        const x = p.x + Math.sin(t * p.fx + p.ox) * p.ampX;
-        const y = p.y + Math.cos(t * p.fy + p.oy) * p.ampY;
-        sparkleCtx.globalAlpha = 0.22 + 0.78 * breathe;
+        let x;
+        let y;
+        let breathe;
+        if (sparkleMode === "gather") {
+          if (t < p.spawn) continue;
+          const rad = p.rMax * (1 - Math.exp(-p.grow * (t - p.spawn)));
+          breathe = 0.5 + 0.5 * Math.sin(t * p.breath + p.phase);
+          x = p.cx + Math.cos(p.ang) * rad + Math.sin(t * 0.45 + p.ox) * 2.5;
+          y = p.cy + Math.sin(p.ang) * rad + Math.cos(t * 0.38 + p.ox) * 2.5;
+        } else {
+          p.vx *= damp;
+          p.vy *= damp;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          breathe = 0.5 + 0.5 * Math.sin(t * p.breath + p.phase);
+          x = p.x + Math.sin(t * 0.4 + p.ox) * 3;
+          y = p.y + Math.cos(t * 0.35 + p.ox) * 3;
+        }
+        sparkleCtx.globalAlpha = 0.2 + 0.75 * breathe;
         sparkleCtx.fillStyle = p.color;
-        sparkleCtx.beginPath();
-        sparkleCtx.arc(x, y, p.r * (0.65 + 0.7 * breathe), 0, Math.PI * 2);
-        sparkleCtx.fill();
+        const s = p.r * (0.7 + 0.45 * breathe);
+        sparkleCtx.fillRect(x - s, y - s, s * 2, s * 2);
       }
       sparkleCtx.globalAlpha = 1;
       sparkleRaf = requestAnimationFrame(tickSparkles);
     }
 
-    function startSparkles() {
+    function startSparkles(gatherSec) {
       sparkleCvs.hidden = false;
       const { w, h } = sizeSparkles();
-      makeDots(w, h);
+      makeDots(w, h, gatherSec);
+      sparkleMode = "gather";
+      sparkleT0 = performance.now();
+      sparkleLast = sparkleT0;
       sparkleOn = true;
-      if (!sparkleRaf) tickSparkles(performance.now());
+      if (!sparkleRaf) tickSparkles(sparkleT0);
+    }
+
+    function burstSparkles() {
+      const t = (performance.now() - sparkleT0) / 1000;
+      for (const p of dots) {
+        let x = p.cx;
+        let y = p.cy;
+        if (t >= p.spawn) {
+          const rad = p.rMax * (1 - Math.exp(-p.grow * (t - p.spawn)));
+          x = p.cx + Math.cos(p.ang) * rad;
+          y = p.cy + Math.sin(p.ang) * rad;
+        }
+        p.x = x;
+        p.y = y;
+        const dx = x - p.cx;
+        const dy = y - p.cy;
+        const dist = Math.hypot(dx, dy);
+        const speed = 160 + Math.random() * 340;
+        if (dist < 2) {
+          const a = Math.random() * Math.PI * 2;
+          p.vx = Math.cos(a) * speed;
+          p.vy = Math.sin(a) * speed;
+        } else {
+          p.vx = (dx / dist) * speed;
+          p.vy = (dy / dist) * speed;
+        }
+      }
+      sparkleMode = "burst";
+      sparkleLast = performance.now();
     }
 
     function stopSparkles() {
@@ -369,7 +427,7 @@
         .replaceAll("{name}", who)
         .replaceAll("{n}", String(n));
       placeFloaters(data.device_photos || []);
-      startSparkles();
+      burstSparkles();
     }
 
     function reset() {
@@ -398,7 +456,9 @@
       const photos = data.sphere && data.sphere.length ? data.sphere : [data.winner];
       layoutSphere(photos);
       scene.hidden = false;
-      await spinSphere(data.seconds || seconds);
+      const spinSec = data.seconds || seconds;
+      startSparkles(spinSec);
+      await spinSphere(spinSec);
       showWinner(data);
     }
 
