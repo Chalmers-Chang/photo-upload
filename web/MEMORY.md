@@ -3,6 +3,7 @@
 ## GOTCHA
 
 - Slideshow `img { max-height: 100% }` does not shrink high-res JPEGs when the frame has no definite height; the photo paints at intrinsic size. Pin the frame with `minmax(0, 1fr)` and position the image with `max-width/max-height: 100%` so it letterboxes and stays centered.
+- Do not sweep photos or rebuild `slideshow_q` on every `/api/slideshow` poll. Rebuild on upload, drop, and settings save. Poll only runs the Lua playhead; if the queue is empty but photos exist (first request after deploy), rebuild once.
 - `.empty { display: grid }` overrides the `hidden` attribute, so 「尚無照片」 stays on top of real photos. Force `img[hidden], .empty[hidden] { display: none !important }`.
 - `Image.save(..., optimize=True)` on phone photos makes upload feel stuck (CPU Huffman pass). Save JPEG at quality 80 with no optimize; `draft()` + bilinear thumbnail for speed.
 

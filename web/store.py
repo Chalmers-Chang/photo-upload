@@ -213,7 +213,9 @@ def update_project_settings(project_id, form):
             raise ValueError(msg.bad_setting)
         mapping[k] = str(n)
     r().hset(f"project:{project_id}", mapping=mapping)
-    return settings_of(project_id)
+    cfgp = settings_of(project_id)
+    rebuild_slideshow_queue(project_id, cfgp)
+    return cfgp
 
 
 def get_project(project_id):
@@ -379,6 +381,7 @@ def add_photo(project_id, photo_id, caption, device_id):
         drop_oldest_ticket(project_id, device_id)
         r().set(f"device_chance:{project_id}:{device_id}", cap, ex=ttl_seconds())
         n = cap
+    rebuild_slideshow_queue(project_id)
     return serial, n
 
 
@@ -407,10 +410,12 @@ def load_photo(project_id, photo_id):
     return data
 
 
-def drop_photo(project_id, photo_id):
+def drop_photo(project_id, photo_id, rebuild=True):
     r().zrem(f"photos:{project_id}", photo_id)
     r().delete(f"photo:{project_id}:{photo_id}")
     photo_path(project_id, photo_id).unlink(missing_ok=True)
+    if rebuild:
+        rebuild_slideshow_queue(project_id)
 
 
 def sweep_expired(project_id):
@@ -419,18 +424,18 @@ def sweep_expired(project_id):
     for pid in ids:
         item = load_photo(project_id, pid)
         if item is None:
-            drop_photo(project_id, pid)
+            drop_photo(project_id, pid, rebuild=False)
             continue
         kept.append(item)
     return kept
 
 
-def rebuild_slideshow_queue(project_id):
+def rebuild_slideshow_queue(project_id, cfgp=None):
     conn = r()
     zkey = f"photos:{project_id}"
     qkey = f"slideshow_q:{project_id}"
     total = conn.zcard(zkey)
-    cfgp = settings_of(project_id)
+    cfgp = cfgp or settings_of(project_id)
     cap = cfgp["slideshow_queue_max"]
     per = cfgp["slideshow_per_device"]
     if total <= cap:
@@ -464,13 +469,16 @@ def _empty_state(server_now, interval):
 
 
 def slideshow_state(project_id):
-    interval = settings_of(project_id)["slideshow_interval"]
+    cfgp = settings_of(project_id)
+    interval = cfgp["slideshow_interval"]
+    qkey = f"slideshow_q:{project_id}"
+    conn = r()
+    if conn.zcard(qkey) == 0 and conn.zcard(f"photos:{project_id}") > 0:
+        rebuild_slideshow_queue(project_id, cfgp)
     for _ in range(8):
-        sweep_expired(project_id)
-        rebuild_slideshow_queue(project_id)
         now = time.time()
         result = advance_script()(
-            keys=[f"slideshow:{project_id}", f"slideshow_q:{project_id}"],
+            keys=[f"slideshow:{project_id}", qkey],
             args=[now, interval],
         )
         photo_id, server_now, show_until, interval, n = result
@@ -489,7 +497,7 @@ def slideshow_state(project_id):
             "show_until": float(show_until),
             "interval": int(float(interval)),
         }
-    return _empty_state(time.time(), settings_of(project_id)["slideshow_interval"])
+    return _empty_state(time.time(), interval)
 
 
 def _ticket(project_id, serial):
@@ -592,9 +600,10 @@ def draw_lottery(project_id):
         raise ValueError(msg.lottery_empty)
     t, photo = winner
     others = device_photos(project_id, t["device_id"], exclude=photo["id"])
+    cfgp = settings_of(project_id)
     return {
         "serial": t["serial"],
-        "seconds": settings_of(project_id)["lottery_seconds"],
+        "seconds": cfgp["lottery_seconds"],
         "winner": {
             "id": photo["id"],
             "url": photo["url"],
@@ -603,7 +612,5 @@ def draw_lottery(project_id):
             "upload_count": len(others) + 1,
         },
         "device_photos": others,
-        "sphere": sphere_photos(
-            project_id, settings_of(project_id)["lottery_sphere_max"]
-        ),
+        "sphere": sphere_photos(project_id, cfgp["lottery_sphere_max"]),
     }
