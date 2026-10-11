@@ -16,8 +16,8 @@
   padding: 22px 20px 20px;
   font-family: "PingFang TC", "Noto Sans TC", sans-serif;
 }
-.name-modal-card h2 { margin: 0 0 8px; font-size: 22px; }
-.name-modal-card p { margin: 0 0 16px; color: #6b6459; font-size: 14px; }
+.name-modal-card h2 { margin: 0 0 8px; font-size: 22px; white-space: pre-line; }
+.name-modal-card p { margin: 0 0 16px; color: #6b6459; font-size: 14px; white-space: pre-line; }
 .name-modal-card form { display: grid; gap: 12px; }
 .name-modal-card input,
 .name-modal-card button {

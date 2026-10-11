@@ -38,6 +38,43 @@
   }
   .delete-confirm[hidden] { display: none !important; }
   .reset-lottery { margin-top: 10px; }
+  .card-head h2 a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .card-head h2 a:hover { text-decoration: underline; }
+  .url-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .icon-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .icon-btn:hover { background: var(--bg); }
+  .icon-btn svg { display: block; }
+  .qr-dialog {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px;
+    width: min(360px, calc(100% - 32px));
+    background: var(--card);
+    color: var(--ink);
+    text-align: center;
+  }
+  .qr-dialog::backdrop { background: rgba(28, 25, 21, 0.4); }
+  .qr-dialog h2 { margin: 0 0 8px; font-size: 20px; }
+  .qr-dialog img { width: min(240px, 100%); height: auto; margin: 12px 0; }
+  .qr-dialog .row { justify-content: center; }
 </style>
 {% endblock %}
 {% block body %}
@@ -68,7 +105,7 @@
     <details class="card project-card">
       <summary>
         <div class="card-head">
-          <h2>{{ p.name }}</h2>
+          <h2><a href="{{ url_for('project_home', slug=p.slug) }}" onclick="event.stopPropagation()">{{ p.name }}</a></h2>
           <div class="delete-arm" onclick="event.stopPropagation()">
             <button type="button" class="btn danger delete-project js-delete-arm">{{ msg.delete_project }}</button>
             <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}">
@@ -79,9 +116,25 @@
           </div>
         </div>
         <div class="urls" onclick="event.stopPropagation()">
-          <div>{{ msg.project_url }}：<a href="{{ url_for('project_home', slug=p.slug) }}">/p/{{ p.slug }}/</a></div>
-          <div>{{ msg.upload_url }}：<a href="{{ url_for('upload', slug=p.slug) }}">/p/{{ p.slug }}/upload</a></div>
-          <div>{{ msg.slideshow_url }}：<a href="{{ url_for('slideshow', slug=p.slug) }}">/p/{{ p.slug }}/slideshow</a></div>
+          {% for label, kind, path in [
+            (msg.project_url, "home", url_for("project_home", slug=p.slug, _external=True)),
+            (msg.upload_url, "upload", url_for("upload", slug=p.slug, _external=True)),
+            (msg.slideshow_url, "slideshow", url_for("slideshow", slug=p.slug, _external=True)),
+          ] %}
+          <div class="url-row">
+            <span>{{ label }}</span>
+            <button type="button" class="icon-btn js-copy" data-url="{{ path }}" title="{{ msg.copy_url }}" aria-label="{{ msg.copy_url }}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="11" height="13" rx="2"/><path d="M5 16V6a2 2 0 0 1 2-2h10"/></svg>
+            </button>
+            <button type="button" class="icon-btn js-qr" title="{{ msg.qr_open }}" aria-label="{{ msg.qr_open }}"
+              data-name="{{ p.name }}"
+              data-kind="{{ label }}"
+              data-png="{{ url_for('admin_qr', project_id=p.id, kind=kind) }}"
+              data-file="{{ p.slug }}-{{ kind }}.png">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm12-2h2v2h-2v-2zm4 0h2v2h-2v-2zm-4 4h2v2h-2v-2zm4 0h2v6h-2v-2h-2v-2h2v-2zm-4 4h2v2h-2v-2z"/></svg>
+            </button>
+          </div>
+          {% endfor %}
         </div>
         <form class="reset-lottery" method="post" action="{{ url_for('admin_reset_lottery', project_id=p.id) }}" onclick="event.stopPropagation()" onsubmit="return confirm({{ msg.confirm_reset_lottery|tojson }});">
           <button class="btn small secondary" type="submit">{{ msg.reset_lottery }}</button>
@@ -151,6 +204,15 @@
     <p class="lead">{{ msg.no_projects }}</p>
   {% endfor %}
 </div>
+<dialog class="qr-dialog" id="qr-modal">
+  <h2 id="qr-name"></h2>
+  <p class="meta" id="qr-kind"></p>
+  <img id="qr-img" alt="">
+  <div class="row">
+    <a class="btn small" id="qr-download" download>{{ msg.qr_download }}</a>
+    <button class="btn small secondary" type="button" id="qr-close">{{ msg.qr_close }}</button>
+  </div>
+</dialog>
 <script>
   document.querySelectorAll(".delete-arm").forEach((box) => {
     const arm = box.querySelector(".js-delete-arm");
@@ -168,6 +230,50 @@
       form.hidden = true;
       arm.hidden = false;
     });
+  });
+
+  const copied = {{ msg.copied_url | tojson }};
+  document.querySelectorAll(".js-copy").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(btn.dataset.url);
+      } catch (err) {
+        const ta = document.createElement("textarea");
+        ta.value = btn.dataset.url;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+      }
+      const prev = btn.title;
+      btn.title = copied;
+      setTimeout(() => { btn.title = prev; }, 1500);
+    });
+  });
+
+  const qrModal = document.getElementById("qr-modal");
+  const qrName = document.getElementById("qr-name");
+  const qrKind = document.getElementById("qr-kind");
+  const qrImg = document.getElementById("qr-img");
+  const qrDl = document.getElementById("qr-download");
+  document.querySelectorAll(".js-qr").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      qrName.textContent = btn.dataset.name;
+      qrKind.textContent = btn.dataset.kind;
+      qrImg.src = btn.dataset.png;
+      qrImg.alt = btn.dataset.kind;
+      qrDl.href = btn.dataset.png;
+      qrDl.download = btn.dataset.file;
+      qrModal.showModal();
+    });
+  });
+  document.getElementById("qr-close").addEventListener("click", () => qrModal.close());
+  qrModal.addEventListener("click", (e) => {
+    if (e.target === qrModal) qrModal.close();
   });
 </script>
 {% endblock %}

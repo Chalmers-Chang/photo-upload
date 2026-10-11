@@ -107,9 +107,15 @@
     .credit span {
       grid-area: 1 / 1;
       opacity: 0;
+      height: 0;
+      overflow: hidden;
       transition: opacity {{ project.slideshow_fade }}s ease;
     }
-    .credit span.on { opacity: 1; }
+    .credit span.on {
+      height: auto;
+      overflow: visible;
+      opacity: 1;
+    }
     .admin-btn {
       position: fixed;
       top: 16px;
@@ -123,10 +129,29 @@
       border-radius: 999px;
       font-size: 14px;
     }
+    .leave-btn {
+      position: fixed;
+      top: 16px;
+      left: 20px;
+      z-index: 30;
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      text-decoration: none;
+      border: 0;
+      background: #d4d1cc;
+      color: #9a958e;
+      border-radius: 999px;
+      font-size: 22px;
+      line-height: 1;
+      font-weight: 500;
+    }
   </style>
   <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
 </head>
 <body>
+  <a class="leave-btn" id="leave" href="{{ url_for('project_home', slug=project.slug) }}" aria-label="{{ msg.slideshow_leave }}">×</a>
   <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
   {% include "_name_modal.html" %}
   <div class="stage">
@@ -160,6 +185,11 @@
       location.href = home;
     }
 
+    document.getElementById("leave").addEventListener("click", (e) => {
+      e.preventDefault();
+      goHome();
+    });
+
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -168,7 +198,7 @@
     });
 
     document.addEventListener("click", (e) => {
-      if (e.target.closest(".admin-btn")) return;
+      if (e.target.closest(".admin-btn, .leave-btn")) return;
       const el = document.documentElement;
       if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
     }, { once: true });
@@ -229,7 +259,9 @@
       if (next !== front) {
         slides[front].classList.remove("on");
         names[front].classList.remove("on");
+        names[front].textContent = "";
         notes[front].classList.remove("on");
+        notes[front].textContent = "";
       }
       empty.hidden = true;
       front = next;

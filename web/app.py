@@ -1,7 +1,9 @@
+import io
 import uuid
 from datetime import timedelta
 from functools import wraps
 
+import qrcode
 from flask import (
     Flask,
     abort,
@@ -11,6 +13,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     session,
     url_for,
 )
@@ -220,6 +223,27 @@ def create_app():
         store.reset_lottery_winners(project_id)
         flash(msg.lottery_reset.format(name=p["name"]), "ok")
         return redirect(url_for("admin_home"))
+
+    _qr_pages = {
+        "home": "project_home",
+        "upload": "upload",
+        "slideshow": "slideshow",
+    }
+
+    @app.get("/admin/projects/<project_id>/qr/<kind>.png")
+    @admin_required
+    def admin_qr(project_id, kind):
+        endpoint = _qr_pages.get(kind)
+        p = store.get_project(project_id)
+        if not endpoint or not p:
+            abort(404)
+        qr = qrcode.QRCode(border=2, box_size=10)
+        qr.add_data(url_for(endpoint, slug=p["slug"], _external=True))
+        qr.make(fit=True)
+        buf = io.BytesIO()
+        qr.make_image(fill_color="black", back_color="white").save(buf, format="PNG")
+        buf.seek(0)
+        return send_file(buf, mimetype="image/png")
 
     @app.get("/p/<slug>/")
     def project_home(slug):

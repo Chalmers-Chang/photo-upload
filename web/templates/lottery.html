@@ -123,6 +123,7 @@
       text-align: center;
       font-size: clamp(18px, 3vw, 28px);
       text-shadow: 0 1px 10px rgba(0,0,0,0.65);
+      white-space: pre-line;
     }
     .floater {
       position: absolute;
@@ -153,7 +154,6 @@
       <div class="sphere" id="sphere"></div>
     </div>
     <div class="result" id="result" hidden
-         data-winner-tpl="{{ msg.lottery_winner }}"
          data-guest="{{ msg.guest_name }}"
          data-failed="{{ msg.lottery_failed }}">
       <div class="winner-wrap"><img id="winner" alt=""></div>
@@ -165,6 +165,7 @@
     const drawUrl = {{ url_for('lottery_draw', slug=project.slug) | tojson }};
     const home = {{ url_for('project_home', slug=project.slug) | tojson }};
     const seconds = {{ seconds | tojson }};
+    const winnerTpl = {{ msg.lottery_winner | tojson }};
     const status = document.getElementById("status");
     const scene = document.getElementById("scene");
     const sphere = document.getElementById("sphere");
@@ -266,7 +267,7 @@
       winner.classList.add("pop");
       const who = (data.winner.nickname || "").trim() || result.dataset.guest;
       const n = data.winner.upload_count || 1;
-      label.textContent = result.dataset.winnerTpl
+      label.textContent = winnerTpl
         .replaceAll("{name}", who)
         .replaceAll("{n}", String(n));
       placeFloaters(data.device_photos || []);

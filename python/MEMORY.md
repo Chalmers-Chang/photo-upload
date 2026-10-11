@@ -8,3 +8,4 @@
 
 - `pyproject.toml` and `uv.lock` live in `python/`. `requires-python = ">=3.12"`, `[tool.uv] package = false`.
 - Change deps with `cd python && uv add …` / `uv lock`; commit both toml and lock.
+- Admin QR codes use the `qrcode` package (Pillow already draws the PNG).
