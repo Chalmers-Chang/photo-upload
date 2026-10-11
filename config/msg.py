@@ -1,19 +1,25 @@
+# Shared chrome (top-right Admin, document title)
 admin = "管理 / Admin"
-admin_login_title = "管理登入 / Admin login"
-logout = "登出 / Log out"
-login = "登入 / Log in"
-username = "帳號 / Username"
-password = "密碼 / Password"
-login_failed = "帳號或密碼錯誤 / Wrong username or password"
-
 site_title = "照片 / Photos"
+
+# Site landing (/)
 home_lead = "用專案連結上傳或輪播。管理請走右上角。 / Use a project link to upload or play the slideshow. Admin is at the top right."
 
+# Nickname modal
+nickname_title = "怎麼稱呼你？ / What should we call you?"
+nickname_lead = "第一次使用請留下稱呼，輪播和抽獎會顯示。 / First visit: enter a name. It shows in the slideshow and lottery."
+nickname_placeholder = "例如 小明 / e.g. Alex"
+nickname_ok = "確定 / OK"
+nickname_bad = "請輸入 1–20 字的稱呼 / Enter a name (1–20 characters)"
+nickname_save_failed = "無法儲存稱呼 / Could not save name"
+
+# Project home (/p/<slug>/)
 project_home_lead = "開始分享今天的照片吧～\n會有小驚喜唷！\nStart sharing your photos～\nThere will be a surprise！"
 upload_photos = "上傳照片\nUpload photos"
 play_slideshow = "輪播照片\nSlideshow"
 lottery = "抽獎\nLottery"
 
+# Upload (/p/<slug>/upload)
 upload_title = "上傳照片 Upload photos"
 upload_page_title = "上傳  Upload · {name}"
 photo_label = "照片 Photo"
@@ -27,17 +33,13 @@ empty_file = "沒有讀到檔案 \n No file received"
 upload_ok = "抽獎機會 +1，目前累計 {chances} 次（序號 {serial}） \n Lottery chance +1, total {chances} (No. {serial})"
 upload_ok_capped = "已上傳。抽獎機會已達上限 {max} 次（目前 {chances}）\nUploaded. Lottery chances are capped at {max} (now {chances})."
 
-nickname_title = "怎麼稱呼你？ / What should we call you?"
-nickname_lead = "第一次使用請留下稱呼，輪播和抽獎會顯示。 / First visit: enter a name. It shows in the slideshow and lottery."
-nickname_placeholder = "例如 小明 / e.g. Alex"
-nickname_ok = "確定 / OK"
-nickname_bad = "請輸入 1–20 字的稱呼 / Enter a name (1–20 characters)"
-nickname_save_failed = "無法儲存稱呼 / Could not save name"
-
+# Slideshow (/p/<slug>/slideshow)
 slideshow_title = "輪播 / Slideshow · {name}"
 no_photos = "尚無照片 / No photos yet"
 slideshow_credit = "{name}：{caption}"
+guest_name = "這位朋友 / Friend"
 
+# Lottery (/p/<slug>/lottery)
 lottery_title = "抽獎 / Lottery · {name}"
 lottery_ready = "準備抽獎… / Drawing…"
 lottery_failed = "抽獎失敗 / Draw failed"
@@ -45,8 +47,16 @@ lottery_empty = "目前沒有可抽獎的照片 / No photos available to draw"
 lottery_winner = "恭喜 {name} 中獎，共上傳了 {n} 張照片 / Congratulations {name}, {n} photo(s) uploaded"
 lottery_back = "返回 / Back"
 lottery_again = "再抽一位 / Draw again"
-guest_name = "這位朋友 / Friend"
 
+# Admin login (/admin/login)
+admin_login_title = "管理登入 / Admin login"
+logout = "登出 / Log out"
+login = "登入 / Log in"
+username = "帳號 / Username"
+password = "密碼 / Password"
+login_failed = "帳號或密碼錯誤 / Wrong username or password"
+
+# Admin projects (/admin)
 projects = "專案 / Projects"
 new_project = "新增子專案 / New project"
 project_name = "名稱 / Name"

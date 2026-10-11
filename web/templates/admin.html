@@ -1,7 +1,15 @@
 {% extends "base.html" %}
 {% block title %}{{ msg.admin }}{% endblock %}
+{% block extra_head %}
+<style>
+  .wrap.admin {
+    width: min(720px, 100%);
+    padding: {{ cfg.admin_pad_cm }}cm;
+  }
+</style>
+{% endblock %}
 {% block body %}
-<div class="wrap">
+<div class="wrap admin">
   <div class="row" style="justify-content:space-between">
     <h1>{{ msg.projects }}</h1>
     <form method="post" action="{{ url_for('admin_logout') }}">
