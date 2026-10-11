@@ -53,6 +53,8 @@
           ("pjt-mobile", msg.asset_pjt_mobile),
           ("bkg-desktop", msg.asset_bkg_desktop),
           ("bkg-mobile", msg.asset_bkg_mobile),
+          ("lot-desktop", msg.asset_lot_desktop),
+          ("lot-mobile", msg.asset_lot_mobile),
         ] %}
         {% set key = kind.replace("-", "_") %}
         <div class="asset-card">
@@ -80,6 +82,9 @@
           <form class="stack" method="post" action="{{ url_for('admin_save_settings', project_id=p.id) }}">
             <label>{{ msg.set_slideshow_interval }}
               <input type="number" name="slideshow_interval" min="1" max="120" value="{{ p.slideshow_interval }}" required>
+            </label>
+            <label>{{ msg.set_slideshow_fade }}
+              <input type="number" name="slideshow_fade" min="0" max="3" step="0.1" value="{{ p.slideshow_fade }}" required>
             </label>
             <label>{{ msg.set_slideshow_queue_max }}
               <input type="number" name="slideshow_queue_max" min="1" max="500" value="{{ p.slideshow_queue_max }}" required>

@@ -94,6 +94,8 @@ ASSETS = {
     "pjt-mobile": "pjt-mobile.jpg",
     "bkg-desktop": "bkg-desktop.jpg",
     "bkg-mobile": "bkg-mobile.jpg",
+    "lot-desktop": "lot-desktop.jpg",
+    "lot-mobile": "lot-mobile.jpg",
 }
 
 _LEGACY = {
@@ -152,6 +154,12 @@ def attach_assets(project):
     project["bkg_mobile_show"] = (
         project["bkg_mobile_url"] or project["bkg_desktop_url"] or legacy_bkg
     )
+    project["lot_desktop_show"] = (
+        project["lot_desktop_url"] or project["lot_mobile_url"]
+    )
+    project["lot_mobile_show"] = (
+        project["lot_mobile_url"] or project["lot_desktop_url"]
+    )
     return project
 
 
@@ -171,6 +179,7 @@ SETTINGS = {
     "slideshow_interval": "slideshow_interval",
     "slideshow_queue_max": "slideshow_queue_max",
     "slideshow_per_device": "slideshow_per_device",
+    "slideshow_fade": "slideshow_fade",
     "lottery_sphere_max": "lottery_sphere_max",
     "lottery_seconds": "lottery_seconds",
 }
@@ -179,6 +188,7 @@ SETTING_BOUNDS = {
     "slideshow_interval": (1, 120),
     "slideshow_queue_max": (1, 500),
     "slideshow_per_device": (1, 50),
+    "slideshow_fade": (0.0, 3.0),
     "lottery_sphere_max": (1, 200),
     "lottery_seconds": (1, 60),
 }
@@ -188,13 +198,24 @@ def default_settings():
     return {k: getattr(appsetting, k) for k in SETTINGS}
 
 
+def _parse_setting(k, v):
+    lo, hi = SETTING_BOUNDS[k]
+    if isinstance(lo, float):
+        n = round(float(v), 1)
+    else:
+        n = int(v)
+    if n < lo or n > hi:
+        raise ValueError(msg.bad_setting)
+    return n
+
+
 def settings_of(project_id, raw=None):
     if raw is None:
         raw = r().hgetall(f"project:{project_id}") or {}
     out = default_settings()
     for k in SETTINGS:
         try:
-            out[k] = int(raw[k])
+            out[k] = _parse_setting(k, raw[k])
         except (KeyError, TypeError, ValueError):
             pass
     return out
@@ -204,12 +225,10 @@ def update_project_settings(project_id, form):
     if not r().exists(f"project:{project_id}"):
         raise ValueError(msg.project_missing)
     mapping = {}
-    for k, (lo, hi) in SETTING_BOUNDS.items():
+    for k in SETTING_BOUNDS:
         try:
-            n = int(form.get(k))
+            n = _parse_setting(k, form.get(k))
         except (TypeError, ValueError):
-            raise ValueError(msg.bad_setting)
-        if n < lo or n > hi:
             raise ValueError(msg.bad_setting)
         mapping[k] = str(n)
     r().hset(f"project:{project_id}", mapping=mapping)

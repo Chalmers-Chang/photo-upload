@@ -14,6 +14,8 @@ photo_dir = os.environ.get(
 )
 # Seconds each slideshow photo stays on screen
 slideshow_interval = int(os.environ.get("SLIDESHOW_INTERVAL", "8"))
+# Slideshow crossfade duration in seconds (0 = hard cut)
+slideshow_fade = min(3.0, max(0.0, float(os.environ.get("SLIDESHOW_FADE", "0.8"))))
 # Slideshow queue max length
 slideshow_queue_max = int(os.environ.get("SLIDESHOW_QUEUE_MAX", "100"))
 # When total photos exceed the queue max, keep this many newest per device
