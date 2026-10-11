@@ -6,7 +6,7 @@
 - Do not sweep photos or rebuild `slideshow_q` on every `/api/slideshow` poll. Rebuild on upload, drop, and settings save. Poll only runs the Lua playhead; if the queue is empty but photos exist (first request after deploy), rebuild once.
 - `.empty { display: grid }` overrides the `hidden` attribute, so 「尚無照片」 stays on top of real photos. Force `img[hidden], .empty[hidden] { display: none !important }`.
 - Slideshow crossfade uses two stacked imgs and `opacity`; do not set `hidden` on them during the transition or `display: none` skips the fade.
-- Lottery winner `overflow: hidden` clips the photo shadow into a hard straight edge when the JPEG fills the wrap. Keep the wrap `overflow: visible` and use a soft `drop-shadow`; the 2cm result padding is the room for the blur.
+- Lottery winner `overflow: hidden` clips the photo shadow into a hard straight edge when the JPEG fills the wrap. Keep the wrap `overflow: visible`. Use `box-shadow` (follows `border-radius`); `filter: drop-shadow` on a JPEG ignores radius and looks square. The 2cm result padding is the room for the blur.
 - `Image.save(..., optimize=True)` on phone photos makes upload feel stuck (CPU Huffman pass). Save JPEG at quality 80 with no optimize; `draft()` + bilinear thumbnail for speed.
 
 ## TASTE
