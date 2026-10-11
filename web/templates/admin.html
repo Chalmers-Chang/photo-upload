@@ -2,9 +2,63 @@
 {% block title %}{{ msg.admin }}{% endblock %}
 {% block extra_head %}
 <style>
-  .wrap.admin {
+  html, body { height: 100%; overflow: hidden; }
+  .topbar {
+    position: static;
+    height: 0;
+    padding: 0;
+    overflow: visible;
+  }
+  .admin-btn {
+    position: fixed;
+    top: 16px;
+    right: 20px;
+    z-index: 30;
+  }
+  .admin-stage {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background: var(--bg);
+    display: grid;
+    padding: {{ cfg.glass_pad_cm }}cm;
+    box-sizing: border-box;
+  }
+  @media (max-width: 640px) {
+    .admin-stage { padding: {{ cfg.glass_pad_mobile_cm }}cm; }
+  }
+  .admin-stage > .glass {
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 24px 24px 8px;
+    box-sizing: border-box;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 8px 32px rgba(28, 25, 21, 0.08);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+  }
+  .admin-stage .glass-body {
     width: min(720px, 100%);
-    padding: {{ cfg.admin_pad_cm }}cm;
+    margin: 0 auto;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+  .admin-stage .site-credit {
+    flex-shrink: 0;
+    margin: 0;
+    padding: 10px 0 8px;
+    pointer-events: none;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: rgba(28, 25, 21, 0.28);
   }
   .project-card > summary {
     list-style: none;
@@ -94,7 +148,9 @@
 </style>
 {% endblock %}
 {% block body %}
-<div class="wrap admin">
+<div class="admin-stage">
+<div class="glass">
+<div class="glass-body">
   <div class="row" style="justify-content:space-between">
     <h1>{{ msg.projects }}</h1>
     <form method="post" action="{{ url_for('admin_logout') }}">
@@ -225,6 +281,9 @@
     <p class="lead">{{ msg.no_projects }}</p>
   {% endfor %}
 </div>
+{% include "_credit.html" %}
+</div>
+</div>
 <dialog class="qr-dialog" id="qr-modal">
   <h2 id="qr-name"></h2>
   <p class="meta" id="qr-kind"></p>
@@ -298,3 +357,4 @@
   });
 </script>
 {% endblock %}
+{% block credit %}{% endblock %}

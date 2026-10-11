@@ -118,11 +118,10 @@
       overflow: visible;
       opacity: 1;
     }
-    .admin-btn {
+    .admin-btn, .back-btn {
       position: fixed;
       top: 16px;
-      right: 20px;
-      z-index: 20;
+      z-index: 30;
       text-decoration: none;
       border: 1px solid #ddd4c6;
       background: #fffcf7;
@@ -131,6 +130,8 @@
       border-radius: 999px;
       font-size: 14px;
     }
+    .admin-btn { right: 20px; }
+    .back-btn { left: 20px; }
     .mode-full .stage {
       grid-template-rows: minmax(0, 1fr);
       padding: 0;
@@ -138,29 +139,11 @@
     .mode-full .credit { display: none !important; }
     .mode-full img { border-radius: 0; }
     .mode-full .empty { color: #6b6459; }
-    .leave-btn {
-      position: fixed;
-      top: 16px;
-      left: 20px;
-      z-index: 30;
-      width: 36px;
-      height: 36px;
-      display: grid;
-      place-items: center;
-      text-decoration: none;
-      border: 0;
-      background: #d4d1cc;
-      color: #9a958e;
-      border-radius: 999px;
-      font-size: 22px;
-      line-height: 1;
-      font-weight: 500;
-    }
   </style>
   <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
 </head>
 <body class="mode-{{ project.slideshow_mode }}">
-  <a class="leave-btn" id="leave" href="{{ url_for('project_home', slug=project.slug) }}" aria-label="{{ msg.slideshow_leave }}">×</a>
+  <a class="back-btn" id="back" href="{{ url_for('project_home', slug=project.slug) }}">{{ msg.lottery_back }}</a>
   <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
   {% include "_name_modal.html" %}
   <div class="stage">
@@ -195,7 +178,7 @@
       location.href = home;
     }
 
-    document.getElementById("leave").addEventListener("click", (e) => {
+    document.getElementById("back").addEventListener("click", (e) => {
       e.preventDefault();
       goHome();
     });
@@ -208,7 +191,7 @@
     });
 
     document.addEventListener("click", (e) => {
-      if (e.target.closest(".admin-btn, .leave-btn")) return;
+      if (e.target.closest(".admin-btn, .back-btn")) return;
       const el = document.documentElement;
       if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
     }, { once: true });

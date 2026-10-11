@@ -9,12 +9,20 @@
     padding: 0;
     overflow: visible;
   }
-  .admin-btn {
+  .admin-btn, .back-btn {
     position: fixed;
     top: 16px;
-    right: 20px;
     z-index: 30;
+    text-decoration: none;
+    border: 1px solid #ddd4c6;
+    background: #fffcf7;
+    color: #1c1915;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 14px;
   }
+  .admin-btn { right: 20px; }
+  .back-btn { left: 20px; }
   .up-stage {
     position: fixed;
     inset: 0;
@@ -122,10 +130,10 @@
 </style>
 {% endblock %}
 {% block body %}
+<a class="back-btn" href="{{ url_for('project_home', slug=project.slug) }}">{{ msg.lottery_back }}</a>
 <div class="up-stage">
   <div class="glass">
     <div class="glass-body">
-      <p class="meta"><a href="{{ url_for('project_home', slug=project.slug) }}">← {{ project.name }}</a></p>
       <h1>{{ msg.upload_title }}</h1>
       {% for category, message in get_flashed_messages(with_categories=true) %}
         <p class="flash {{ category }}">{{ message }}</p>

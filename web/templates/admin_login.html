@@ -1,15 +1,79 @@
 {% extends "base.html" %}
 {% block title %}{{ msg.admin_login_title }}{% endblock %}
-{% block body %}
-  <div class="login">
-    <h1>{{ msg.admin }}</h1>
-    {% if error %}<p class="flash error">{{ error }}</p>{% endif %}
-    <form class="stack" method="post">
-      <label>{{ msg.username }}</label>
-      <input name="username" autocomplete="username" required>
-      <label>{{ msg.password }}</label>
-      <input name="password" type="password" autocomplete="current-password" required>
-      <button class="btn" type="submit">{{ msg.login }}</button>
-    </form>
-  </div>
+{% block extra_head %}
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  .topbar {
+    position: static;
+    height: 0;
+    padding: 0;
+    overflow: visible;
+  }
+  .admin-btn {
+    position: fixed;
+    top: 16px;
+    right: 20px;
+    z-index: 30;
+  }
+  .admin-stage {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background: var(--bg);
+    display: grid;
+    padding: {{ cfg.glass_pad_cm }}cm;
+    box-sizing: border-box;
+  }
+  @media (max-width: 640px) {
+    .admin-stage { padding: {{ cfg.glass_pad_mobile_cm }}cm; }
+  }
+  .admin-stage > .glass {
+    position: relative;
+    min-height: 0;
+    overflow: auto;
+    display: grid;
+    place-items: center;
+    padding: 24px 24px 40px;
+    box-sizing: border-box;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 8px 32px rgba(28, 25, 21, 0.08);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+  }
+  .glass-body { width: min(360px, 100%); }
+  .admin-stage .site-credit {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 12px;
+    margin: 0;
+    pointer-events: none;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: rgba(28, 25, 21, 0.28);
+  }
+</style>
 {% endblock %}
+{% block body %}
+<div class="admin-stage">
+  <div class="glass">
+    <div class="glass-body">
+      <h1>{{ msg.admin }}</h1>
+      {% if error %}<p class="flash error">{{ error }}</p>{% endif %}
+      <form class="stack" method="post">
+        <label>{{ msg.username }}</label>
+        <input name="username" autocomplete="username" required>
+        <label>{{ msg.password }}</label>
+        <input name="password" type="password" autocomplete="current-password" required>
+        <button class="btn" type="submit">{{ msg.login }}</button>
+      </form>
+    </div>
+    {% include "_credit.html" %}
+  </div>
+</div>
+{% endblock %}
+{% block credit %}{% endblock %}
