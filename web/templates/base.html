@@ -13,7 +13,7 @@
     <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
   </div>
   {% block body %}{% endblock %}
-  {% include "_credit.html" %}
+  {% block credit %}{% include "_credit.html" %}{% endblock %}
   {% include "_name_modal.html" %}
 </body>
 </html>
