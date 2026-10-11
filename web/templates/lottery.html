@@ -361,7 +361,18 @@
           y = p.y0 + (p.ty - p.y0) * u + Math.sin(t * p.bob + p.phase) * SPARKLE_BOB * u;
         }
         const alpha = (0.85 + 0.15 * breathe) * 0.2;
-        const s = p.r * (0.4 + 1.2 * breathe);
+        let scale = 1;
+        if (sparkleMode === "burst") {
+          const age = (now - p.burstAt) / 1000;
+          const u = Math.min(1, Math.max(0, age));
+          const seg = Math.min(3, Math.floor(u * 4 - 1e-9));
+          const local = Math.min(1, u * 4 - seg);
+          const e = 1 - (1 - local) * (1 - local);
+          const from = 1 - 0.15 * seg;
+          const to = 1 - 0.15 * (seg + 1);
+          scale = from + (to - from) * e;
+        }
+        const s = p.r * scale;
         if (sparkleMode === "gather" && p.lx != null) {
           sparkleCtx.globalAlpha = alpha * 0.45;
           sparkleCtx.strokeStyle = p.color;
