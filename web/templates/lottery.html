@@ -193,6 +193,7 @@
     const SPHERE_Y_MAX = 2880;
     const SPHERE_X_FROM = -18;
     const SPHERE_X_TO = 16;
+    const SPARKLE_BOB = (96 / 2.54) * 0.25;
     let sparkleRaf = 0;
     let sparkleOn = false;
     let sparkleMode = "gather";
@@ -291,10 +292,10 @@
           const age = (now - p.burstAt) / 1000;
           const u = 1 - Math.exp(-1.15 * age);
           breathe = 0.5 + 0.5 * Math.sin(t * p.breath + p.phase);
-          x = p.x0 + (p.tx - p.x0) * u + Math.sin(t * 0.4 + p.ox) * 3;
-          y = p.y0 + (p.ty - p.y0) * u + Math.cos(t * 0.35 + p.ox) * 3;
+          x = p.x0 + (p.tx - p.x0) * u;
+          y = p.y0 + (p.ty - p.y0) * u + Math.sin(t * p.bob + p.phase) * SPARKLE_BOB * u;
         }
-        const alpha = (0.85 + 0.15 * breathe) * 0.05;
+        const alpha = (0.85 + 0.15 * breathe) * 0.2;
         const s = p.r * (0.7 + 0.45 * breathe);
         if (sparkleMode === "gather" && p.lx != null) {
           sparkleCtx.globalAlpha = alpha * 0.45;
@@ -353,6 +354,7 @@
           tx,
           ty,
           burstAt: now,
+          bob: 0.4 + Math.random() * 0.7,
           breath: src.p.breath,
           phase: Math.random() * Math.PI * 2,
           ox: Math.random() * Math.PI * 2,
