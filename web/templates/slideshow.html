@@ -36,10 +36,12 @@
       height: 100%;
       height: 100dvh;
       display: grid;
-      grid-template-rows: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr) auto;
       overflow: hidden;
       padding: 2cm;
       box-sizing: border-box;
+      min-width: 0;
     }
     .frame { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
     img {
@@ -71,15 +73,18 @@
     .empty[hidden] {
       display: none !important;
     }
-    .caption {
+    .credit {
       justify-self: center;
       display: grid;
       max-width: 100%;
-      margin-top: 16px;
+      min-width: 0;
       padding: 10px 22px;
       text-align: center;
       font-size: clamp(18px, 3vw, 28px);
-      color: #1c1915;
+      font-weight: 700;
+      color: rgba(28, 25, 21, 0.48);
+      white-space: pre-line;
+      overflow-wrap: anywhere;
       border-radius: 28px;
       background: rgba(255, 255, 255, 0.42);
       border: 1px solid rgba(255, 255, 255, 0.55);
@@ -87,21 +92,24 @@
       backdrop-filter: blur(28px) saturate(180%);
       -webkit-backdrop-filter: blur(28px) saturate(180%);
     }
-    .caption:not(:has(.on)) {
+    .credit.name { margin-bottom: 16px; }
+    .credit.note { margin-top: 16px; }
+    .credit:not(:has(.on)) {
       visibility: hidden;
       padding: 0;
+      margin: 0;
       border: 0;
       background: none;
       box-shadow: none;
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
     }
-    .caption span {
+    .credit span {
       grid-area: 1 / 1;
       opacity: 0;
       transition: opacity {{ project.slideshow_fade }}s ease;
     }
-    .caption span.on { opacity: 1; }
+    .credit span.on { opacity: 1; }
     .admin-btn {
       position: fixed;
       top: 16px;
@@ -122,12 +130,15 @@
   <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
   {% include "_name_modal.html" %}
   <div class="stage">
+    <div class="credit name" id="name" data-guest="{{ msg.guest_name }}">
+      <span></span><span></span>
+    </div>
     <div class="frame">
       <img class="slide" alt="">
       <img class="slide" alt="">
       <p class="empty" id="empty">{{ msg.no_photos }}</p>
     </div>
-    <div class="caption" id="caption" data-tpl="{{ msg.slideshow_credit }}" data-guest="{{ msg.guest_name }}">
+    <div class="credit note" id="note">
       <span></span><span></span>
     </div>
   </div>
@@ -135,9 +146,10 @@
     const api = {{ url_for('slideshow_api', slug=project.slug) | tojson }};
     const home = {{ url_for('project_home', slug=project.slug) | tojson }};
     const slides = [...document.querySelectorAll(".slide")];
-    const caps = [...document.querySelectorAll("#caption span")];
+    const names = [...document.querySelectorAll("#name span")];
+    const notes = [...document.querySelectorAll("#note span")];
     const empty = document.getElementById("empty");
-    const caption = document.getElementById("caption");
+    const nameBox = document.getElementById("name");
     let timer = null;
     let shownId = null;
     let front = 0;
@@ -161,12 +173,30 @@
       if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
     }, { once: true });
 
-    function credit(data) {
-      return photoCredit(
-        data.nickname || caption.dataset.guest,
-        data.caption,
-        caption.dataset.tpl
-      );
+    function wrapChars(s, n) {
+      const t = (s || "").trim();
+      if (!t) return "";
+      const parts = [];
+      for (let i = 0; i < t.length; i += n) parts.push(t.slice(i, i + n));
+      return parts.join("\n");
+    }
+
+    function labels(data) {
+      return {
+        name: (data.nickname || "").trim() || nameBox.dataset.guest,
+        note: wrapChars(data.caption, 30),
+      };
+    }
+
+    function showLayer(els, i, text) {
+      const el = els[i];
+      if (!text) {
+        el.classList.remove("on");
+        el.textContent = "";
+        return;
+      }
+      el.textContent = text;
+      el.classList.add("on");
     }
 
     function waitLoad(img) {
@@ -189,16 +219,17 @@
       const my = ++gen;
       const next = shownId == null ? 0 : 1 - front;
       const img = slides[next];
-      const cap = caps[next];
       img.src = data.url;
       await waitLoad(img);
       if (my !== gen) return;
-      cap.textContent = credit(data);
+      const lab = labels(data);
       img.classList.add("on");
-      cap.classList.add("on");
+      showLayer(names, next, lab.name);
+      showLayer(notes, next, lab.note);
       if (next !== front) {
         slides[front].classList.remove("on");
-        caps[front].classList.remove("on");
+        names[front].classList.remove("on");
+        notes[front].classList.remove("on");
       }
       empty.hidden = true;
       front = next;
@@ -212,7 +243,7 @@
         gen += 1;
         empty.hidden = false;
         slides.forEach((el) => el.classList.remove("on"));
-        caps.forEach((el) => {
+        names.concat(notes).forEach((el) => {
           el.classList.remove("on");
           el.textContent = "";
         });
@@ -224,7 +255,9 @@
         present(data);
       } else {
         empty.hidden = true;
-        caps[front].textContent = credit(data);
+        const lab = labels(data);
+        showLayer(names, front, lab.name);
+        showLayer(notes, front, lab.note);
       }
       const waitMs = Math.max(250, (data.show_until - data.server_now) * 1000);
       timer = setTimeout(tick, waitMs);
