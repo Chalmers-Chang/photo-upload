@@ -72,18 +72,32 @@
       display: none !important;
     }
     .caption {
-      position: relative;
-      padding: 16px 8px 0;
+      justify-self: center;
+      display: grid;
+      max-width: 100%;
+      margin-top: 16px;
+      padding: 10px 22px;
       text-align: center;
       font-size: clamp(18px, 3vw, 28px);
-      min-height: 1.4em;
-      text-shadow: 0 1px 10px rgba(0,0,0,0.65);
+      color: #1c1915;
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.42);
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      box-shadow: 0 8px 32px rgba(28, 25, 21, 0.08);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+    }
+    .caption:not(:has(.on)) {
+      visibility: hidden;
+      padding: 0;
+      border: 0;
+      background: none;
+      box-shadow: none;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
     }
     .caption span {
-      position: absolute;
-      left: 8px;
-      right: 8px;
-      top: 16px;
+      grid-area: 1 / 1;
       opacity: 0;
       transition: opacity {{ project.slideshow_fade }}s ease;
     }
