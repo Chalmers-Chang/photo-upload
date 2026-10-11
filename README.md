@@ -72,7 +72,7 @@ Look-and-feel (`PJT_FADE`, `BKG_FADE`, button colors, glass padding, `LOTTERY_PA
 2. Guests: `/p/<slug>/` → upload or slideshow
 3. Per project, optional covers: `pjt-desktop`, `pjt-mobile`, `bkg-desktop`, `bkg-mobile`, `lot-desktop`, `lot-mobile`
 4. Lottery is admin-only: `/p/<slug>/lottery`
-5. Project settings (slideshow mode, interval, queue, lottery spin) are on the project card, bottom right
+5. Project settings (slideshow mode, interval, queue, lottery spin) are on the project card, bottom left
 
 ## Layout
 

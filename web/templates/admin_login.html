@@ -2,7 +2,10 @@
 {% block title %}{{ msg.admin_login_title }}{% endblock %}
 {% block extra_head %}
 <style>
-  html, body { height: 100%; overflow: hidden; }
+  html, body { height: 100%; overflow: hidden; --edge: {{ cfg.glass_pad_cm }}cm; }
+  @media (max-width: 640px) {
+    html, body { --edge: {{ cfg.glass_pad_mobile_cm }}cm; }
+  }
   .topbar {
     position: static;
     height: 0;
@@ -11,8 +14,8 @@
   }
   .admin-btn {
     position: fixed;
-    top: 16px;
-    right: 20px;
+    top: 12px;
+    right: var(--edge);
     z-index: 30;
   }
   .admin-stage {
@@ -21,11 +24,9 @@
     z-index: 1;
     background: var(--bg);
     display: grid;
-    padding: {{ cfg.glass_pad_cm }}cm;
+    padding: var(--edge);
+    padding-top: max(var(--edge), 64px);
     box-sizing: border-box;
-  }
-  @media (max-width: 640px) {
-    .admin-stage { padding: {{ cfg.glass_pad_mobile_cm }}cm; }
   }
   .admin-stage > .glass {
     position: relative;

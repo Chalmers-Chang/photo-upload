@@ -151,17 +151,12 @@ def create_app():
     @app.post("/admin/projects/<project_id>/delete")
     @admin_required
     def admin_delete_project(project_id):
-        mode = request.form.get("mode")
-        delete_files = mode == "redis_and_files"
         try:
-            p = store.delete_project(project_id, delete_files=delete_files)
+            p = store.delete_project(project_id, delete_files=True)
         except ValueError as e:
             flash(str(e), "error")
             return redirect(url_for("admin_home"))
-        if delete_files:
-            flash(msg.project_deleted.format(name=p["name"]), "ok")
-        else:
-            flash(msg.project_deleted_redis.format(name=p["name"]), "ok")
+        flash(msg.project_deleted.format(name=p["name"]), "ok")
         return redirect(url_for("admin_home"))
 
     @app.post("/admin/projects/<project_id>/asset/<kind>")

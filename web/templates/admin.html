@@ -2,7 +2,10 @@
 {% block title %}{{ msg.admin }}{% endblock %}
 {% block extra_head %}
 <style>
-  html, body { height: 100%; overflow: hidden; }
+  html, body { height: 100%; overflow: hidden; --edge: {{ cfg.glass_pad_cm }}cm; }
+  @media (max-width: 640px) {
+    html, body { --edge: {{ cfg.glass_pad_mobile_cm }}cm; }
+  }
   .topbar {
     position: static;
     height: 0;
@@ -11,8 +14,8 @@
   }
   .admin-btn {
     position: fixed;
-    top: 16px;
-    right: 20px;
+    top: 12px;
+    right: var(--edge);
     z-index: 30;
   }
   .admin-stage {
@@ -21,11 +24,9 @@
     z-index: 1;
     background: var(--bg);
     display: grid;
-    padding: {{ cfg.glass_pad_cm }}cm;
+    padding: var(--edge);
+    padding-top: max(var(--edge), 64px);
     box-sizing: border-box;
-  }
-  @media (max-width: 640px) {
-    .admin-stage { padding: {{ cfg.glass_pad_mobile_cm }}cm; }
   }
   .admin-stage > .glass {
     position: relative;
@@ -181,7 +182,6 @@
           <div class="delete-arm" onclick="event.stopPropagation()">
             <button type="button" class="btn danger delete-project js-delete-arm">{{ msg.delete_project }}</button>
             <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}">
-              <input type="hidden" name="mode" value="redis_and_files">
               <button class="btn danger delete-project" type="submit">{{ msg.delete_confirm }}</button>
               <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
             </form>
@@ -241,11 +241,7 @@
         </div>
         {% endfor %}
       </div>
-      <div class="row card-foot">
-        <form method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}" onsubmit="return confirm({{ msg.confirm_delete_redis|tojson }});">
-          <input type="hidden" name="mode" value="redis_only">
-          <button class="btn small secondary" type="submit">{{ msg.delete_redis_only }}</button>
-        </form>
+      <div class="card-foot">
         <details class="settings">
           <summary>{{ msg.settings_title }}</summary>
           <form class="stack" method="post" action="{{ url_for('admin_save_settings', project_id=p.id) }}">
