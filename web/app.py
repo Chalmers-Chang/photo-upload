@@ -208,16 +208,12 @@ def create_app():
         flash(msg.settings_saved, "ok")
         return redirect(url_for("admin_home"))
 
-    @app.post("/admin/projects/<project_id>/lottery/reset")
+    @app.post("/p/<slug>/lottery/reset")
     @admin_required
-    def admin_reset_lottery(project_id):
-        p = store.get_project(project_id)
-        if not p:
-            flash(msg.project_missing, "error")
-            return redirect(url_for("admin_home"))
-        store.reset_lottery_winners(project_id)
-        flash(msg.lottery_reset.format(name=p["name"]), "ok")
-        return redirect(url_for("admin_home"))
+    def lottery_reset(slug):
+        project = load_project(slug)
+        store.reset_lottery_winners(project["id"])
+        return redirect(url_for("lottery", slug=slug))
 
     _qr_pages = {
         "home": "project_home",

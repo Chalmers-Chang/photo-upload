@@ -38,6 +38,25 @@
     }
     .admin-btn { right: var(--edge); }
     .back-btn { left: var(--edge); }
+    .reset-lottery {
+      position: fixed;
+      left: var(--edge);
+      bottom: 12px;
+      z-index: 30;
+      margin: 0;
+    }
+    .reset-lottery button {
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: #fff;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
+    }
     .again-btn {
       position: relative;
       z-index: 5;
@@ -195,6 +214,9 @@
 <body>
   <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
   <a class="back-btn" id="back" href="{{ url_for('project_home', slug=project.slug) }}" hidden>{{ msg.lottery_back }}</a>
+  <form class="reset-lottery" method="post" action="{{ url_for('lottery_reset', slug=project.slug) }}" onsubmit="return confirm({{ msg.confirm_reset_lottery|tojson }});">
+    <button type="submit">{{ msg.reset_lottery }}</button>
+  </form>
   {% include "_name_modal.html" %}
   <div class="stage">
     <canvas class="sparkles" id="sparkles" hidden></canvas>

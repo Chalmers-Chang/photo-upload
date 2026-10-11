@@ -92,7 +92,6 @@
     justify-content: flex-end;
   }
   .delete-confirm[hidden] { display: none !important; }
-  .reset-lottery { margin-top: 10px; }
   .mode-picks {
     border: 1px solid var(--line);
     border-radius: 12px;
@@ -208,9 +207,6 @@
           </div>
           {% endfor %}
         </div>
-        <form class="reset-lottery" method="post" action="{{ url_for('admin_reset_lottery', project_id=p.id) }}" onclick="event.stopPropagation()" onsubmit="return confirm({{ msg.confirm_reset_lottery|tojson }});">
-          <button class="btn small secondary" type="submit">{{ msg.reset_lottery }}</button>
-        </form>
         <span class="more">{{ msg.project_more }}</span>
       </summary>
       <p class="meta">{{ msg.project_meta.format(slug=p.slug, count=p.photo_count) }}</p>
