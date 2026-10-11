@@ -276,9 +276,7 @@
       sparkleCtx.fillRect(0, 0, w, h);
       sparkleCtx.globalCompositeOperation = "source-over";
       const t = (now - sparkleT0) / 1000;
-      const dt = Math.min(0.05, (now - sparkleLast) / 1000);
       sparkleLast = now;
-      const damp = Math.exp(-1.15 * dt);
       for (const p of dots) {
         let x;
         let y;
@@ -290,15 +288,13 @@
           x = pos.x;
           y = pos.y;
         } else {
-          p.vx *= damp;
-          p.vy *= damp;
-          p.x += p.vx * dt;
-          p.y += p.vy * dt;
+          const age = (now - p.burstAt) / 1000;
+          const u = 1 - Math.exp(-1.15 * age);
           breathe = 0.5 + 0.5 * Math.sin(t * p.breath + p.phase);
-          x = p.x + Math.sin(t * 0.4 + p.ox) * 3;
-          y = p.y + Math.cos(t * 0.35 + p.ox) * 3;
+          x = p.x0 + (p.tx - p.x0) * u + Math.sin(t * 0.4 + p.ox) * 3;
+          y = p.y0 + (p.ty - p.y0) * u + Math.cos(t * 0.35 + p.ox) * 3;
         }
-        const alpha = (0.2 + 0.75 * breathe) * 0.7;
+        const alpha = (0.85 + 0.15 * breathe) * 0.05;
         const s = p.r * (0.7 + 0.45 * breathe);
         if (sparkleMode === "gather" && p.lx != null) {
           sparkleCtx.globalAlpha = alpha * 0.45;
@@ -334,25 +330,30 @@
 
     function burstSparkles() {
       const t = (performance.now() - sparkleT0) / 1000;
+      const w = sparkleCvs.clientWidth;
+      const h = sparkleCvs.clientHeight;
       const parents = [];
       for (const p of dots) {
-        const pos = gatherPos(p, t) || { x: p.cx, y: p.cy, ang: p.ang };
-        parents.push({ p, x: pos.x, y: pos.y, ang: pos.ang });
+        const pos = gatherPos(p, t) || { x: p.cx, y: p.cy };
+        parents.push({ p, x: pos.x, y: pos.y });
       }
+      const cols = Math.ceil(Math.sqrt(SPARKLE_BURST * w / h));
+      const rows = Math.ceil(SPARKLE_BURST / cols);
+      const now = performance.now();
       const out = [];
       for (let i = 0; i < SPARKLE_BURST; i++) {
         const src = parents[i % parents.length];
-        const p = src.p;
-        const ang = src.ang + (Math.random() - 0.5) * 0.7;
-        const speed = 150 + Math.random() * 360;
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const tx = ((col + 0.5 + (Math.random() - 0.5) * 0.85) / cols) * w;
+        const ty = ((row + 0.5 + (Math.random() - 0.5) * 0.85) / rows) * h;
         out.push({
-          cx: p.cx,
-          cy: p.cy,
-          x: src.x + (Math.random() - 0.5) * 6,
-          y: src.y + (Math.random() - 0.5) * 6,
-          vx: Math.cos(ang) * speed,
-          vy: Math.sin(ang) * speed,
-          breath: p.breath,
+          x0: src.x + (Math.random() - 0.5) * 8,
+          y0: src.y + (Math.random() - 0.5) * 8,
+          tx,
+          ty,
+          burstAt: now,
+          breath: src.p.breath,
           phase: Math.random() * Math.PI * 2,
           ox: Math.random() * Math.PI * 2,
           r: 0.6 + Math.random() * 1.1,
@@ -361,7 +362,7 @@
       }
       dots = out;
       sparkleMode = "burst";
-      sparkleLast = performance.now();
+      sparkleLast = now;
     }
 
     function stopSparkles() {
