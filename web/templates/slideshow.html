@@ -6,7 +6,9 @@
   <title>{{ msg.slideshow_title.format(name=project.name) }}</title>
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0a09; color: #f4efe6; font-family: "PingFang TC", "Noto Sans TC", sans-serif; }
-    {% if project.bkg_desktop_show or project.bkg_mobile_show %}
+    {% if project.slideshow_mode == "full" %}
+    html, body { background: #f4efe6; color: #1c1915; }
+    {% elif project.bkg_desktop_show or project.bkg_mobile_show %}
     html, body { background: #fff; }
     body::before,
     body::after {
@@ -129,6 +131,13 @@
       border-radius: 999px;
       font-size: 14px;
     }
+    .mode-full .stage {
+      grid-template-rows: minmax(0, 1fr);
+      padding: 0;
+    }
+    .mode-full .credit { display: none !important; }
+    .mode-full img { border-radius: 0; }
+    .mode-full .empty { color: #6b6459; }
     .leave-btn {
       position: fixed;
       top: 16px;
@@ -150,7 +159,7 @@
   </style>
   <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
 </head>
-<body>
+<body class="mode-{{ project.slideshow_mode }}">
   <a class="leave-btn" id="leave" href="{{ url_for('project_home', slug=project.slug) }}" aria-label="{{ msg.slideshow_leave }}">×</a>
   <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
   {% include "_name_modal.html" %}
@@ -170,6 +179,7 @@
   <script>
     const api = {{ url_for('slideshow_api', slug=project.slug) | tojson }};
     const home = {{ url_for('project_home', slug=project.slug) | tojson }};
+    const full = {{ (project.slideshow_mode == "full") | tojson }};
     const slides = [...document.querySelectorAll(".slide")];
     const names = [...document.querySelectorAll("#name span")];
     const notes = [...document.querySelectorAll("#note span")];
@@ -252,7 +262,7 @@
       img.src = data.url;
       await waitLoad(img);
       if (my !== gen) return;
-      const lab = labels(data);
+      const lab = full ? { name: "", note: "" } : labels(data);
       img.classList.add("on");
       showLayer(names, next, lab.name);
       showLayer(notes, next, lab.note);
@@ -287,9 +297,11 @@
         present(data);
       } else {
         empty.hidden = true;
-        const lab = labels(data);
-        showLayer(names, front, lab.name);
-        showLayer(notes, front, lab.note);
+        if (!full) {
+          const lab = labels(data);
+          showLayer(names, front, lab.name);
+          showLayer(notes, front, lab.note);
+        }
       }
       const waitMs = Math.max(250, (data.show_until - data.server_now) * 1000);
       timer = setTimeout(tick, waitMs);

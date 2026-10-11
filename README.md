@@ -46,6 +46,7 @@ Pushes to `main` or `feature/**` build arm64 images and run `compose pull && com
 | `PHOTO_DIR` | `/data/photos` | Path **inside** the container |
 | `SLIDESHOW_INTERVAL` | `8` | Seconds each slideshow photo stays |
 | `SLIDESHOW_FADE` | `0.8` | Slideshow crossfade seconds (0 = hard cut) |
+| `SLIDESHOW_MODE` | `wall` | Default slideshow layout: `wall` (name + caption) or `full` (photo only) |
 | `SLIDESHOW_QUEUE_MAX` | `100` | Slideshow queue cap |
 | `SLIDESHOW_PER_DEVICE` | `5` | Newest photos per device when over the cap |
 | `RECORD_TTL_DAYS` | `20` | Redis record TTL (files are not auto-deleted) |
@@ -71,7 +72,7 @@ Look-and-feel (`PJT_FADE`, `BKG_FADE`, button colors, glass padding, `LOTTERY_PA
 2. Guests: `/p/<slug>/` → upload or slideshow
 3. Per project, optional covers: `pjt-desktop`, `pjt-mobile`, `bkg-desktop`, `bkg-mobile`, `lot-desktop`, `lot-mobile`
 4. Lottery is admin-only: `/p/<slug>/lottery`
-5. Project settings (interval, queue, lottery spin) are on the project card, bottom right
+5. Project settings (slideshow mode, interval, queue, lottery spin) are on the project card, bottom right
 
 ## Layout
 

@@ -180,6 +180,7 @@ SETTINGS = {
     "slideshow_queue_max": "slideshow_queue_max",
     "slideshow_per_device": "slideshow_per_device",
     "slideshow_fade": "slideshow_fade",
+    "slideshow_mode": "slideshow_mode",
     "lottery_sphere_max": "lottery_sphere_max",
     "lottery_seconds": "lottery_seconds",
 }
@@ -193,12 +194,22 @@ SETTING_BOUNDS = {
     "lottery_seconds": (1, 60),
 }
 
+SETTING_ENUMS = {
+    "slideshow_mode": ("wall", "full"),
+}
+
 
 def default_settings():
     return {k: getattr(appsetting, k) for k in SETTINGS}
 
 
 def _parse_setting(k, v):
+    allowed = SETTING_ENUMS.get(k)
+    if allowed:
+        s = str(v or "").strip()
+        if s not in allowed:
+            raise ValueError(msg.bad_setting)
+        return s
     lo, hi = SETTING_BOUNDS[k]
     if isinstance(lo, float):
         n = round(float(v), 1)
@@ -225,7 +236,7 @@ def update_project_settings(project_id, form):
     if not r().exists(f"project:{project_id}"):
         raise ValueError(msg.project_missing)
     mapping = {}
-    for k in SETTING_BOUNDS:
+    for k in SETTINGS:
         try:
             n = _parse_setting(k, form.get(k))
         except (TypeError, ValueError):
