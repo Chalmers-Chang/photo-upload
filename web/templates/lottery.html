@@ -290,7 +290,7 @@
           y = pos.y;
         } else {
           const age = (now - p.burstAt) / 1000;
-          const u = 1 - Math.exp(-1.15 * age);
+          const u = 1 - Math.exp(-3.2 * age);
           breathe = 0.5 + 0.5 * Math.sin(t * p.breath + p.phase);
           x = p.x0 + (p.tx - p.x0) * u;
           y = p.y0 + (p.ty - p.y0) * u + Math.sin(t * p.bob + p.phase) * SPARKLE_BOB * u;
@@ -475,13 +475,13 @@
       winner.src = data.winner.url;
       void winner.offsetWidth;
       winner.classList.add("pop");
+      burstSparkles();
       const who = (data.winner.nickname || "").trim() || result.dataset.guest;
       const n = data.winner.upload_count || 1;
       label.textContent = winnerTpl
         .replaceAll("{name}", who)
         .replaceAll("{n}", String(n));
       placeFloaters(data.device_photos || []);
-      burstSparkles();
     }
 
     function reset() {
