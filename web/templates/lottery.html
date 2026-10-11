@@ -150,7 +150,7 @@
       position: fixed;
       inset: 0;
       z-index: 40;
-      background: rgba(28, 25, 21, 0.5);
+      background: rgba(28, 25, 21, 0.82);
       cursor: pointer;
     }
     .floater-preview {
@@ -472,6 +472,11 @@
       big.className = "floater-preview";
       big.src = thumb.src;
       big.alt = "";
+      const box = photoBox();
+      if (box) {
+        big.style.left = ((box.left + box.right) / 2) + "px";
+        big.style.top = ((box.top + box.bottom) / 2) + "px";
+      }
       big.addEventListener("click", closePreview);
       document.body.appendChild(dim);
       document.body.appendChild(big);
