@@ -385,7 +385,9 @@
         }
         sparkleCtx.globalAlpha = alpha;
         sparkleCtx.fillStyle = p.color;
-        sparkleCtx.fillRect(x - s, y - s, s * 2, s * 2);
+        sparkleCtx.beginPath();
+        sparkleCtx.arc(x, y, Math.max(0.4, s), 0, Math.PI * 2);
+        sparkleCtx.fill();
         p.lx = x;
         p.ly = y;
       }
