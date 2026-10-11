@@ -90,6 +90,15 @@ def photo_url(project_id, photo_id):
 
 
 ASSETS = {
+    "pjt-desktop": "pjt-desktop.jpg",
+    "pjt-mobile": "pjt-mobile.jpg",
+    "bkg-desktop": "bkg-desktop.jpg",
+    "bkg-mobile": "bkg-mobile.jpg",
+    "lot-desktop": "lot-desktop.jpg",
+    "lot-mobile": "lot-mobile.jpg",
+}
+
+_LEGACY = {
     "pjt": "pjt-home.jpg",
     "bkg": "bkg-slideshow.jpg",
 }
@@ -127,10 +136,30 @@ def attach_assets(project):
     if not project:
         return project
     pid = project["id"]
-    project["pjt_url"] = asset_url(pid, "pjt")
-    project["pjt_thumb_url"] = asset_thumb_url(pid, "pjt")
-    project["bkg_url"] = asset_url(pid, "bkg")
-    project["bkg_thumb_url"] = asset_thumb_url(pid, "bkg")
+    for kind in ASSETS:
+        key = kind.replace("-", "_")
+        project[f"{key}_url"] = asset_url(pid, kind)
+        project[f"{key}_thumb_url"] = asset_thumb_url(pid, kind)
+    legacy_pjt = _file_url(pid, photo_dir(pid) / _LEGACY["pjt"])
+    legacy_bkg = _file_url(pid, photo_dir(pid) / _LEGACY["bkg"])
+    project["pjt_desktop_show"] = (
+        project["pjt_desktop_url"] or project["pjt_mobile_url"] or legacy_pjt
+    )
+    project["pjt_mobile_show"] = (
+        project["pjt_mobile_url"] or project["pjt_desktop_url"] or legacy_pjt
+    )
+    project["bkg_desktop_show"] = (
+        project["bkg_desktop_url"] or project["bkg_mobile_url"] or legacy_bkg
+    )
+    project["bkg_mobile_show"] = (
+        project["bkg_mobile_url"] or project["bkg_desktop_url"] or legacy_bkg
+    )
+    project["lot_desktop_show"] = (
+        project["lot_desktop_url"] or project["lot_mobile_url"]
+    )
+    project["lot_mobile_show"] = (
+        project["lot_mobile_url"] or project["lot_desktop_url"]
+    )
     return project
 
 
@@ -146,11 +175,74 @@ def slug_from_name(name):
     return re.sub(r"[^a-z0-9]", "", (name or "").lower())[:64]
 
 
+SETTINGS = {
+    "slideshow_interval": "slideshow_interval",
+    "slideshow_queue_max": "slideshow_queue_max",
+    "slideshow_per_device": "slideshow_per_device",
+    "slideshow_fade": "slideshow_fade",
+    "lottery_sphere_max": "lottery_sphere_max",
+    "lottery_seconds": "lottery_seconds",
+}
+
+SETTING_BOUNDS = {
+    "slideshow_interval": (1, 120),
+    "slideshow_queue_max": (1, 500),
+    "slideshow_per_device": (1, 50),
+    "slideshow_fade": (0.0, 3.0),
+    "lottery_sphere_max": (1, 200),
+    "lottery_seconds": (1, 60),
+}
+
+
+def default_settings():
+    return {k: getattr(appsetting, k) for k in SETTINGS}
+
+
+def _parse_setting(k, v):
+    lo, hi = SETTING_BOUNDS[k]
+    if isinstance(lo, float):
+        n = round(float(v), 1)
+    else:
+        n = int(v)
+    if n < lo or n > hi:
+        raise ValueError(msg.bad_setting)
+    return n
+
+
+def settings_of(project_id, raw=None):
+    if raw is None:
+        raw = r().hgetall(f"project:{project_id}") or {}
+    out = default_settings()
+    for k in SETTINGS:
+        try:
+            out[k] = _parse_setting(k, raw[k])
+        except (KeyError, TypeError, ValueError):
+            pass
+    return out
+
+
+def update_project_settings(project_id, form):
+    if not r().exists(f"project:{project_id}"):
+        raise ValueError(msg.project_missing)
+    mapping = {}
+    for k in SETTING_BOUNDS:
+        try:
+            n = _parse_setting(k, form.get(k))
+        except (TypeError, ValueError):
+            raise ValueError(msg.bad_setting)
+        mapping[k] = str(n)
+    r().hset(f"project:{project_id}", mapping=mapping)
+    cfgp = settings_of(project_id)
+    rebuild_slideshow_queue(project_id, cfgp)
+    return cfgp
+
+
 def get_project(project_id):
     data = r().hgetall(f"project:{project_id}")
     if not data:
         return None
     data["id"] = project_id
+    data.update(settings_of(project_id, raw=data))
     return attach_assets(data)
 
 
@@ -194,14 +286,13 @@ def create_project(name, slug):
             raise ValueError(msg.slug_taken)
     pid = uuid.uuid4().hex
     conn.sadd("projects", pid)
-    conn.hset(
-        f"project:{pid}",
-        mapping={
-            "name": name,
-            "slug": slug,
-            "created_at": str(int(time.time())),
-        },
-    )
+    mapping = {
+        "name": name,
+        "slug": slug,
+        "created_at": str(int(time.time())),
+    }
+    mapping.update({k: str(v) for k, v in default_settings().items()})
+    conn.hset(f"project:{pid}", mapping=mapping)
     conn.set(f"slug:{slug}", pid)
     photo_dir(pid).mkdir(parents=True, exist_ok=True)
     return get_project(pid)
@@ -216,8 +307,10 @@ def wipe_tickets(project_id):
         pipe.delete(f"ticket:{project_id}:{serial}")
     pipe.delete(f"tickets:{project_id}")
     pipe.delete(f"ticket_seq:{project_id}")
+    pipe.delete(f"lottery_won:{project_id}")
     for device_id in devices:
         pipe.delete(f"device_photos:{project_id}:{device_id}")
+        pipe.delete(f"device_chance:{project_id}:{device_id}")
     pipe.delete(f"devices:{project_id}")
     pipe.execute()
 
@@ -230,6 +323,7 @@ def wipe_photos(project_id, delete_files):
         pipe.delete(f"photo:{project_id}:{pid}")
     pipe.delete(f"photos:{project_id}")
     pipe.delete(f"slideshow:{project_id}")
+    pipe.delete(f"slideshow_q:{project_id}")
     pipe.execute()
     wipe_tickets(project_id)
     if delete_files:
@@ -250,6 +344,21 @@ def delete_project(project_id, delete_files):
     return p
 
 
+def chance_count(project_id, device_id):
+    conn = r()
+    key = f"device_chance:{project_id}:{device_id}"
+    raw = conn.get(key)
+    if raw is not None:
+        return int(raw)
+    n = 0
+    for serial in conn.zrange(f"tickets:{project_id}", 0, -1):
+        t = _ticket(project_id, serial)
+        if t and t.get("device_id") == device_id:
+            n += 1
+    conn.set(key, n, ex=ttl_seconds())
+    return n
+
+
 def add_ticket(project_id, photo_id, device_id):
     now = time.time()
     ttl = ttl_seconds()
@@ -264,10 +373,9 @@ def add_ticket(project_id, photo_id, device_id):
         ex=ttl,
     )
     conn.zadd(f"tickets:{project_id}", {serial: now})
-    conn.sadd(f"devices:{project_id}", device_id)
-    conn.zadd(f"device_photos:{project_id}:{device_id}", {photo_id: now})
-    count = conn.zcard(f"device_photos:{project_id}:{device_id}")
-    return serial, int(count)
+    n = conn.incr(f"device_chance:{project_id}:{device_id}")
+    conn.expire(f"device_chance:{project_id}:{device_id}", ttl)
+    return serial, int(n)
 
 
 def add_photo(project_id, photo_id, caption, device_id):
@@ -282,7 +390,19 @@ def add_photo(project_id, photo_id, caption, device_id):
         ex=ttl_seconds(),
     )
     conn.zadd(f"photos:{project_id}", {photo_id: now})
-    return add_ticket(project_id, photo_id, device_id)
+    conn.sadd(f"devices:{project_id}", device_id)
+    conn.zadd(f"device_photos:{project_id}:{device_id}", {photo_id: now})
+    cap = appsetting.lottery_chance_max
+    chances = chance_count(project_id, device_id)
+    if chances >= cap:
+        drop_oldest_ticket(project_id, device_id)
+    serial, n = add_ticket(project_id, photo_id, device_id)
+    if n > cap:
+        drop_oldest_ticket(project_id, device_id)
+        r().set(f"device_chance:{project_id}:{device_id}", cap, ex=ttl_seconds())
+        n = cap
+    rebuild_slideshow_queue(project_id)
+    return serial, n
 
 
 def nickname_of(device_id):
@@ -310,10 +430,12 @@ def load_photo(project_id, photo_id):
     return data
 
 
-def drop_photo(project_id, photo_id):
+def drop_photo(project_id, photo_id, rebuild=True):
     r().zrem(f"photos:{project_id}", photo_id)
     r().delete(f"photo:{project_id}:{photo_id}")
     photo_path(project_id, photo_id).unlink(missing_ok=True)
+    if rebuild:
+        rebuild_slideshow_queue(project_id)
 
 
 def sweep_expired(project_id):
@@ -322,10 +444,37 @@ def sweep_expired(project_id):
     for pid in ids:
         item = load_photo(project_id, pid)
         if item is None:
-            drop_photo(project_id, pid)
+            drop_photo(project_id, pid, rebuild=False)
             continue
         kept.append(item)
     return kept
+
+
+def rebuild_slideshow_queue(project_id, cfgp=None):
+    conn = r()
+    zkey = f"photos:{project_id}"
+    qkey = f"slideshow_q:{project_id}"
+    total = conn.zcard(zkey)
+    cfgp = cfgp or settings_of(project_id)
+    cap = cfgp["slideshow_queue_max"]
+    per = cfgp["slideshow_per_device"]
+    if total <= cap:
+        mapping = dict(conn.zrange(zkey, 0, -1, withscores=True))
+    else:
+        picked = {}
+        for did in conn.smembers(f"devices:{project_id}"):
+            for pid, score in conn.zrevrange(
+                f"device_photos:{project_id}:{did}", 0, per - 1, withscores=True
+            ):
+                picked[pid] = score
+        mapping = dict(
+            sorted(picked.items(), key=lambda x: x[1], reverse=True)[:cap]
+        )
+    pipe = conn.pipeline()
+    pipe.delete(qkey)
+    if mapping:
+        pipe.zadd(qkey, mapping)
+    pipe.execute()
 
 
 def _empty_state(server_now, interval):
@@ -340,12 +489,17 @@ def _empty_state(server_now, interval):
 
 
 def slideshow_state(project_id):
+    cfgp = settings_of(project_id)
+    interval = cfgp["slideshow_interval"]
+    qkey = f"slideshow_q:{project_id}"
+    conn = r()
+    if conn.zcard(qkey) == 0 and conn.zcard(f"photos:{project_id}") > 0:
+        rebuild_slideshow_queue(project_id, cfgp)
     for _ in range(8):
-        sweep_expired(project_id)
         now = time.time()
         result = advance_script()(
-            keys=[f"slideshow:{project_id}", f"photos:{project_id}"],
-            args=[now, appsetting.slideshow_interval],
+            keys=[f"slideshow:{project_id}", qkey],
+            args=[now, interval],
         )
         photo_id, server_now, show_until, interval, n = result
         if not photo_id or n == "0":
@@ -363,7 +517,7 @@ def slideshow_state(project_id):
             "show_until": float(show_until),
             "interval": int(float(interval)),
         }
-    return _empty_state(time.time(), appsetting.slideshow_interval)
+    return _empty_state(time.time(), interval)
 
 
 def _ticket(project_id, serial):
@@ -380,8 +534,26 @@ def drop_ticket(project_id, serial):
     conn = r()
     conn.zrem(f"tickets:{project_id}", serial)
     conn.delete(f"ticket:{project_id}:{serial}")
-    if t:
-        conn.zrem(f"device_photos:{project_id}:{t.get('device_id')}", t.get("photo_id"))
+    if t and t.get("device_id"):
+        key = f"device_chance:{project_id}:{t['device_id']}"
+        n = conn.decr(key)
+        if n < 0:
+            conn.set(key, 0, ex=ttl_seconds())
+
+
+def drop_oldest_ticket(project_id, device_id):
+    for serial in r().zrange(f"tickets:{project_id}", 0, -1):
+        t = _ticket(project_id, serial)
+        if t and t.get("device_id") == device_id:
+            drop_ticket(project_id, serial)
+            return True
+    return False
+
+
+def latest_photo_ids(project_id, device_id, n):
+    return set(
+        r().zrevrange(f"device_photos:{project_id}:{device_id}", 0, n - 1)
+    )
 
 
 def device_photos(project_id, device_id, exclude=None):
@@ -398,8 +570,37 @@ def device_photos(project_id, device_id, exclude=None):
     return out
 
 
+def won_devices(project_id):
+    return r().smembers(f"lottery_won:{project_id}")
+
+
+def mark_won(project_id, device_id):
+    if device_id:
+        r().sadd(f"lottery_won:{project_id}", device_id)
+
+
+def reset_lottery_winners(project_id):
+    if not r().exists(f"project:{project_id}"):
+        raise ValueError(msg.project_missing)
+    r().delete(f"lottery_won:{project_id}")
+
+
+def lottery_pool(project_id):
+    cap = appsetting.lottery_chance_max
+    won = won_devices(project_id)
+    out = []
+    for did in r().smembers(f"devices:{project_id}"):
+        if did in won:
+            continue
+        for pid in r().zrevrange(f"device_photos:{project_id}:{did}", 0, cap - 1):
+            item = load_photo(project_id, pid)
+            if item:
+                out.append(item)
+    return out
+
+
 def sphere_photos(project_id, limit):
-    items = sweep_expired(project_id)
+    items = lottery_pool(project_id)
     if not items:
         return []
     if len(items) > limit:
@@ -414,12 +615,20 @@ def sphere_photos(project_id, limit):
 
 
 def draw_lottery(project_id):
+    cap = appsetting.lottery_chance_max
+    won = won_devices(project_id)
     serials = list(r().zrange(f"tickets:{project_id}", 0, -1))
     random.shuffle(serials)
     winner = None
     for serial in serials:
         t = _ticket(project_id, serial)
         if not t:
+            drop_ticket(project_id, serial)
+            continue
+        if t.get("device_id") in won:
+            continue
+        latest = latest_photo_ids(project_id, t.get("device_id"), cap)
+        if t.get("photo_id") not in latest:
             drop_ticket(project_id, serial)
             continue
         photo = load_photo(project_id, t["photo_id"])
@@ -432,9 +641,12 @@ def draw_lottery(project_id):
         raise ValueError(msg.lottery_empty)
     t, photo = winner
     others = device_photos(project_id, t["device_id"], exclude=photo["id"])
+    cfgp = settings_of(project_id)
+    sphere = sphere_photos(project_id, cfgp["lottery_sphere_max"])
+    mark_won(project_id, t.get("device_id"))
     return {
         "serial": t["serial"],
-        "seconds": appsetting.lottery_seconds,
+        "seconds": cfgp["lottery_seconds"],
         "winner": {
             "id": photo["id"],
             "url": photo["url"],
@@ -443,5 +655,5 @@ def draw_lottery(project_id):
             "upload_count": len(others) + 1,
         },
         "device_photos": others,
-        "sphere": sphere_photos(project_id, appsetting.lottery_sphere_max),
+        "sphere": sphere,
     }

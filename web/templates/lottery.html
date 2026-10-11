@@ -6,6 +6,30 @@
   <title>{{ msg.lottery_title.format(name=project.name) }}</title>
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0a09; color: #f4efe6; font-family: "PingFang TC", "Noto Sans TC", sans-serif; }
+    {% if project.lot_desktop_show or project.lot_mobile_show %}
+    html, body { background: #fff; }
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+    body::before {
+      z-index: 0;
+      background: url("{{ project.lot_desktop_show or project.lot_mobile_show }}") center / cover no-repeat;
+    }
+    @media (max-width: 640px) {
+      body::before {
+        background-image: url("{{ project.lot_mobile_show or project.lot_desktop_show }}");
+      }
+    }
+    body::after {
+      z-index: 0;
+      background: #fff;
+      opacity: {{ cfg.bkg_fade }};
+    }
+    {% endif %}
     .admin-btn, .back-btn {
       position: fixed; top: 16px; z-index: 30;
       text-decoration: none; border: 1px solid #ddd4c6; background: #fffcf7;
@@ -26,10 +50,11 @@
       font-weight: 700;
       cursor: pointer;
     }
-    .stage { height: 100dvh; position: relative; }
+    .stage { height: 100dvh; position: relative; z-index: 1; }
     .msg {
       position: absolute; inset: 0; display: grid; place-items: center;
       margin: 0; opacity: 0.7; font-size: 22px;
+      text-shadow: 0 1px 10px rgba(0,0,0,0.65);
     }
     .scene {
       height: 100%;
@@ -60,12 +85,14 @@
       display: grid;
       grid-template-rows: minmax(0, 1fr) auto auto;
       overflow: hidden;
+      padding: {{ cfg.lottery_pad_cm }}cm;
+      box-sizing: border-box;
     }
     .winner-wrap {
       position: relative;
       min-width: 0;
       min-height: 0;
-      overflow: hidden;
+      overflow: visible;
       z-index: 2;
     }
     .winner-wrap img {
@@ -79,8 +106,8 @@
       height: auto;
       object-fit: contain;
       object-position: center;
-      border-radius: 16px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+      border-radius: 22px;
+      box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
     }
     .winner-wrap img.pop {
       animation: grow 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -95,6 +122,7 @@
       padding: 16px 24px 28px;
       text-align: center;
       font-size: clamp(18px, 3vw, 28px);
+      text-shadow: 0 1px 10px rgba(0,0,0,0.65);
     }
     .floater {
       position: absolute;

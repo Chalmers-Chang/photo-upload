@@ -1,7 +1,47 @@
 {% extends "base.html" %}
 {% block title %}{{ msg.admin }}{% endblock %}
+{% block extra_head %}
+<style>
+  .wrap.admin {
+    width: min(720px, 100%);
+    padding: {{ cfg.admin_pad_cm }}cm;
+  }
+  .project-card > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+  .project-card > summary::-webkit-details-marker,
+  .project-card > summary::marker { display: none; content: none; }
+  .project-card .more {
+    display: block;
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .project-card .more::before { content: "▸ "; }
+  .project-card[open] .more::before { content: "▾ "; }
+  .project-card .card-head form { cursor: default; }
+  .asset-pick input { display: none; }
+  .btn.delete-project {
+    width: auto;
+    font-size: 10.5px;
+    padding: 7px 8px;
+    border-radius: 11px;
+  }
+  .delete-arm { flex-shrink: 0; }
+  .delete-confirm {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  .delete-confirm[hidden] { display: none !important; }
+  .reset-lottery { margin-top: 10px; }
+</style>
+{% endblock %}
 {% block body %}
-<div class="wrap">
+<div class="wrap admin">
   <div class="row" style="justify-content:space-between">
     <h1>{{ msg.projects }}</h1>
     <form method="post" action="{{ url_for('admin_logout') }}">
@@ -25,57 +65,109 @@
   </div>
 
   {% for p in projects %}
-    <div class="card">
-      <div class="card-head">
-        <h2>{{ p.name }}</h2>
-        <form method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}" onsubmit="return confirm({{ msg.confirm_delete_all|tojson }});">
-          <input type="hidden" name="mode" value="redis_and_files">
-          <button class="btn danger" type="submit">{{ msg.delete_project }}</button>
+    <details class="card project-card">
+      <summary>
+        <div class="card-head">
+          <h2>{{ p.name }}</h2>
+          <div class="delete-arm" onclick="event.stopPropagation()">
+            <button type="button" class="btn danger delete-project js-delete-arm">{{ msg.delete_project }}</button>
+            <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}">
+              <input type="hidden" name="mode" value="redis_and_files">
+              <button class="btn danger delete-project" type="submit">{{ msg.delete_confirm }}</button>
+              <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
+            </form>
+          </div>
+        </div>
+        <div class="urls" onclick="event.stopPropagation()">
+          <div>{{ msg.project_url }}：<a href="{{ url_for('project_home', slug=p.slug) }}">/p/{{ p.slug }}/</a></div>
+          <div>{{ msg.upload_url }}：<a href="{{ url_for('upload', slug=p.slug) }}">/p/{{ p.slug }}/upload</a></div>
+          <div>{{ msg.slideshow_url }}：<a href="{{ url_for('slideshow', slug=p.slug) }}">/p/{{ p.slug }}/slideshow</a></div>
+        </div>
+        <form class="reset-lottery" method="post" action="{{ url_for('admin_reset_lottery', project_id=p.id) }}" onclick="event.stopPropagation()" onsubmit="return confirm({{ msg.confirm_reset_lottery|tojson }});">
+          <button class="btn small secondary" type="submit">{{ msg.reset_lottery }}</button>
         </form>
-      </div>
+        <span class="more">{{ msg.project_more }}</span>
+      </summary>
       <p class="meta">{{ msg.project_meta.format(slug=p.slug, count=p.photo_count) }}</p>
-      <div class="urls">
-        <div>{{ msg.project_url }}：<a href="{{ url_for('project_home', slug=p.slug) }}">/p/{{ p.slug }}/</a></div>
-        <div>{{ msg.upload_url }}：<a href="{{ url_for('upload', slug=p.slug) }}">/p/{{ p.slug }}/upload</a></div>
-        <div>{{ msg.slideshow_url }}：<a href="{{ url_for('slideshow', slug=p.slug) }}">/p/{{ p.slug }}/slideshow</a></div>
-      </div>
       <div class="asset-grid">
+        {% for kind, label in [
+          ("pjt-desktop", msg.asset_pjt_desktop),
+          ("pjt-mobile", msg.asset_pjt_mobile),
+          ("bkg-desktop", msg.asset_bkg_desktop),
+          ("bkg-mobile", msg.asset_bkg_mobile),
+          ("lot-desktop", msg.asset_lot_desktop),
+          ("lot-mobile", msg.asset_lot_mobile),
+        ] %}
+        {% set key = kind.replace("-", "_") %}
         <div class="asset-card">
-          <p class="meta">{{ msg.asset_pjt }}</p>
-          {% if p.pjt_thumb_url %}<img class="asset-thumb" src="{{ p.pjt_thumb_url }}" alt="">{% endif %}
-          <form class="stack" method="post" action="{{ url_for('admin_save_asset', project_id=p.id, kind='pjt') }}" enctype="multipart/form-data">
-            <input type="file" name="photo" accept="image/*" required>
-            <button class="btn small" type="submit">{{ msg.asset_upload }}</button>
+          <p class="meta">{{ label }}</p>
+          {% if p[key + "_thumb_url"] %}<img class="asset-thumb" src="{{ p[key + "_thumb_url"] }}" alt="">{% endif %}
+          <form class="stack" method="post" action="{{ url_for('admin_save_asset', project_id=p.id, kind=kind) }}" enctype="multipart/form-data">
+            <label class="btn small asset-pick">
+              {{ msg.asset_upload }}
+              <input type="file" name="photo" accept="image/*" required onchange="this.form.submit()">
+            </label>
           </form>
-          {% if p.pjt_url %}
-          <form method="post" action="{{ url_for('admin_delete_asset', project_id=p.id, kind='pjt') }}">
+          {% if p[key + "_url"] %}
+          <form method="post" action="{{ url_for('admin_delete_asset', project_id=p.id, kind=kind) }}">
             <button class="btn small secondary" type="submit">{{ msg.asset_delete }}</button>
           </form>
           {% endif %}
         </div>
-        <div class="asset-card">
-          <p class="meta">{{ msg.asset_bkg }}</p>
-          {% if p.bkg_thumb_url %}<img class="asset-thumb" src="{{ p.bkg_thumb_url }}" alt="">{% endif %}
-          <form class="stack" method="post" action="{{ url_for('admin_save_asset', project_id=p.id, kind='bkg') }}" enctype="multipart/form-data">
-            <input type="file" name="photo" accept="image/*" required>
-            <button class="btn small" type="submit">{{ msg.asset_upload }}</button>
-          </form>
-          {% if p.bkg_url %}
-          <form method="post" action="{{ url_for('admin_delete_asset', project_id=p.id, kind='bkg') }}">
-            <button class="btn small secondary" type="submit">{{ msg.asset_delete }}</button>
-          </form>
-          {% endif %}
-        </div>
+        {% endfor %}
       </div>
-      <div class="row">
+      <div class="row card-foot">
         <form method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}" onsubmit="return confirm({{ msg.confirm_delete_redis|tojson }});">
           <input type="hidden" name="mode" value="redis_only">
           <button class="btn small secondary" type="submit">{{ msg.delete_redis_only }}</button>
         </form>
+        <details class="settings">
+          <summary>{{ msg.settings_title }}</summary>
+          <form class="stack" method="post" action="{{ url_for('admin_save_settings', project_id=p.id) }}">
+            <label>{{ msg.set_slideshow_interval }}
+              <input type="number" name="slideshow_interval" min="1" max="120" value="{{ p.slideshow_interval }}" required>
+            </label>
+            <label>{{ msg.set_slideshow_fade }}
+              <input type="number" name="slideshow_fade" min="0" max="3" step="0.1" value="{{ p.slideshow_fade }}" required>
+            </label>
+            <label>{{ msg.set_slideshow_queue_max }}
+              <input type="number" name="slideshow_queue_max" min="1" max="500" value="{{ p.slideshow_queue_max }}" required>
+            </label>
+            <label>{{ msg.set_slideshow_per_device }}
+              <input type="number" name="slideshow_per_device" min="1" max="50" value="{{ p.slideshow_per_device }}" required>
+            </label>
+            <label>{{ msg.set_lottery_sphere_max }}
+              <input type="number" name="lottery_sphere_max" min="1" max="200" value="{{ p.lottery_sphere_max }}" required>
+            </label>
+            <label>{{ msg.set_lottery_seconds }}
+              <input type="number" name="lottery_seconds" min="1" max="60" value="{{ p.lottery_seconds }}" required>
+            </label>
+            <button class="btn small" type="submit">{{ msg.settings_save }}</button>
+          </form>
+        </details>
       </div>
-    </div>
+    </details>
   {% else %}
     <p class="lead">{{ msg.no_projects }}</p>
   {% endfor %}
 </div>
+<script>
+  document.querySelectorAll(".delete-arm").forEach((box) => {
+    const arm = box.querySelector(".js-delete-arm");
+    const form = box.querySelector(".delete-confirm");
+    const cancel = box.querySelector(".js-delete-cancel");
+    arm.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      arm.hidden = true;
+      form.hidden = false;
+    });
+    cancel.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      form.hidden = true;
+      arm.hidden = false;
+    });
+  });
+</script>
 {% endblock %}

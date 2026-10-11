@@ -28,6 +28,11 @@
     height: 100%;
     object-fit: cover;
   }
+  .pjt-stage > img.pjt-mobile { display: none; }
+  @media (max-width: 640px) {
+    .pjt-stage > img.pjt-desktop { display: none; }
+    .pjt-stage > img.pjt-mobile { display: block; }
+  }
   .pjt-fade {
     position: absolute;
     inset: 0;
@@ -74,8 +79,9 @@
 {% endblock %}
 {% block body %}
 <div class="pjt-stage">
-  {% if project.pjt_url %}
-  <img src="{{ project.pjt_url }}" alt="">
+  {% if project.pjt_desktop_show or project.pjt_mobile_show %}
+  {% if project.pjt_desktop_show %}<img class="pjt-desktop" src="{{ project.pjt_desktop_show }}" alt="">{% endif %}
+  {% if project.pjt_mobile_show %}<img class="pjt-mobile" src="{{ project.pjt_mobile_show }}" alt="">{% endif %}
   <div class="pjt-fade" style="opacity: {{ cfg.pjt_fade }}"></div>
   {% endif %}
   <div class="pjt-ui">

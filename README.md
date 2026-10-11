@@ -1,76 +1,95 @@
 # photo-upload
 
-訪客上傳照片、多螢幕同步輪播、管理員抽獎。正式跑法是 Docker Compose（nginx + gunicorn + Redis）。
+Guests upload photos. Multiple screens play the same slideshow. Admins run a lottery. The supported way to run it is Docker Compose: nginx + gunicorn + Redis.
 
-## 運行條件
+## Requirements
 
-- Docker 與 Compose（Apple Silicon / `linux/arm64` 映像）
-- 主機上有一塊 **Docker 可掛載** 的照片目錄（檔案不進 image）
-- 對外 **8000** 沒被佔用
-- 能拉 `ghcr.io/chalmers-chang/photo-upload` 與 `photo-upload-nginx`
-- Redis 由 compose 起，資料在 named volume `redis-data`
+- Docker and Compose, **linux/arm64** images (Apple Silicon)
+- A photo directory the Docker VM can mount (files stay on the host, not in the image)
+- Port **8000** free
+- Pull access to `ghcr.io/chalmers-chang/photo-upload` and `photo-upload-nginx`
+- Redis is started by Compose (`redis-data` named volume)
 
-本機用 Flask 直接跑 **不會** 提供 `/photos/`（那是 nginx）。除錯也請走 compose。
+Flask alone does **not** serve `/photos/` — nginx does. Use Compose for local debugging too.
 
-## 啟動
+## Start
 
-在 `docker-compose/`：
+From `docker-compose/`:
 
 ```bash
-# 可選：改照片目錄、映像 tag
+# optional: photo path and image tag
 # echo 'HOST_PHOTO_DIR=/your/photo/path' >> .env
 
 docker compose pull
 docker compose up -d
 ```
 
-瀏覽器開 `http://localhost:8000`。管理後台 `/admin`。
+Open `http://localhost:8000`. Admin is `/admin`.
 
-推到 `main` 或 `feature/**` 會由 GitHub Actions 建 arm64 image，並在 self-hosted Mac runner 上 `compose pull && compose up -d`。
+Pushes to `main` or `feature/**` build arm64 images and run `compose pull && compose up -d` on the self-hosted Mac runner.
 
-## 要改的地方
+## What to change
 
-**換機器時幾乎一定要改**
+**Almost always, when moving machines**
 
-| 項目 | 位置 | 說明 |
+| Item | Where | Notes |
 | --- | --- | --- |
-| 照片目錄 | compose 的 `HOST_PHOTO_DIR`（或 `.env`） | 預設是 `/Volumes/OWC Envoy Pro FX/photo-upload`。`app` 與 `nginx` 都要掛同一路徑 |
-| 管理帳密 | `app` 環境變數 `ADMIN_USERNAME` / `ADMIN_PASSWORD` | 預設在 `config/admin.py`，不要沿用 |
-| `SECRET_KEY` | 同上 | 預設在 `config/appsetting.py`，cookie 會用它 |
+| Photo directory | Compose `HOST_PHOTO_DIR` (or `.env`) | Default `/Volumes/OWC Envoy Pro FX/photo-upload`. Bind the same path on **app** and **nginx**. |
+| Admin login | `ADMIN_USERNAME` / `ADMIN_PASSWORD` on `app` | Defaults live in `config/admin.py`. Change them. |
+| `SECRET_KEY` | `app` environment | Default in `config/appsetting.py`. Signs cookies. |
 
-**看需求再改（環境變數，寫在 compose `app.environment`）**
+**Site-wide defaults** (Compose `app.environment`, or `config/appsetting.py`). New projects copy the slideshow/lottery values; each project can override them in Admin → Settings.
 
-| 變數 | 預設 | 用途 |
+| Variable | Default | Purpose |
 | --- | --- | --- |
-| `REDIS_URL` | `redis://redis:6379/0` | compose 內不用改 |
-| `PHOTO_DIR` | 容器內 `/data/photos` | 對應掛載點，不要改成主機路徑 |
-| `SLIDESHOW_INTERVAL` | `8` | 輪播秒數 |
-| `RECORD_TTL_DAYS` | `20` | Redis 紀錄過期天數（檔案不會自動刪） |
-| `MAX_UPLOAD_MB` | `20` | 單張上限；nginx 是 `client_max_body_size 25m` |
-| `JPEG_MAX_EDGE` | `2560` | 上傳後長邊像素 |
+| `REDIS_URL` | `redis://redis:6379/0` | Leave as-is in Compose |
+| `PHOTO_DIR` | `/data/photos` | Path **inside** the container |
+| `SLIDESHOW_INTERVAL` | `8` | Seconds each slideshow photo stays |
+| `SLIDESHOW_FADE` | `0.8` | Slideshow crossfade seconds (0 = hard cut) |
+| `SLIDESHOW_QUEUE_MAX` | `100` | Slideshow queue cap |
+| `SLIDESHOW_PER_DEVICE` | `5` | Newest photos per device when over the cap |
+| `RECORD_TTL_DAYS` | `20` | Redis record TTL (files are not auto-deleted) |
+| `MAX_UPLOAD_MB` | `20` | Per-photo cap; nginx `client_max_body_size` is 25m |
+| `JPEG_MAX_EDGE` | `2560` | Longest edge after upload |
 | `GUNICORN_WORKERS` | `2` | |
-| `GUNICORN_TIMEOUT` | `120` | |
-| `LOTTERY_SECONDS` | `7` | 抽獎球體旋轉秒數 |
-| `LOTTERY_SPHERE_MAX` | `60` | 球體照片數 |
+| `GUNICORN_TIMEOUT` | `120` | Keep high for large uploads |
+| `LOTTERY_SECONDS` | `10` | Sphere spin duration |
+| `LOTTERY_SPHERE_MAX` | `60` | Photos on the lottery sphere |
+| `LOTTERY_CHANCE_MAX` | `10` | Lottery tickets per device (newest photos) |
 
-**改產品文案或依賴**
+Look-and-feel (`PJT_FADE`, `BKG_FADE`, button colors, glass padding, `LOTTERY_PAD_CM`) is also in `config/appsetting.py`.
 
-- 中英字串：`config/msg.py`
-- Python 套件：`python/` 裡 `uv add` / `uv lock`，提交 `pyproject.toml` 與 `uv.lock`
-- nginx 設定：`docker-compose/nginx.conf`（烤進 nginx image，改完要重建）
+**Copy and dependencies**
 
-## 使用
+- Guest-facing strings: `config/msg.py`
+- Python packages: `cd python && uv add …` / `uv lock`; commit `pyproject.toml` and `uv.lock`
+- nginx: `docker-compose/nginx.conf` (baked into the nginx image)
 
-1. `/admin` 建專案（可填 slug，空白則從名稱產生）
-2. 訪客走 `/p/<slug>/` → 上傳或輪播
-3. 每個專案可傳 `pjt-`（專案首頁背景）與 `bkg-`（輪播背景）
-4. 抽獎僅管理員：`/p/<slug>/lottery`
+## Use
 
-## 目錄
+1. `/admin` — create a project (slug optional)
+2. Guests: `/p/<slug>/` → upload or slideshow
+3. Per project, optional covers: `pjt-desktop`, `pjt-mobile`, `bkg-desktop`, `bkg-mobile`, `lot-desktop`, `lot-mobile`
+4. Lottery is admin-only: `/p/<slug>/lottery`
+5. Project settings (interval, queue, lottery spin) are on the project card, bottom right
+
+## Layout
 
 ```
-config/           設定與文案
-web/              Flask 應用
-python/           uv 依賴（程式不在這裡）
-docker-compose/   Dockerfile、compose、nginx.conf
+config/           env defaults, admin login, copy
+web/              Flask app, Redis store, templates
+python/           uv lockfile only (app code is not here)
+docker-compose/   Dockerfile, compose, nginx.conf
 ```
+
+Request flow: browser → nginx `:8000` → `/photos/*` from disk, everything else to gunicorn. Redis holds projects, photo records, tickets, and the slideshow playhead. JPEG files live on the host bind.
+
+## Architecture notes
+
+The split is small and enough: **routes in `web/app.py`**, **Redis + files in `web/store.py`**, **resize in `web/images.py`**, **defaults in `config/`**. Do not wrap `appsetting` in a class for speed — import-time constants are already cheap.
+
+`/p/<slug>/api/slideshow` only advances the Redis playhead (Lua). The queue is rebuilt on upload, photo drop, and settings save — not on every TV poll.
+
+Uploads are the other cost: Pillow on the gunicorn worker. `JPEG_MAX_EDGE` 2560 and quality 80 (no `optimize=True`) are the right tradeoff. Photos themselves are served by nginx, not Flask.
+
+Tickets and the slideshow playhead belong in Redis (Lua already advances the playhead atomically). Do not put the JPEGs in Redis or in the image.

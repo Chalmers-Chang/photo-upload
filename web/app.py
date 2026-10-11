@@ -199,6 +199,28 @@ def create_app():
         flash(msg.asset_removed, "ok")
         return redirect(url_for("admin_home"))
 
+    @app.post("/admin/projects/<project_id>/settings")
+    @admin_required
+    def admin_save_settings(project_id):
+        try:
+            store.update_project_settings(project_id, request.form)
+        except ValueError as e:
+            flash(str(e), "error")
+            return redirect(url_for("admin_home"))
+        flash(msg.settings_saved, "ok")
+        return redirect(url_for("admin_home"))
+
+    @app.post("/admin/projects/<project_id>/lottery/reset")
+    @admin_required
+    def admin_reset_lottery(project_id):
+        p = store.get_project(project_id)
+        if not p:
+            flash(msg.project_missing, "error")
+            return redirect(url_for("admin_home"))
+        store.reset_lottery_winners(project_id)
+        flash(msg.lottery_reset.format(name=p["name"]), "ok")
+        return redirect(url_for("admin_home"))
+
     @app.get("/p/<slug>/")
     def project_home(slug):
         return render_template("project_home.html", project=load_project(slug))
@@ -243,10 +265,11 @@ def create_app():
     @app.get("/p/<slug>/lottery")
     @admin_required
     def lottery(slug):
+        project = load_project(slug)
         return render_template(
             "lottery.html",
-            project=load_project(slug),
-            seconds=appsetting.lottery_seconds,
+            project=project,
+            seconds=project["lottery_seconds"],
         )
 
     @app.post("/p/<slug>/api/lottery/draw")
