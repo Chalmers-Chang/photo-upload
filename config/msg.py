@@ -6,7 +6,7 @@ site_title = "照片 / Photos"
 home_lead = "用專案連結上傳或輪播。管理請走右上角。 / Use a project link to upload or play the slideshow. Admin is at the top right."
 
 # Nickname modal
-nickname_title = "怎麼稱呼你？\nWhat should we call you?"
+nickname_title = "怎麼稱呼你？\nWhat should we call you?" 
 nickname_lead = "第一次使用請留下稱呼，輪播和抽獎會顯示。\nFirst visit: enter a name.\nIt shows in the slideshow and lottery."
 nickname_placeholder = "例如 小明 / e.g. Alex"
 nickname_ok = "確定 / OK"
