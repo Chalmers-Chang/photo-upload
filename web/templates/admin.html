@@ -21,6 +21,7 @@
   .project-card .more::before { content: "▸ "; }
   .project-card[open] .more::before { content: "▾ "; }
   .project-card .card-head form { cursor: default; }
+  .asset-pick input { display: none; }
 </style>
 {% endblock %}
 {% block body %}
@@ -79,8 +80,10 @@
           <p class="meta">{{ label }}</p>
           {% if p[key + "_thumb_url"] %}<img class="asset-thumb" src="{{ p[key + "_thumb_url"] }}" alt="">{% endif %}
           <form class="stack" method="post" action="{{ url_for('admin_save_asset', project_id=p.id, kind=kind) }}" enctype="multipart/form-data">
-            <input type="file" name="photo" accept="image/*" required>
-            <button class="btn small" type="submit">{{ msg.asset_upload }}</button>
+            <label class="btn small asset-pick">
+              {{ msg.asset_upload }}
+              <input type="file" name="photo" accept="image/*" required onchange="this.form.submit()">
+            </label>
           </form>
           {% if p[key + "_url"] %}
           <form method="post" action="{{ url_for('admin_delete_asset', project_id=p.id, kind=kind) }}">
