@@ -405,7 +405,8 @@ def add_photo(project_id, photo_id, caption, device_id):
     conn.zadd(f"device_photos:{project_id}:{device_id}", {photo_id: now})
     cap = appsetting.lottery_chance_max
     chances = chance_count(project_id, device_id)
-    if chances >= cap:
+    at_cap = chances >= cap
+    if at_cap:
         drop_oldest_ticket(project_id, device_id)
     serial, n = add_ticket(project_id, photo_id, device_id)
     if n > cap:
@@ -413,7 +414,7 @@ def add_photo(project_id, photo_id, caption, device_id):
         r().set(f"device_chance:{project_id}:{device_id}", cap, ex=ttl_seconds())
         n = cap
     rebuild_slideshow_queue(project_id)
-    return serial, n
+    return serial, n, at_cap
 
 
 def nickname_of(device_id):

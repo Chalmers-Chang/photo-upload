@@ -31,7 +31,7 @@ caption_too_long = "文字太長（最多 500 字） \n Caption is too long (max
 bad_image = "無法讀取這張圖片，請改用 JPG / PNG / HEIC \n Could not read this image. Try JPG / PNG / HEIC."
 empty_file = "沒有讀到檔案 \n No file received"
 upload_ok = "抽獎機會 +1，目前累計 {chances} 次（序號 {serial}） \n Lottery chance +1, total {chances} (No. {serial})"
-upload_ok_capped = "已上傳。抽獎機會已達上限 {max} 次（目前 {chances}）\nUploaded. Lottery chances are capped at {max} (now {chances})."
+upload_ok_capped = "已上傳（序號 {serial}）。抽獎機會上限 {max} 次，仍可繼續上傳；輪播與抽獎以最新 {max} 張為主。\nUploaded (No. {serial}). Lottery chances cap at {max}; you can keep uploading. Slideshow and lottery use your latest {max} photos."
 
 # Slideshow (/p/<slug>/slideshow)
 slideshow_title = "輪播 / Slideshow · {name}"

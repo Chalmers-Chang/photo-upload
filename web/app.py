@@ -270,10 +270,18 @@ def create_app():
                 dest.unlink(missing_ok=True)
                 return redirect(request.path)
             did, _ = device_id()
-            serial, chances = store.add_photo(
+            serial, chances, at_cap = store.add_photo(
                 project["id"], photo_id, caption, did
             )
-            flash(msg.upload_ok.format(chances=chances, serial=serial), "ok")
+            if at_cap:
+                flash(
+                    msg.upload_ok_capped.format(
+                        max=appsetting.lottery_chance_max, serial=serial
+                    ),
+                    "ok",
+                )
+            else:
+                flash(msg.upload_ok.format(chances=chances, serial=serial), "ok")
             return redirect(request.path)
         return render_template("upload.html", project=project)
 
