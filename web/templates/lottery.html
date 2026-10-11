@@ -187,12 +187,15 @@
     const again = document.getElementById("again");
     const sparkleCvs = document.getElementById("sparkles");
     const sparkleCtx = sparkleCvs.getContext("2d", { alpha: true });
-    const SPARKLE_N = 800;
+    const SPARKLE_GATHER = 2000;
+    const SPARKLE_BURST = 5000;
+    const SPARKLE_GOLD = ["#fff6d2", "#f4e4a6", "#e0c15a", "#d4af37"];
     let sparkleRaf = 0;
     let sparkleOn = false;
     let sparkleMode = "gather";
     let sparkleT0 = 0;
     let sparkleLast = 0;
+    let sparkleGatherSec = 10;
     let dots = [];
 
     function sizeSparkles() {
@@ -206,12 +209,11 @@
     }
 
     function makeDots(w, h, gatherSec) {
-      const gold = ["#fff6d2", "#f4e4a6", "#e0c15a", "#d4af37"];
       const cx = w * 0.5;
       const cy = h * 0.48;
-      const maxR = Math.min(w, h) * 0.26;
+      const maxR = Math.min(w, h) * 0.42;
       dots = [];
-      for (let i = 0; i < SPARKLE_N; i++) {
+      for (let i = 0; i < SPARKLE_GATHER; i++) {
         dots.push({
           cx, cy,
           x: cx,
@@ -219,16 +221,29 @@
           vx: 0,
           vy: 0,
           ang: Math.random() * Math.PI * 2,
-          spawn: Math.random() * gatherSec,
-          rMax: maxR * (0.08 + Math.random() * 0.92),
-          grow: 0.08 + Math.random() * 0.14,
+          spin: (0.45 + Math.random() * 1.1) * (Math.random() < 0.5 ? -1 : 1),
+          spawn: Math.random() * gatherSec * 0.35,
+          rMax: maxR * (0.12 + Math.random() * 0.88),
           breath: 0.7 + Math.random() * 0.9,
           phase: Math.random() * Math.PI * 2,
           ox: Math.random() * Math.PI * 2,
           r: 0.35 + Math.random() * 0.65,
-          color: gold[i & 3],
+          color: SPARKLE_GOLD[i & 3],
         });
       }
+    }
+
+    function gatherPos(p, t) {
+      if (t < p.spawn) return null;
+      const u = Math.min(1, t / sparkleGatherSec);
+      const cloud = 0.06 + 0.94 * (1 - Math.exp(-2.4 * u));
+      const rad = p.rMax * cloud;
+      const ang = p.ang + t * p.spin;
+      return {
+        x: p.cx + Math.cos(ang) * rad + Math.sin(t * 0.45 + p.ox) * 2.5,
+        y: p.cy + Math.sin(ang) * rad + Math.cos(t * 0.38 + p.ox) * 2.5,
+        ang,
+      };
     }
 
     function tickSparkles(now) {
@@ -246,11 +261,11 @@
         let y;
         let breathe;
         if (sparkleMode === "gather") {
-          if (t < p.spawn) continue;
-          const rad = p.rMax * (1 - Math.exp(-p.grow * (t - p.spawn)));
+          const pos = gatherPos(p, t);
+          if (!pos) continue;
           breathe = 0.5 + 0.5 * Math.sin(t * p.breath + p.phase);
-          x = p.cx + Math.cos(p.ang) * rad + Math.sin(t * 0.45 + p.ox) * 2.5;
-          y = p.cy + Math.sin(p.ang) * rad + Math.cos(t * 0.38 + p.ox) * 2.5;
+          x = pos.x;
+          y = pos.y;
         } else {
           p.vx *= damp;
           p.vy *= damp;
@@ -273,6 +288,7 @@
       sparkleCvs.hidden = false;
       const { w, h } = sizeSparkles();
       makeDots(w, h, gatherSec);
+      sparkleGatherSec = gatherSec;
       sparkleMode = "gather";
       sparkleT0 = performance.now();
       sparkleLast = sparkleT0;
@@ -282,29 +298,32 @@
 
     function burstSparkles() {
       const t = (performance.now() - sparkleT0) / 1000;
+      const parents = [];
       for (const p of dots) {
-        let x = p.cx;
-        let y = p.cy;
-        if (t >= p.spawn) {
-          const rad = p.rMax * (1 - Math.exp(-p.grow * (t - p.spawn)));
-          x = p.cx + Math.cos(p.ang) * rad;
-          y = p.cy + Math.sin(p.ang) * rad;
-        }
-        p.x = x;
-        p.y = y;
-        const dx = x - p.cx;
-        const dy = y - p.cy;
-        const dist = Math.hypot(dx, dy);
-        const speed = 160 + Math.random() * 340;
-        if (dist < 2) {
-          const a = Math.random() * Math.PI * 2;
-          p.vx = Math.cos(a) * speed;
-          p.vy = Math.sin(a) * speed;
-        } else {
-          p.vx = (dx / dist) * speed;
-          p.vy = (dy / dist) * speed;
-        }
+        const pos = gatherPos(p, t) || { x: p.cx, y: p.cy, ang: p.ang };
+        parents.push({ p, x: pos.x, y: pos.y, ang: pos.ang });
       }
+      const out = [];
+      for (let i = 0; i < SPARKLE_BURST; i++) {
+        const src = parents[i % parents.length];
+        const p = src.p;
+        const ang = src.ang + (Math.random() - 0.5) * 0.7;
+        const speed = 150 + Math.random() * 360;
+        out.push({
+          cx: p.cx,
+          cy: p.cy,
+          x: src.x + (Math.random() - 0.5) * 6,
+          y: src.y + (Math.random() - 0.5) * 6,
+          vx: Math.cos(ang) * speed,
+          vy: Math.sin(ang) * speed,
+          breath: p.breath,
+          phase: Math.random() * Math.PI * 2,
+          ox: Math.random() * Math.PI * 2,
+          r: 0.3 + Math.random() * 0.55,
+          color: SPARKLE_GOLD[i & 3],
+        });
+      }
+      dots = out;
       sparkleMode = "burst";
       sparkleLast = performance.now();
     }
