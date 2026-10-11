@@ -271,7 +271,10 @@
       if (!sparkleOn || document.hidden) return;
       const w = sparkleCvs.clientWidth;
       const h = sparkleCvs.clientHeight;
-      sparkleCtx.clearRect(0, 0, w, h);
+      sparkleCtx.globalCompositeOperation = "destination-out";
+      sparkleCtx.fillStyle = "rgba(0,0,0,0.16)";
+      sparkleCtx.fillRect(0, 0, w, h);
+      sparkleCtx.globalCompositeOperation = "source-over";
       const t = (now - sparkleT0) / 1000;
       const dt = Math.min(0.05, (now - sparkleLast) / 1000);
       sparkleLast = now;
@@ -295,10 +298,23 @@
           x = p.x + Math.sin(t * 0.4 + p.ox) * 3;
           y = p.y + Math.cos(t * 0.35 + p.ox) * 3;
         }
-        sparkleCtx.globalAlpha = (0.2 + 0.75 * breathe) * 0.7;
-        sparkleCtx.fillStyle = p.color;
+        const alpha = (0.2 + 0.75 * breathe) * 0.7;
         const s = p.r * (0.7 + 0.45 * breathe);
+        if (sparkleMode === "gather" && p.lx != null) {
+          sparkleCtx.globalAlpha = alpha * 0.45;
+          sparkleCtx.strokeStyle = p.color;
+          sparkleCtx.lineWidth = Math.max(0.8, s);
+          sparkleCtx.lineCap = "round";
+          sparkleCtx.beginPath();
+          sparkleCtx.moveTo(p.lx, p.ly);
+          sparkleCtx.lineTo(x, y);
+          sparkleCtx.stroke();
+        }
+        sparkleCtx.globalAlpha = alpha;
+        sparkleCtx.fillStyle = p.color;
         sparkleCtx.fillRect(x - s, y - s, s * 2, s * 2);
+        p.lx = x;
+        p.ly = y;
       }
       sparkleCtx.globalAlpha = 1;
       sparkleRaf = requestAnimationFrame(tickSparkles);
