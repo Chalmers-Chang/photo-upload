@@ -144,10 +144,13 @@ textarea { min-height: 96px; resize: vertical; }
 .card-foot { margin-top: 12px; }
 .settings {
   width: 100%;
+  justify-self: start;
+  margin: 0;
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 10px 12px;
   background: var(--bg);
+  box-sizing: border-box;
 }
 .settings summary { cursor: pointer; font-size: 14px; font-weight: 700; }
 .settings form { margin-top: 12px; }
