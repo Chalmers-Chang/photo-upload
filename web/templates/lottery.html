@@ -38,6 +38,8 @@
     .admin-btn { right: 20px; }
     .back-btn { left: 20px; }
     .again-btn {
+      position: relative;
+      z-index: 5;
       display: block;
       margin: 0 auto 28px;
       border: 2px solid #fff;
@@ -88,6 +90,14 @@
       padding: {{ cfg.lottery_pad_cm }}cm;
       box-sizing: border-box;
     }
+    .sparkles {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
     .winner-wrap {
       position: relative;
       min-width: 0;
@@ -118,7 +128,7 @@
     }
     .label {
       position: relative;
-      z-index: 3;
+      z-index: 5;
       padding: 16px 24px 28px;
       text-align: center;
       font-size: clamp(18px, 3vw, 28px);
@@ -156,6 +166,7 @@
     <div class="result" id="result" hidden
          data-guest="{{ msg.guest_name }}"
          data-failed="{{ msg.lottery_failed }}">
+      <canvas class="sparkles" id="sparkles" hidden></canvas>
       <div class="winner-wrap"><img id="winner" alt=""></div>
       <div class="label" id="label"></div>
       <button class="again-btn" id="again" type="button" hidden>{{ msg.lottery_again }}</button>
@@ -174,6 +185,93 @@
     const label = document.getElementById("label");
     const back = document.getElementById("back");
     const again = document.getElementById("again");
+    const sparkleCvs = document.getElementById("sparkles");
+    const sparkleCtx = sparkleCvs.getContext("2d", { alpha: true });
+    let sparkleRaf = 0;
+    let sparkleOn = false;
+    let dots = [];
+
+    function sizeSparkles() {
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const w = sparkleCvs.clientWidth;
+      const h = sparkleCvs.clientHeight;
+      sparkleCvs.width = Math.max(1, Math.floor(w * dpr));
+      sparkleCvs.height = Math.max(1, Math.floor(h * dpr));
+      sparkleCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { w, h };
+    }
+
+    function makeDots(w, h) {
+      const gold = ["#fff6d2", "#f4e4a6", "#e0c15a", "#d4af37"];
+      dots = [];
+      for (let i = 0; i < 160; i++) {
+        dots.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          ampX: 8 + Math.random() * 18,
+          ampY: 12 + Math.random() * 24,
+          ox: Math.random() * Math.PI * 2,
+          oy: Math.random() * Math.PI * 2,
+          fx: 0.28 + Math.random() * 0.4,
+          fy: 0.22 + Math.random() * 0.35,
+          breath: 0.55 + Math.random() * 0.7,
+          phase: Math.random() * Math.PI * 2,
+          r: 1.1 + Math.random() * 2.2,
+          color: gold[(Math.random() * gold.length) | 0],
+        });
+      }
+    }
+
+    function tickSparkles(now) {
+      sparkleRaf = 0;
+      if (!sparkleOn || document.hidden) return;
+      const t = now / 1000;
+      const w = sparkleCvs.clientWidth;
+      const h = sparkleCvs.clientHeight;
+      sparkleCtx.clearRect(0, 0, w, h);
+      for (const p of dots) {
+        const breathe = 0.5 + 0.5 * Math.sin(t * p.breath + p.phase);
+        const x = p.x + Math.sin(t * p.fx + p.ox) * p.ampX;
+        const y = p.y + Math.cos(t * p.fy + p.oy) * p.ampY;
+        sparkleCtx.globalAlpha = 0.22 + 0.78 * breathe;
+        sparkleCtx.fillStyle = p.color;
+        sparkleCtx.beginPath();
+        sparkleCtx.arc(x, y, p.r * (0.65 + 0.7 * breathe), 0, Math.PI * 2);
+        sparkleCtx.fill();
+      }
+      sparkleCtx.globalAlpha = 1;
+      sparkleRaf = requestAnimationFrame(tickSparkles);
+    }
+
+    function startSparkles() {
+      sparkleCvs.hidden = false;
+      const { w, h } = sizeSparkles();
+      makeDots(w, h);
+      sparkleOn = true;
+      if (!sparkleRaf) tickSparkles(performance.now());
+    }
+
+    function stopSparkles() {
+      sparkleOn = false;
+      sparkleCvs.hidden = true;
+      if (sparkleRaf) {
+        cancelAnimationFrame(sparkleRaf);
+        sparkleRaf = 0;
+      }
+      sparkleCtx.setTransform(1, 0, 0, 1, 0, 0);
+      sparkleCtx.clearRect(0, 0, sparkleCvs.width, sparkleCvs.height);
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        if (sparkleRaf) {
+          cancelAnimationFrame(sparkleRaf);
+          sparkleRaf = 0;
+        }
+      } else if (sparkleOn) {
+        tickSparkles(performance.now());
+      }
+    });
 
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") location.href = home;
@@ -271,9 +369,11 @@
         .replaceAll("{name}", who)
         .replaceAll("{n}", String(n));
       placeFloaters(data.device_photos || []);
+      startSparkles();
     }
 
     function reset() {
+      stopSparkles();
       result.querySelectorAll(".floater").forEach((el) => el.remove());
       result.hidden = true;
       scene.hidden = true;
