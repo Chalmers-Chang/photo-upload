@@ -27,7 +27,7 @@ a { color: inherit; }
   z-index: 20;
   display: flex;
   justify-content: flex-end;
-  padding: 0.2cm 20px;
+  padding: 12px 20px;
 }
 .chrome-end {
   display: flex;
@@ -45,6 +45,7 @@ a { color: inherit; }
   font-size: 14px;
   cursor: pointer;
 }
+.chrome-end .admin-btn { border-color: #fff; }
 .site-credit {
   position: fixed;
   left: 0;
