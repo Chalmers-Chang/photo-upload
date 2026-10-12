@@ -47,6 +47,14 @@
     -webkit-backdrop-filter: blur(28px) saturate(180%);
   }
   .glass-body { width: min(720px, 100%); }
+  .up-stage h1,
+  .up-stage label,
+  .up-stage .btn,
+  .up-stage .flash {
+    white-space: pre-line;
+  }
+  .up-stage .btn { line-height: 1.3; }
+  .up-stage textarea::placeholder { white-space: pre-line; }
   .upload-note {
     margin: 0;
     font-size: 13px;
@@ -137,7 +145,7 @@
         <label>{{ msg.photo_label }}</label>
         <input type="file" name="photo" accept="image/*" multiple required>
         <label>{{ msg.caption_label }}</label>
-        <textarea name="caption" maxlength="500" placeholder="{{ msg.caption_placeholder }}"></textarea>
+        <textarea name="caption" maxlength="500" placeholder="{{ msg.caption_placeholder.replace('\n', '&#10;') | safe }}"></textarea>
         <button class="btn" type="submit">{{ msg.upload_submit }}</button>
         <p class="upload-note">{{ msg.upload_notice }}</p>
       </form>
