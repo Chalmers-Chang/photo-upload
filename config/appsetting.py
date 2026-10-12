@@ -13,7 +13,7 @@ photo_dir = os.environ.get(
     "/Volumes/OWC Envoy Pro FX/photo-upload",
 )
 # Per-project daily logs (host path bind-mounted in Compose)
-log_dir = os.environ.get("LOG_DIR", "/opt/photo-upload/logs")
+log_dir = os.environ.get("LOG_DIR", "/opt/app/photo-upload/logs")
 # Delete log files whose date in the name is older than this many days
 log_keep_days = int(os.environ.get("LOG_KEEP_DAYS", "30"))
 # Seconds each slideshow photo stays on screen

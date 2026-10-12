@@ -83,6 +83,7 @@ jobs:
             --exclude '.git/' \
             --exclude '.github/' \
             --exclude '.cursor/' \
+            --exclude 'logs/' \
             "${GITHUB_WORKSPACE}/" "$dest/"
 
       - name: Auth GHCR
@@ -111,6 +112,6 @@ jobs:
           else
             compose() { docker-compose "$@"; }
           fi
-          mkdir -p /opt/photo-upload/logs
+          mkdir -p /opt/app/photo-upload/logs
           compose pull
           compose up -d
