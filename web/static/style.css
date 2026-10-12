@@ -204,6 +204,7 @@ textarea { min-height: 96px; resize: vertical; }
   stroke: #d4af37;
   stroke-width: 10;
   stroke-linecap: round;
+  transition: stroke-dashoffset 0.2s linear;
 }
 .pie .pct {
   position: absolute;

@@ -60,6 +60,7 @@
     veil.classList.add("is-on");
     setPct(0);
     label.textContent = processing;
+    const shownAt = performance.now();
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     const body = new FormData(form);
     body.delete(input.name);
@@ -90,7 +91,8 @@
       setPct(100);
       if (data.message) sessionStorage.setItem("uploadFlash", data.message);
       if (typeof opts.onSuccess === "function") opts.onSuccess(form, data);
-      location.reload();
+      const wait = Math.max(0, 700 - (performance.now() - shownAt));
+      setTimeout(() => location.reload(), wait);
     });
     xhr.addEventListener("error", () => {
       veil.classList.remove("is-on");
