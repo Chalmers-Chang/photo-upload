@@ -1,0 +1,7 @@
+{% if bg_desktop or bg_mobile %}
+<picture class="stage-bg">
+  <source media="(max-width: 640px)" srcset="{{ bg_mobile or bg_desktop }}">
+  <img src="{{ bg_desktop or bg_mobile }}" alt="" aria-hidden="true">
+</picture>
+<div class="stage-fade" style="opacity: {{ cfg.bkg_fade }}"></div>
+{% endif %}

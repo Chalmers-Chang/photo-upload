@@ -11,26 +11,21 @@
     html, body { background: #f4efe6; color: #1c1915; }
     {% elif project.bkg_desktop_show or project.bkg_mobile_show %}
     html, body { background: #fff; }
-    body::before,
-    body::after {
-      content: "";
+    .stage-bg, .stage-bg img {
       position: fixed;
       inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 0;
       pointer-events: none;
     }
-    body::before {
-      z-index: 0;
-      background: url("{{ project.bkg_desktop_show or project.bkg_mobile_show }}") center / cover no-repeat;
-    }
-    @media (max-width: 640px) {
-      body::before {
-        background-image: url("{{ project.bkg_mobile_show or project.bkg_desktop_show }}");
-      }
-    }
-    body::after {
+    .stage-fade {
+      position: fixed;
+      inset: 0;
       z-index: 0;
       background: #fff;
-      opacity: {{ cfg.bkg_fade }};
+      pointer-events: none;
     }
     {% endif %}
     .stage {
@@ -165,6 +160,11 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
 </head>
 <body class="mode-{{ project.slideshow_mode }}">
+  {% if project.slideshow_mode != "full" %}
+  {% set bg_desktop = project.bkg_desktop_show %}
+  {% set bg_mobile = project.bkg_mobile_show %}
+  {% include "_stage_bg.html" %}
+  {% endif %}
   <a class="back-btn" id="back" href="{{ url_for('project_home', slug=project.slug) }}">{{ msg.lottery_back }}</a>
   {% include "_admin_chrome.html" %}
   {% include "_name_modal.html" %}

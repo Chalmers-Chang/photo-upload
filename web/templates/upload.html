@@ -2,9 +2,14 @@
 {% block title %}{{ msg.upload_page_title.format(name=project.name) }}{% endblock %}
 {% block extra_head %}
 <style>
-  html, body { height: 100%; overflow: hidden; --edge: 2cm; --glass: {{ cfg.glass_pad_cm }}cm; }
+  html, body { height: 100%; overflow: hidden; --edge: 2cm; }
+  /* Mobile ≤640px */
   @media (max-width: 640px) {
     html, body { --glass: {{ cfg.glass_pad_mobile_cm }}cm; }
+  }
+  /* Desktop ≥641px */
+  @media (min-width: 641px) {
+    html, body { --glass: {{ cfg.glass_pad_cm }}cm; }
   }
   .up-stage {
     position: fixed;

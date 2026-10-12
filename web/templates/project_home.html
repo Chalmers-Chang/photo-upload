@@ -2,27 +2,21 @@
 {% block title %}{{ project.name }}{% endblock %}
 {% block extra_head %}
 <style>
-  html, body { height: 100%; overflow: hidden; --edge: 2cm; --glass: {{ cfg.glass_pad_cm }}cm; }
-  @media (max-width: 640px) {
-    html, body { --glass: {{ cfg.glass_pad_mobile_cm }}cm; }
-  }
+  /* Shared layout. Size knobs: Mobile / Desktop blocks below. */
+  html, body { height: 100%; overflow: hidden; --edge: 2cm; }
   .pjt-stage {
     position: fixed;
     inset: 0;
     z-index: 1;
     background: #fff;
   }
-  .pjt-stage > img {
+  .pjt-stage picture,
+  .pjt-stage picture img {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
-  }
-  .pjt-stage > img.pjt-mobile { display: none; }
-  @media (max-width: 640px) {
-    .pjt-stage > img.pjt-desktop { display: none; }
-    .pjt-stage > img.pjt-mobile { display: block; }
   }
   .pjt-fade {
     position: absolute;
@@ -74,7 +68,7 @@
   }
   .pjt-stage h1 {
     font-family: "Snell Roundhand", "Savoye LET", "Segoe Script", "Apple Chancery", "Kaiti TC", "STKaiti", "KaiTi", cursive;
-    font-size: clamp(52px, 9vw, 84px);
+    font-size: var(--pjt-title);
     font-weight: 400;
     letter-spacing: 0;
     line-height: 1.15;
@@ -87,8 +81,8 @@
     display: block;
     width: auto;
     height: auto;
-    max-width: 3.9cm;
-    max-height: 3.9cm;
+    max-width: var(--pjt-mark);
+    max-height: var(--pjt-mark);
     object-fit: contain;
     justify-self: center;
     margin: 0 auto 16px;
@@ -97,20 +91,14 @@
   .pjt-stage .lead {
     white-space: pre-line;
     text-align: center;
-  }
-  @media (min-width: 641px) {
-    .pjt-mark {
-      max-width: 11.7cm;
-      max-height: 11.7cm;
-    }
-    .pjt-stage .lead { font-size: 32px; }
+    font-size: var(--pjt-lead);
   }
   .pjt-stage .actions {
     display: grid;
-    gap: 0.3cm;
+    gap: var(--pjt-btn-gap);
     width: min(720px, 100%);
     margin-top: 0.4cm;
-    padding: 0 0.6cm;
+    padding: 0 var(--pjt-btn-inset);
     justify-self: center;
     box-sizing: border-box;
   }
@@ -121,20 +109,13 @@
     display: grid;
     place-items: center;
     white-space: pre-line;
-    padding: 22px 20px;
-    font-size: 18px;
+    padding: var(--pjt-btn-pad);
+    font-size: var(--pjt-btn-size);
     font-weight: 700;
     line-height: 1.35;
-    border-radius: 16px;
+    border-radius: var(--pjt-btn-radius);
     color: rgba(28, 25, 21, {{ 1 - cfg.button_text_fade }});
     border: 1px solid #fff;
-  }
-  @media (max-width: 640px) {
-    .pjt-stage .btn {
-      padding: 16px 14px;
-      font-size: 16px;
-      border-radius: 14px;
-    }
   }
   .pjt-stage .btn:not(.secondary):not(.lottery) {
     background: color-mix(in srgb, {{ cfg.upload_btn_color }} {{ (1 - cfg.button_fade) * 100 }}%, transparent);
@@ -145,13 +126,45 @@
   .pjt-stage .btn.lottery {
     background: color-mix(in srgb, {{ cfg.lottery_btn_color }} {{ (1 - cfg.button_fade) * 100 }}%, transparent);
   }
+
+  /* Mobile ≤640px */
+  @media (max-width: 640px) {
+    html, body {
+      --glass: {{ cfg.glass_pad_mobile_cm }}cm;
+      --pjt-title: clamp(40px, 11vw, 56px);
+      --pjt-mark: 3.9cm;
+      --pjt-lead: 16px;
+      --pjt-btn-size: 16px;
+      --pjt-btn-pad: 16px 14px;
+      --pjt-btn-radius: 14px;
+      --pjt-btn-gap: 0.3cm;
+      --pjt-btn-inset: 0.6cm;
+    }
+  }
+
+  /* Desktop ≥641px */
+  @media (min-width: 641px) {
+    html, body {
+      --glass: {{ cfg.glass_pad_cm }}cm;
+      --pjt-title: clamp(52px, 9vw, 84px);
+      --pjt-mark: 11.7cm;
+      --pjt-lead: 22px;
+      --pjt-btn-size: 18px;
+      --pjt-btn-pad: 22px 20px;
+      --pjt-btn-radius: 16px;
+      --pjt-btn-gap: 0.3cm;
+      --pjt-btn-inset: 0.6cm;
+    }
+  }
 </style>
 {% endblock %}
 {% block body %}
 <div class="pjt-stage">
   {% if project.pjt_desktop_show or project.pjt_mobile_show %}
-  {% if project.pjt_desktop_show %}<img class="pjt-desktop" src="{{ project.pjt_desktop_show }}" alt="">{% endif %}
-  {% if project.pjt_mobile_show %}<img class="pjt-mobile" src="{{ project.pjt_mobile_show }}" alt="">{% endif %}
+  <picture>
+    <source media="(max-width: 640px)" srcset="{{ project.pjt_mobile_show }}">
+    <img src="{{ project.pjt_desktop_show }}" alt="" fetchpriority="high">
+  </picture>
   <div class="pjt-fade" style="opacity: {{ cfg.pjt_fade }}"></div>
   {% endif %}
   <div class="pjt-ui">
@@ -180,9 +193,7 @@
   (function () {
     const stage = document.querySelector(".pjt-stage");
     if (!stage) return;
-    const visible = [...stage.querySelectorAll(":scope > img")].filter(
-      (img) => getComputedStyle(img).display !== "none"
-    );
+    const visible = [...stage.querySelectorAll("picture img")];
     const go = () => stage.classList.add("is-ready");
     if (!visible.length) {
       requestAnimationFrame(go);
