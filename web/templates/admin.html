@@ -250,10 +250,10 @@
         <div class="asset-card">
           <p class="meta">{{ label }}</p>
           {% if p[key + "_thumb_url"] %}<img class="asset-thumb" src="{{ p[key + "_thumb_url"] }}" alt="">{% endif %}
-          <form class="stack" method="post" action="{{ url_for('admin_save_asset', project_id=p.id, kind=kind) }}" enctype="multipart/form-data">
+          <form class="stack js-asset-upload" method="post" action="{{ url_for('admin_save_asset', project_id=p.id, kind=kind) }}" enctype="multipart/form-data"{% if kind == "pjt-mark" %} data-keep-png="1"{% endif %}>
             <label class="btn small asset-pick">
               {{ msg.asset_upload }}
-              <input type="file" name="photo" accept="image/*" required onchange="this.form.submit()">
+              <input type="file" name="photo" accept="image/*" required>
             </label>
           </form>
           {% if p[key + "_url"] %}
@@ -308,6 +308,8 @@
 </div>
 {% include "_credit.html" %}
 </div>
+{% include "_progress_veil.html" %}
+<script src="{{ url_for('static', filename='upload_progress.js') }}"></script>
 <dialog class="qr-dialog" id="qr-modal">
   <h2 id="qr-name"></h2>
   <p class="meta" id="qr-kind"></p>
@@ -378,6 +380,20 @@
   document.getElementById("qr-close").addEventListener("click", () => qrModal.close());
   qrModal.addEventListener("click", (e) => {
     if (e.target === qrModal) qrModal.close();
+  });
+
+  const pieOpts = {
+    uploading: {{ msg.upload_progress | tojson }},
+    processing: {{ msg.upload_processing | tojson }},
+    failed: {{ msg.upload_failed | tojson }},
+    maxEdge: {{ cfg.jpeg_max_edge }},
+  };
+  document.querySelectorAll("form.js-asset-upload").forEach((form) => {
+    const input = form.querySelector('input[type="file"]');
+    input.addEventListener("change", () => {
+      if (!input.files.length) return;
+      postFormWithPie(form, { ...pieOpts, keepPng: form.dataset.keepPng === "1" });
+    });
   });
 </script>
 {% endblock %}

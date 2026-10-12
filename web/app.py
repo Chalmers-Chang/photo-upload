@@ -187,13 +187,20 @@ def create_app():
     @app.post("/admin/projects/<project_id>/asset/<kind>")
     @admin_required
     def admin_save_asset(project_id, kind):
-        if not store.get_project(project_id):
-            flash(msg.project_missing, "error")
+        xhr = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+        def reply(text, error=False):
+            if xhr:
+                key = "error" if error else "ok"
+                return jsonify({key: text}), (400 if error else 200)
+            flash(text, "error" if error else "ok")
             return redirect(url_for("admin_home"))
+
+        if not store.get_project(project_id):
+            return reply(msg.project_missing, error=True)
         f = request.files.get("photo")
         if not f or not f.filename:
-            flash(msg.need_photo, "error")
-            return redirect(url_for("admin_home"))
+            return reply(msg.need_photo, error=True)
         try:
             dest = store.asset_path(project_id, kind)
             if kind == "pjt-mark":
@@ -202,12 +209,12 @@ def create_app():
                 thumb = store.asset_thumb_path(project_id, kind)
                 images.save_jpeg_and_thumb(f, dest, thumb)
         except ValueError as e:
-            flash(str(e), "error")
-            return redirect(url_for("admin_home"))
+            return reply(str(e), error=True)
         except Exception:
-            flash(msg.bad_image, "error")
-            return redirect(url_for("admin_home"))
+            return reply(msg.bad_image, error=True)
         flash(msg.asset_saved, "ok")
+        if xhr:
+            return jsonify({"ok": True})
         return redirect(url_for("admin_home"))
 
     @app.post("/admin/projects/<project_id>/asset/<kind>/delete")
