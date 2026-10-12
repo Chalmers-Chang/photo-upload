@@ -4,11 +4,13 @@ services:
     restart: unless-stopped
     environment:
       PHOTO_DIR: /data/photos
+      LOG_DIR: /logs
       REDIS_URL: redis://redis:6379/0
       GUNICORN_WORKERS: "2"
       GUNICORN_TIMEOUT: "120"
     volumes:
       - "${HOST_PHOTO_DIR:-/Volumes/OWC Envoy Pro FX/photo-upload}:/data/photos"
+      - "${HOST_PHOTO_DIR:-/Volumes/OWC Envoy Pro FX/photo-upload}/logs:/logs"
     depends_on:
       - redis
 

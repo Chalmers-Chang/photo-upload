@@ -2,9 +2,14 @@
 {% block title %}{{ msg.upload_page_title.format(name=project.name) }}{% endblock %}
 {% block extra_head %}
 <style>
-  html, body { height: 100%; overflow: hidden; --edge: 2cm; --glass: {{ cfg.glass_pad_cm }}cm; }
+  html, body { height: 100%; overflow: hidden; --edge: 2cm; }
+  /* Mobile ≤640px */
   @media (max-width: 640px) {
     html, body { --glass: {{ cfg.glass_pad_mobile_cm }}cm; }
+  }
+  /* Desktop ≥641px */
+  @media (min-width: 641px) {
+    html, body { --glass: {{ cfg.glass_pad_cm }}cm; }
   }
   .up-stage {
     position: fixed;
@@ -12,6 +17,8 @@
     z-index: 1;
     background: var(--bg);
     display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 0.1cm;
     padding: var(--glass);
     padding-top: max(var(--glass), 64px);
     box-sizing: border-box;
@@ -35,7 +42,7 @@
     overflow: auto;
     display: grid;
     place-items: center;
-    padding: 24px 24px 40px;
+    padding: 24px;
     box-sizing: border-box;
     border-radius: 28px;
     background: rgba(255, 255, 255, 0.42);
@@ -45,19 +52,29 @@
     -webkit-backdrop-filter: blur(28px) saturate(180%);
   }
   .glass-body { width: min(720px, 100%); }
-  .up-stage .site-credit {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 12px;
-    z-index: 3;
-    margin: 0;
-    pointer-events: none;
+  .up-stage h1,
+  .up-stage label,
+  .up-stage .flash,
+  .up-stage .upload-note {
+    white-space: pre-line;
+    text-align: left;
+  }
+  .up-stage .btn {
+    white-space: pre-line;
     text-align: center;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    color: rgba(28, 25, 21, 0.28);
+    line-height: 1.3;
+  }
+  .up-stage textarea::placeholder { white-space: pre-line; text-align: left; }
+  .upload-note {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+  .up-stage > .site-credit {
+    position: static;
+    margin: 0;
+    padding: 0;
   }
   .progress-veil {
     position: fixed;
@@ -136,12 +153,13 @@
         <label>{{ msg.photo_label }}</label>
         <input type="file" name="photo" accept="image/*" multiple required>
         <label>{{ msg.caption_label }}</label>
-        <textarea name="caption" maxlength="500" placeholder="{{ msg.caption_placeholder }}"></textarea>
+        <textarea name="caption" maxlength="500" placeholder="{{ msg.caption_placeholder.replace('\n', '&#10;') | safe }}"></textarea>
         <button class="btn" type="submit">{{ msg.upload_submit }}</button>
+        <p class="upload-note">{{ msg.upload_notice }}</p>
       </form>
     </div>
-    {% include "_credit.html" %}
   </div>
+  {% include "_credit.html" %}
 </div>
 <div class="progress-veil" id="progress" hidden>
   <div class="progress-glass">

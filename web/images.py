@@ -39,6 +39,26 @@ def save_jpeg(upload, dest: Path):
     _write_jpeg(img, dest)
 
 
+def save_mark(upload, dest: Path):
+    data = upload.read()
+    if not data:
+        raise ValueError(msg.empty_file)
+    img = Image.open(io.BytesIO(data))
+    img = ImageOps.exif_transpose(img)
+    if img.mode == "P":
+        img = img.convert("RGBA" if "transparency" in img.info else "RGB")
+    elif img.mode in ("RGBA", "LA"):
+        img = img.convert("RGBA")
+    else:
+        img = img.convert("RGB")
+    img.thumbnail(
+        (appsetting.jpeg_max_edge, appsetting.jpeg_max_edge),
+        Image.Resampling.BILINEAR,
+    )
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    img.save(dest, "PNG")
+
+
 def save_jpeg_and_thumb(upload, dest: Path, thumb_dest: Path):
     img = _rgb_image(upload)
     fitted = img.copy()

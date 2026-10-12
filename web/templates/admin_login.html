@@ -2,9 +2,14 @@
 {% block title %}{{ msg.admin_login_title }}{% endblock %}
 {% block extra_head %}
 <style>
-  html, body { height: 100%; overflow: hidden; --edge: 2cm; --glass: {{ cfg.glass_pad_cm }}cm; }
+  html, body { height: 100%; overflow: hidden; --edge: 2cm; }
+  /* Mobile ≤640px */
   @media (max-width: 640px) {
     html, body { --glass: {{ cfg.glass_pad_mobile_cm }}cm; }
+  }
+  /* Desktop ≥641px */
+  @media (min-width: 641px) {
+    html, body { --glass: {{ cfg.glass_pad_cm }}cm; }
   }
   .admin-stage {
     position: fixed;
@@ -12,6 +17,8 @@
     z-index: 1;
     background: var(--bg);
     display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 0.1cm;
     padding: var(--glass);
     padding-top: max(var(--glass), 64px);
     box-sizing: border-box;
@@ -22,7 +29,7 @@
     overflow: auto;
     display: grid;
     place-items: center;
-    padding: 24px 24px 40px;
+    padding: 24px;
     box-sizing: border-box;
     border-radius: 28px;
     background: rgba(255, 255, 255, 0.42);
@@ -32,18 +39,10 @@
     -webkit-backdrop-filter: blur(28px) saturate(180%);
   }
   .glass-body { width: min(360px, 100%); }
-  .admin-stage .site-credit {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 12px;
+  .admin-stage > .site-credit {
+    position: static;
     margin: 0;
-    pointer-events: none;
-    text-align: center;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    color: rgba(28, 25, 21, 0.28);
+    padding: 0;
   }
 </style>
 {% endblock %}
@@ -61,8 +60,8 @@
         <button class="btn" type="submit">{{ msg.login }}</button>
       </form>
     </div>
-    {% include "_credit.html" %}
   </div>
+  {% include "_credit.html" %}
 </div>
 {% endblock %}
 {% block credit %}{% endblock %}

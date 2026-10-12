@@ -40,11 +40,7 @@ a { color: inherit; }
   cursor: pointer;
 }
 .site-credit {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 12px;
-  z-index: 25;
+  position: static;
   margin: 0;
   pointer-events: none;
   text-align: center;
@@ -104,7 +100,8 @@ h1 { font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.03em; margin: 0 0 12p
   object-fit: cover;
   border-radius: 10px;
 }
-@media (max-width: 520px) {
+/* Mobile ≤640px */
+@media (max-width: 640px) {
   .asset-grid { grid-template-columns: 1fr; }
 }
 

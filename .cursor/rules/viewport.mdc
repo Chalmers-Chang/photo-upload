@@ -1,0 +1,12 @@
+---
+description: Split desktop vs mobile UI; ask which viewport before resizing.
+alwaysApply: true
+---
+
+# Viewport split (640px)
+
+Repo breakpoint: **≤640px mobile**, **≥641px desktop**.
+
+When the user asks to change layout, type size, spacing, or images, **ask 手機 or 桌機 first** unless they already said which. Then edit only that media block (CSS variables `--pjt-*`, `--glass`, etc.).
+
+Do not put desktop and mobile knobs in the same unscoped rule. Shared layout stays outside `@media`. Background photos use `<picture>` so only one JPEG downloads.

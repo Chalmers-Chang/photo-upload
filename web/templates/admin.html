@@ -2,9 +2,14 @@
 {% block title %}{{ msg.admin }}{% endblock %}
 {% block extra_head %}
 <style>
-  html, body { height: 100%; overflow: hidden; --edge: 2cm; --glass: {{ cfg.glass_pad_cm }}cm; }
+  html, body { height: 100%; overflow: hidden; --edge: 2cm; }
+  /* Mobile ≤640px */
   @media (max-width: 640px) {
     html, body { --glass: {{ cfg.glass_pad_mobile_cm }}cm; }
+  }
+  /* Desktop ≥641px */
+  @media (min-width: 641px) {
+    html, body { --glass: {{ cfg.glass_pad_cm }}cm; }
   }
   .admin-stage {
     position: fixed;
@@ -12,6 +17,8 @@
     z-index: 1;
     background: var(--bg);
     display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 0.1cm;
     padding: var(--glass);
     padding-top: max(var(--glass), 64px);
     box-sizing: border-box;
@@ -22,7 +29,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    padding: 24px 24px 16px;
+    padding: 24px;
     box-sizing: border-box;
     border-radius: 28px;
     background: rgba(255, 255, 255, 0.42);
@@ -56,16 +63,10 @@
     background: #fffcf7;
     border: 1px solid #fff;
   }
-  .admin-stage .site-credit {
-    flex-shrink: 0;
+  .admin-stage > .site-credit {
+    position: static;
     margin: 0;
-    padding: 10px 0 8px;
-    pointer-events: none;
-    text-align: center;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    color: rgba(28, 25, 21, 0.28);
+    padding: 0;
   }
   .project-card > summary {
     list-style: none;
@@ -237,6 +238,7 @@
       <p class="meta">{{ msg.project_meta.format(slug=p.slug, count=p.photo_count) }}</p>
       <div class="asset-grid">
         {% for kind, label in [
+          ("pjt-mark", msg.asset_pjt_mark),
           ("pjt-desktop", msg.asset_pjt_desktop),
           ("pjt-mobile", msg.asset_pjt_mobile),
           ("bkg-desktop", msg.asset_bkg_desktop),
@@ -303,8 +305,8 @@
   <button class="admin-btn" type="submit">{{ msg.logout }}</button>
 </form>
 {% endif %}
-{% include "_credit.html" %}
 </div>
+{% include "_credit.html" %}
 </div>
 <dialog class="qr-dialog" id="qr-modal">
   <h2 id="qr-name"></h2>

@@ -12,6 +12,10 @@ photo_dir = os.environ.get(
     "PHOTO_DIR",
     "/Volumes/OWC Envoy Pro FX/photo-upload",
 )
+# Per-project daily logs (Compose bind: $HOST_PHOTO_DIR/logs -> /logs)
+log_dir = os.environ.get("LOG_DIR", "/logs")
+# Delete log files whose date in the name is older than this many days
+log_keep_days = int(os.environ.get("LOG_KEEP_DAYS", "30"))
 # Seconds each slideshow photo stays on screen
 slideshow_interval = int(os.environ.get("SLIDESHOW_INTERVAL", "8"))
 # Slideshow crossfade duration in seconds (0 = hard cut)
