@@ -237,6 +237,7 @@
       <p class="meta">{{ msg.project_meta.format(slug=p.slug, count=p.photo_count) }}</p>
       <div class="asset-grid">
         {% for kind, label in [
+          ("pjt-mark", msg.asset_pjt_mark),
           ("pjt-desktop", msg.asset_pjt_desktop),
           ("pjt-mobile", msg.asset_pjt_mobile),
           ("bkg-desktop", msg.asset_bkg_desktop),

@@ -90,6 +90,7 @@ def photo_url(project_id, photo_id):
 
 
 ASSETS = {
+    "pjt-mark": "pjt-mark.jpg",
     "pjt-desktop": "pjt-desktop.jpg",
     "pjt-mobile": "pjt-mobile.jpg",
     "bkg-desktop": "bkg-desktop.jpg",

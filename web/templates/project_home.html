@@ -46,12 +46,15 @@
     min-height: 0;
     display: grid;
     place-items: center;
-    padding: 24px 24px 40px;
+    padding: 24px 0.2cm 40px;
     box-sizing: border-box;
     border-radius: 28px;
-    background: rgba(255, 255, 255, 0.42);
+    background: rgba(255, 255, 255, 0.72);
     border: 1px solid rgba(255, 255, 255, 0.55);
     box-shadow: 0 8px 32px rgba(28, 25, 21, 0.08);
+  }
+  .pjt-stage.is-ready .glass {
+    background: rgba(255, 255, 255, 0.42);
     backdrop-filter: blur(28px) saturate(180%);
     -webkit-backdrop-filter: blur(28px) saturate(180%);
   }
@@ -70,7 +73,27 @@
     letter-spacing: 0.06em;
     color: rgba(28, 25, 21, 0.28);
   }
-  .pjt-stage h1 { opacity: {{ 1 - cfg.title_fade }}; }
+  .pjt-stage h1 {
+    font-family: "Snell Roundhand", "Savoye LET", "Segoe Script", "Apple Chancery", "Kaiti TC", "STKaiti", "KaiTi", cursive;
+    font-size: clamp(52px, 9vw, 84px);
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.15;
+    text-align: center;
+    margin: 0 0 16px;
+    justify-self: stretch;
+    width: 100%;
+    box-sizing: border-box;
+    opacity: {{ 1 - cfg.title_fade }};
+  }
+  .pjt-mark {
+    display: block;
+    width: 2cm;
+    height: 2cm;
+    object-fit: cover;
+    margin: 0 auto 16px;
+    border-radius: 8px;
+  }
   .pjt-stage .btn {
     white-space: pre-line;
     color: rgba(28, 25, 21, {{ 1 - cfg.button_text_fade }});
@@ -96,8 +119,11 @@
   {% endif %}
   <div class="pjt-ui">
     <div class="glass">
+      <h1>{{ project.name }}</h1>
+      {% if project.pjt_mark_url %}
+      <img class="pjt-mark" src="{{ project.pjt_mark_thumb_url or project.pjt_mark_url }}" alt="">
+      {% endif %}
       <div class="glass-body">
-        <h1>{{ project.name }}</h1>
         <p class="lead" style="white-space: pre-line">{{ msg.project_home_lead }}</p>
         <div class="actions">
           <a class="btn" href="{{ url_for('upload', slug=project.slug) }}">{{ msg.upload_photos }}</a>
@@ -111,5 +137,24 @@
     </div>
   </div>
 </div>
+<script>
+  (function () {
+    const stage = document.querySelector(".pjt-stage");
+    if (!stage) return;
+    const visible = [...stage.querySelectorAll(":scope > img")].filter(
+      (img) => getComputedStyle(img).display !== "none"
+    );
+    const go = () => stage.classList.add("is-ready");
+    if (!visible.length) {
+      requestAnimationFrame(go);
+      return;
+    }
+    Promise.all(
+      visible.map((img) =>
+        img.decode ? img.decode().catch(() => {}) : Promise.resolve()
+      )
+    ).then(() => requestAnimationFrame(go));
+  })();
+</script>
 {% endblock %}
 {% block credit %}{% endblock %}
