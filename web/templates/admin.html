@@ -12,6 +12,8 @@
     z-index: 1;
     background: var(--bg);
     display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 0.1cm;
     padding: var(--glass);
     padding-top: max(var(--glass), 64px);
     box-sizing: border-box;
@@ -22,7 +24,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    padding: 24px 24px 16px;
+    padding: 24px;
     box-sizing: border-box;
     border-radius: 28px;
     background: rgba(255, 255, 255, 0.42);
@@ -56,16 +58,10 @@
     background: #fffcf7;
     border: 1px solid #fff;
   }
-  .admin-stage .site-credit {
-    flex-shrink: 0;
+  .admin-stage > .site-credit {
+    position: static;
     margin: 0;
-    padding: 10px 0 8px;
-    pointer-events: none;
-    text-align: center;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    color: rgba(28, 25, 21, 0.28);
+    padding: 0;
   }
   .project-card > summary {
     list-style: none;
@@ -304,8 +300,8 @@
   <button class="admin-btn" type="submit">{{ msg.logout }}</button>
 </form>
 {% endif %}
-{% include "_credit.html" %}
 </div>
+{% include "_credit.html" %}
 </div>
 <dialog class="qr-dialog" id="qr-modal">
   <h2 id="qr-name"></h2>
