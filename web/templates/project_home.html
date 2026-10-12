@@ -73,6 +73,12 @@
     letter-spacing: 0.06em;
     color: rgba(28, 25, 21, 0.28);
   }
+  .pjt-title-block {
+    display: grid;
+    justify-items: stretch;
+    width: max-content;
+    max-width: 100%;
+  }
   .pjt-stage h1 {
     font-family: "Snell Roundhand", "Savoye LET", "Segoe Script", "Apple Chancery", "Kaiti TC", "STKaiti", "KaiTi", cursive;
     font-size: clamp(52px, 9vw, 84px);
@@ -81,18 +87,20 @@
     line-height: 1.15;
     text-align: center;
     margin: 0 0 16px;
-    justify-self: stretch;
-    width: 100%;
-    box-sizing: border-box;
+    width: auto;
     opacity: {{ 1 - cfg.title_fade }};
   }
   .pjt-mark {
     display: block;
-    width: 2cm;
-    height: 2cm;
-    object-fit: cover;
-    margin: 0 auto 16px;
-    border-radius: 8px;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    margin: 0 0 16px;
+    background: transparent;
+  }
+  .pjt-stage .lead {
+    white-space: pre-line;
+    text-align: center;
   }
   .pjt-stage .btn {
     white-space: pre-line;
@@ -119,12 +127,14 @@
   {% endif %}
   <div class="pjt-ui">
     <div class="glass">
-      <h1>{{ project.name }}</h1>
-      {% if project.pjt_mark_url %}
-      <img class="pjt-mark" src="{{ project.pjt_mark_thumb_url or project.pjt_mark_url }}" alt="">
-      {% endif %}
+      <div class="pjt-title-block">
+        <h1>{{ project.name }}</h1>
+        {% if project.pjt_mark_url %}
+        <img class="pjt-mark" src="{{ project.pjt_mark_url }}" alt="">
+        {% endif %}
+      </div>
       <div class="glass-body">
-        <p class="lead" style="white-space: pre-line">{{ msg.project_home_lead }}</p>
+        <p class="lead">{{ msg.project_home_lead }}</p>
         <div class="actions">
           <a class="btn" href="{{ url_for('upload', slug=project.slug) }}">{{ msg.upload_photos }}</a>
           <a class="btn secondary" href="{{ url_for('slideshow', slug=project.slug) }}">{{ msg.play_slideshow }}</a>

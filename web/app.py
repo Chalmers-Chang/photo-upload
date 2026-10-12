@@ -196,8 +196,11 @@ def create_app():
             return redirect(url_for("admin_home"))
         try:
             dest = store.asset_path(project_id, kind)
-            thumb = store.asset_thumb_path(project_id, kind)
-            images.save_jpeg_and_thumb(f, dest, thumb)
+            if kind == "pjt-mark":
+                images.save_mark(f, dest)
+            else:
+                thumb = store.asset_thumb_path(project_id, kind)
+                images.save_jpeg_and_thumb(f, dest, thumb)
         except ValueError as e:
             flash(str(e), "error")
             return redirect(url_for("admin_home"))
@@ -216,6 +219,8 @@ def create_app():
         try:
             store.asset_path(project_id, kind).unlink(missing_ok=True)
             store.asset_thumb_path(project_id, kind).unlink(missing_ok=True)
+            if kind == "pjt-mark":
+                (store.photo_dir(project_id) / "pjt-mark.jpg").unlink(missing_ok=True)
         except ValueError as e:
             flash(str(e), "error")
             return redirect(url_for("admin_home"))

@@ -90,7 +90,7 @@ def photo_url(project_id, photo_id):
 
 
 ASSETS = {
-    "pjt-mark": "pjt-mark.jpg",
+    "pjt-mark": "pjt-mark.png",
     "pjt-desktop": "pjt-desktop.jpg",
     "pjt-mobile": "pjt-mobile.jpg",
     "bkg-desktop": "bkg-desktop.jpg",
@@ -141,6 +141,9 @@ def attach_assets(project):
         key = kind.replace("-", "_")
         project[f"{key}_url"] = asset_url(pid, kind)
         project[f"{key}_thumb_url"] = asset_thumb_url(pid, kind)
+    if not project["pjt_mark_url"]:
+        project["pjt_mark_url"] = _file_url(pid, photo_dir(pid) / "pjt-mark.jpg")
+        project["pjt_mark_thumb_url"] = project["pjt_mark_url"]
     legacy_pjt = _file_url(pid, photo_dir(pid) / _LEGACY["pjt"])
     legacy_bkg = _file_url(pid, photo_dir(pid) / _LEGACY["bkg"])
     project["pjt_desktop_show"] = (
