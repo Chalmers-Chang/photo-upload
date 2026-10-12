@@ -57,6 +57,7 @@
     const maxEdge = opts.maxEdge || 2560;
     document.body.appendChild(veil);
     veil.hidden = false;
+    veil.classList.add("is-on");
     setPct(0);
     label.textContent = processing;
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -81,6 +82,7 @@
         data = JSON.parse(xhr.responseText);
       } catch (err) {}
       if (xhr.status >= 400 || data.error) {
+        veil.classList.remove("is-on");
         veil.hidden = true;
         alert(data.error || failed);
         return;
@@ -91,6 +93,7 @@
       location.reload();
     });
     xhr.addEventListener("error", () => {
+      veil.classList.remove("is-on");
       veil.hidden = true;
       alert(failed);
     });
