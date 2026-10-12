@@ -10,4 +10,5 @@
 
 - Baked `photo-upload-nginx` plus the OWC photo bind is enough for `compose up`; confirmed the stack starts on the Mac runner.
 - `PHOTO_DIR=/data/photos` inside the container; host path stays in compose (`HOST_PHOTO_DIR` / default OWC volume).
+- App logs bind `HOST_LOG_DIR` (default `/opt/photo-upload/logs`) to the same path in the container. Deploy `mkdir -p`s it before `compose up`. Files are `<project-id>_yyyyMMdd.log`; the app deletes names older than 30 days. Do not log `/api/slideshow` polls.
 - Install Python deps with `uv sync --frozen` from `python/pyproject.toml` + `python/uv.lock`, not a root `requirements.txt`.

@@ -111,5 +111,6 @@ jobs:
           else
             compose() { docker-compose "$@"; }
           fi
+          mkdir -p /opt/photo-upload/logs
           compose pull
           compose up -d

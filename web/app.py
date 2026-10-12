@@ -1,4 +1,5 @@
 import io
+import time
 import uuid
 from datetime import timedelta
 from functools import wraps
@@ -21,7 +22,7 @@ from flask import (
 from config import admin as admin_config
 from config import appsetting
 from config import msg
-from web import images, store
+from web import applog, images, store
 
 
 def create_app():
@@ -45,6 +46,7 @@ def create_app():
         p = store.project_by_slug(slug)
         if not p:
             abort(404)
+        g.project_id = p["id"]
         return p
 
     def device_id():
@@ -78,10 +80,32 @@ def create_app():
             "cfg": appsetting,
         }
 
+    @app.before_request
+    def log_start():
+        g.log_t0 = time.monotonic()
+        args = request.view_args or {}
+        if args.get("project_id"):
+            g.project_id = args["project_id"]
+
     @app.after_request
     def remember_device(resp):
         did, is_new = device_id()
         return with_device_cookie(resp, did, is_new)
+
+    @app.after_request
+    def write_project_log(resp):
+        if request.endpoint in ("health", "slideshow_api"):
+            return resp
+        pid = getattr(g, "project_id", None)
+        if not pid:
+            return resp
+        ms = int((time.monotonic() - getattr(g, "log_t0", time.monotonic())) * 1000)
+        ip = request.headers.get("X-Real-IP") or request.remote_addr or "-"
+        applog.write(
+            pid,
+            f"{ip} {request.method} {request.path} {resp.status_code} {ms}ms",
+        )
+        return resp
 
     @app.get("/health")
     def health():
@@ -145,6 +169,7 @@ def create_app():
         except ValueError as e:
             flash(str(e), "error")
             return redirect(url_for("admin_home"))
+        g.project_id = p["id"]
         flash(msg.project_created.format(name=p["name"]), "ok")
         return redirect(url_for("admin_home"))
 

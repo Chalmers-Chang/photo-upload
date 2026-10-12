@@ -35,6 +35,7 @@ Pushes to `main` or `feature/**` build arm64 images and run `compose pull && com
 | Item | Where | Notes |
 | --- | --- | --- |
 | Photo directory | Compose `HOST_PHOTO_DIR` (or `.env`) | Default `/Volumes/OWC Envoy Pro FX/photo-upload`. Bind the same path on **app** and **nginx**. |
+| App logs | Compose `HOST_LOG_DIR` | Default `/opt/photo-upload/logs`. One file per project per day: `<project-id>_yyyyMMdd.log`. Older than 30 days are deleted. |
 | Admin login | `ADMIN_USERNAME` / `ADMIN_PASSWORD` on `app` | Defaults live in `config/admin.py`. Change them. |
 | `SECRET_KEY` | `app` environment | Default in `config/appsetting.py`. Signs cookies. |
 
@@ -44,6 +45,8 @@ Pushes to `main` or `feature/**` build arm64 images and run `compose pull && com
 | --- | --- | --- |
 | `REDIS_URL` | `redis://redis:6379/0` | Leave as-is in Compose |
 | `PHOTO_DIR` | `/data/photos` | Path **inside** the container |
+| `LOG_DIR` | `/opt/photo-upload/logs` | Per-project daily logs inside the container |
+| `LOG_KEEP_DAYS` | `30` | Delete log files older than this many days |
 | `SLIDESHOW_INTERVAL` | `8` | Seconds each slideshow photo stays |
 | `SLIDESHOW_FADE` | `0.8` | Slideshow crossfade seconds (0 = hard cut) |
 | `SLIDESHOW_MODE` | `wall` | Default slideshow layout: `wall` (name + caption) or `full` (photo only) |
