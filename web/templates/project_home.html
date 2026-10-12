@@ -101,26 +101,32 @@
   .pjt-stage .actions {
     display: grid;
     gap: 0.2cm;
-    width: 4cm;
+    width: min(720px, 100%);
     margin-top: 0.2cm;
     justify-self: center;
     box-sizing: border-box;
   }
   .pjt-stage .btn {
     box-sizing: border-box;
-    width: 4cm;
-    max-width: 4cm;
-    height: 1.6cm;
+    width: 100%;
+    height: auto;
     display: grid;
     place-items: center;
     white-space: pre-line;
-    padding: 0.08cm 0.12cm;
-    font-size: 12px;
+    padding: 22px 20px;
+    font-size: 18px;
     font-weight: 700;
-    line-height: 1.2;
-    border-radius: 0.3cm;
+    line-height: 1.35;
+    border-radius: 16px;
     color: rgba(28, 25, 21, {{ 1 - cfg.button_text_fade }});
     border: 1px solid #fff;
+  }
+  @media (max-width: 640px) {
+    .pjt-stage .btn {
+      padding: 16px 14px;
+      font-size: 16px;
+      border-radius: 14px;
+    }
   }
   .pjt-stage .btn:not(.secondary):not(.lottery) {
     background: color-mix(in srgb, {{ cfg.upload_btn_color }} {{ (1 - cfg.button_fade) * 100 }}%, transparent);
