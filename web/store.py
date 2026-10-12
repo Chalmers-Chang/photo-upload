@@ -573,15 +573,19 @@ def latest_photo_ids(project_id, device_id, n):
     )
 
 
-def device_photos(project_id, device_id, exclude=None):
-    ids = r().zrange(f"device_photos:{project_id}:{device_id}", 0, -1)
+def device_photos(project_id, device_id, exclude=None, limit=None):
+    key = f"device_photos:{project_id}:{device_id}"
+    if limit is None:
+        ids = r().zrange(key, 0, -1)
+    else:
+        ids = r().zrevrange(key, 0, max(0, limit - 1))
     out = []
     for pid in ids:
         if exclude and pid == exclude:
             continue
         item = load_photo(project_id, pid)
         if item is None:
-            r().zrem(f"device_photos:{project_id}:{device_id}", pid)
+            r().zrem(key, pid)
             continue
         out.append({"id": item["id"], "url": item["url"]})
     return out
@@ -657,7 +661,10 @@ def draw_lottery(project_id):
     if not winner:
         raise ValueError(msg.lottery_empty)
     t, photo = winner
-    others = device_photos(project_id, t["device_id"], exclude=photo["id"])
+    others = device_photos(
+        project_id, t["device_id"], exclude=photo["id"], limit=cap
+    )
+    total = int(r().zcard(f"device_photos:{project_id}:{t['device_id']}") or 0)
     cfgp = settings_of(project_id)
     sphere = sphere_photos(project_id, cfgp["lottery_sphere_max"])
     mark_won(project_id, t.get("device_id"))
@@ -669,7 +676,7 @@ def draw_lottery(project_id):
             "url": photo["url"],
             "caption": photo.get("caption") or "",
             "nickname": photo.get("nickname") or "",
-            "upload_count": len(others) + 1,
+            "upload_count": total or len(others) + 1,
         },
         "device_photos": others,
         "sphere": sphere,
