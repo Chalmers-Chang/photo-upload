@@ -105,10 +105,23 @@
     white-space: pre-line;
     text-align: center;
   }
+  .pjt-stage .actions {
+    display: grid;
+    gap: 0.2cm;
+    width: 100%;
+    margin-top: 0.2cm;
+    justify-self: stretch;
+    box-sizing: border-box;
+  }
   .pjt-stage .btn {
     white-space: pre-line;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+    border-radius: 12px;
     color: rgba(28, 25, 21, {{ 1 - cfg.button_text_fade }});
-    border: 2px solid #fff;
+    border: 1px solid #fff;
   }
   .pjt-stage .btn:not(.secondary):not(.lottery) {
     background: color-mix(in srgb, {{ cfg.upload_btn_color }} {{ (1 - cfg.button_fade) * 100 }}%, transparent);
@@ -138,13 +151,13 @@
       </div>
       <div class="glass-body">
         <p class="lead">{{ msg.project_home_lead }}</p>
-        <div class="actions">
-          <a class="btn" href="{{ url_for('upload', slug=project.slug) }}">{{ msg.upload_photos }}</a>
-          <a class="btn secondary" href="{{ url_for('slideshow', slug=project.slug) }}">{{ msg.play_slideshow }}</a>
-          {% if is_admin %}
-            <a class="btn lottery" href="{{ url_for('lottery', slug=project.slug) }}">{{ msg.lottery }}</a>
-          {% endif %}
-        </div>
+      </div>
+      <div class="actions">
+        <a class="btn" href="{{ url_for('upload', slug=project.slug) }}">{{ msg.upload_photos }}</a>
+        <a class="btn secondary" href="{{ url_for('slideshow', slug=project.slug) }}">{{ msg.play_slideshow }}</a>
+        {% if is_admin %}
+          <a class="btn lottery" href="{{ url_for('lottery', slug=project.slug) }}">{{ msg.lottery }}</a>
+        {% endif %}
       </div>
       {% include "_credit.html" %}
     </div>
