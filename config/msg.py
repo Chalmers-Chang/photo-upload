@@ -15,7 +15,7 @@ nickname_bad = "請輸入 1–20 字的稱呼 / Enter a name (1–20 characters)
 nickname_save_failed = "無法儲存稱呼\nCould not save name"
 
 # Project home (/p/<slug>/)
-project_home_lead = "開始分享今天的照片吧～\n會有小驚喜唷！\nStart sharing your photos～\nThere will be a surprise！"
+project_home_lead = "開始分享今天的照片吧～會有小驚喜唷！\nStart sharing your photos～ There will be a surprise！"
 upload_photos = "上傳照片\nUpload photos"
 play_slideshow = "輪播照片\nSlideshow"
 lottery = "抽獎\nLottery"
@@ -27,6 +27,7 @@ photo_label = "照片（每次最多 5 張）Photos (up to 5 at a time)"
 caption_label = "請為照片下一個註解 Write a note for this photo (optional)"
 caption_placeholder = "請輸入一段話 Enter some words for this photo"
 upload_submit = "上傳 Upload"
+upload_notice = "照片會用於輪播。\n若有其他人入鏡，請先徵得同意。\nPhotos appear in the slideshow.\nIf others are in them, please get their consent."
 upload_progress = "上傳中… / Uploading…"
 upload_processing = "處理照片中… / Processing photos…"
 upload_failed = "上傳失敗 / Upload failed"

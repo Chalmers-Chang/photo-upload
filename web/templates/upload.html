@@ -47,6 +47,14 @@
     -webkit-backdrop-filter: blur(28px) saturate(180%);
   }
   .glass-body { width: min(720px, 100%); }
+  .upload-note {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+    text-align: center;
+    white-space: pre-line;
+    line-height: 1.45;
+  }
   .up-stage > .site-credit {
     position: static;
     margin: 0;
@@ -131,6 +139,7 @@
         <label>{{ msg.caption_label }}</label>
         <textarea name="caption" maxlength="500" placeholder="{{ msg.caption_placeholder }}"></textarea>
         <button class="btn" type="submit">{{ msg.upload_submit }}</button>
+        <p class="upload-note">{{ msg.upload_notice }}</p>
       </form>
     </div>
   </div>
