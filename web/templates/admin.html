@@ -171,6 +171,15 @@
   .qr-dialog h2 { margin: 0 0 8px; font-size: 20px; }
   .qr-dialog img { width: min(240px, 100%); height: auto; margin: 12px 0; }
   .qr-dialog .row { justify-content: center; }
+  .progress-veil {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: var(--glass);
+    box-sizing: border-box;
+  }
 </style>
 {% endblock %}
 {% block body %}
@@ -195,7 +204,7 @@
   </div>
 
   {% for p in projects %}
-    <details class="card project-card">
+    <details class="card project-card" id="project-{{ p.id }}">
       <summary>
         <div class="card-head">
           <h2>
@@ -392,9 +401,25 @@
     const input = form.querySelector('input[type="file"]');
     input.addEventListener("change", () => {
       if (!input.files.length) return;
-      postFormWithPie(form, { ...pieOpts, keepPng: form.dataset.keepPng === "1" });
+      postFormWithPie(form, {
+        ...pieOpts,
+        keepPng: form.dataset.keepPng === "1",
+        onSuccess() {
+          const m = form.action.match(/\/projects\/([^/]+)\/asset\//);
+          if (m) sessionStorage.setItem("adminOpenProject", m[1]);
+        },
+      });
     });
   });
+  const openId = sessionStorage.getItem("adminOpenProject");
+  if (openId) {
+    sessionStorage.removeItem("adminOpenProject");
+    const card = document.getElementById("project-" + openId);
+    if (card) {
+      card.open = true;
+      card.scrollIntoView({ block: "nearest" });
+    }
+  }
 </script>
 {% endblock %}
 {% block credit %}{% endblock %}

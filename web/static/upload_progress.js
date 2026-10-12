@@ -55,9 +55,11 @@
     const processing = opts.processing;
     const failed = opts.failed;
     const maxEdge = opts.maxEdge || 2560;
+    document.body.appendChild(veil);
     veil.hidden = false;
     setPct(0);
     label.textContent = processing;
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     const body = new FormData(form);
     body.delete(input.name);
     for (const file of files) {
@@ -85,6 +87,7 @@
       }
       setPct(100);
       if (data.message) sessionStorage.setItem("uploadFlash", data.message);
+      if (typeof opts.onSuccess === "function") opts.onSuccess(form, data);
       location.reload();
     });
     xhr.addEventListener("error", () => {
