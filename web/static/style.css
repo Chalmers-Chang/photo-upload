@@ -30,7 +30,7 @@ a { color: inherit; }
 }
 .admin-btn {
   text-decoration: none;
-  border: 1px solid #fff;
+  border: 1px solid rgba(255, 255, 255, 0.55);
   color: #1c1915;
   padding: 8px 14px;
   border-radius: 999px;
