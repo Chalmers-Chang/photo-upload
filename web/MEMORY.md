@@ -9,6 +9,7 @@
 - Lottery winner `overflow: hidden` clips the photo shadow into a hard straight edge when the JPEG fills the wrap. Keep the wrap `overflow: visible`. Use `box-shadow` (follows `border-radius`); `filter: drop-shadow` on a JPEG ignores radius and looks square. The 2cm result padding is the room for the blur.
 - `Image.save(..., optimize=True)` on phone photos makes upload feel stuck (CPU Huffman pass). Save JPEG at quality 80 with no optimize; `draft()` + bilinear thumbnail for speed.
 - Project-home glass looks gray on the first visit because `backdrop-filter` paints before the cover JPEG is decoded (Safari samples an empty layer). Keep a solid frost until `img.decode()`, then add `.is-ready` and turn blur on.
+- Slideshow `img { opacity: 0 }` also hides the wall-mode background `<picture>` img. Scope slide rules to `.frame img`.
 
 ## TASTE
 

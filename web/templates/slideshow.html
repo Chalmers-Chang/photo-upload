@@ -43,7 +43,7 @@
       min-width: 0;
     }
     .frame { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
-    img {
+    .frame img {
       position: absolute;
       top: 50%;
       left: 50%;
@@ -59,7 +59,7 @@
       z-index: 1;
       transition: opacity {{ project.slideshow_fade }}s ease;
     }
-    img.on { opacity: 1; z-index: 2; }
+    .frame img.on { opacity: 1; z-index: 2; }
     .empty {
       position: absolute;
       inset: 0;
@@ -68,7 +68,7 @@
       margin: 0;
       opacity: 0.6;
     }
-    img[hidden],
+    .frame img[hidden],
     .empty[hidden] {
       display: none !important;
     }
@@ -154,7 +154,7 @@
       padding-top: 64px;
     }
     .mode-full .credit { display: none !important; }
-    .mode-full img { border-radius: 0; }
+    .mode-full .frame img { border-radius: 0; }
     .mode-full .empty { color: #6b6459; }
   </style>
   <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
