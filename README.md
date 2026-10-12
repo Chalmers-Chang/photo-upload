@@ -26,7 +26,7 @@ docker compose up -d
 
 Open `http://localhost:8000`. Admin is `/admin`.
 
-Pushes to `main` or `feature/**` build arm64 images and run `compose pull && compose up -d` on the self-hosted Mac runner.
+Pushes to `main` or `feature/**` build `linux/arm64` on the self-hosted Mac runner (native, no QEMU), then `compose pull && compose up -d`.
 
 ## What to change
 
@@ -35,7 +35,7 @@ Pushes to `main` or `feature/**` build arm64 images and run `compose pull && com
 | Item | Where | Notes |
 | --- | --- | --- |
 | Photo directory | Compose `HOST_PHOTO_DIR` (or `.env`) | Default `/Volumes/OWC Envoy Pro FX/photo-upload`. Bind the same path on **app** and **nginx**. |
-| App logs | `/opt/app/photo-upload/logs` | One file per project per day: `<project-id>_yyyyMMdd.log`. Older than 30 days are deleted. |
+| App logs | `$HOST_PHOTO_DIR/logs` | One file per project per day. Deploy also symlinks `/opt/app/photo-upload/logs`. Older than 30 days are deleted. |
 | Admin login | `ADMIN_USERNAME` / `ADMIN_PASSWORD` on `app` | Defaults live in `config/admin.py`. Change them. |
 | `SECRET_KEY` | `app` environment | Default in `config/appsetting.py`. Signs cookies. |
 
@@ -45,7 +45,7 @@ Pushes to `main` or `feature/**` build arm64 images and run `compose pull && com
 | --- | --- | --- |
 | `REDIS_URL` | `redis://redis:6379/0` | Leave as-is in Compose |
 | `PHOTO_DIR` | `/data/photos` | Path **inside** the container |
-| `LOG_DIR` | `/opt/app/photo-upload/logs` | Per-project daily logs |
+| `LOG_DIR` | `/logs` | Per-project daily logs inside the container (`$HOST_PHOTO_DIR/logs` on the host) |
 | `LOG_KEEP_DAYS` | `30` | Delete log files older than this many days |
 | `SLIDESHOW_INTERVAL` | `8` | Seconds each slideshow photo stays |
 | `SLIDESHOW_FADE` | `0.8` | Slideshow crossfade seconds (0 = hard cut) |

@@ -17,7 +17,7 @@ defaults:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64]
     permissions:
       contents: read
       packages: write
@@ -35,8 +35,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: docker/setup-qemu-action@v3
 
       - uses: docker/setup-buildx-action@v3
 
@@ -112,6 +110,9 @@ jobs:
           else
             compose() { docker-compose "$@"; }
           fi
-          mkdir -p /opt/app/photo-upload/logs
+          photo="${HOST_PHOTO_DIR:-/Volumes/OWC Envoy Pro FX/photo-upload}"
+          mkdir -p "$photo/logs"
+          rm -rf /opt/app/photo-upload/logs
+          ln -s "$photo/logs" /opt/app/photo-upload/logs
           compose pull
           compose up -d
