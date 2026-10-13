@@ -4,6 +4,9 @@ function SparkleField(canvas) {
   const BURST = 5000;
   const TRAIL = 10;
   const BOB = (96 / 2.54) * 0.25;
+  const SPHERE_Y_MAX = 2880;
+  const SPHERE_X_FROM = -18;
+  const SPHERE_X_TO = 16;
   const TINTS = [
     "#f6e08a", "#ffe9b0", "#f6e08a", "#ffe9b0", "#ebcf6e",
     "#d8dde3", "#c5ccd4", "#e8eef2",
@@ -24,6 +27,7 @@ function SparkleField(canvas) {
   let mode = "gather";
   let t0 = 0;
   let last = 0;
+  let gatherSec = 10;
   let dots = [];
 
   function size() {
@@ -36,58 +40,71 @@ function SparkleField(canvas) {
     return { w, h };
   }
 
+  function sphereU(t, durationSec) {
+    const k = -Math.log(0.02) / durationSec;
+    return 1 - Math.exp(-k * Math.min(Math.max(t, 0), durationSec));
+  }
+
   function noise(x, y, t, s) {
-    return Math.sin(x * 0.006 + s) * Math.cos(y * 0.005 + t * 1.15 + s * 1.3);
+    return Math.sin(x * 0.012 + s) * Math.cos(y * 0.01 + t * 1.4 + s * 1.3);
   }
 
   function curl(x, y, t, s) {
-    const e = 22;
+    const e = 18;
     const dndx = (noise(x + e, y, t, s) - noise(x - e, y, t, s)) / (2 * e);
     const dndy = (noise(x, y + e, t, s) - noise(x, y - e, t, s)) / (2 * e);
-    return { x: dndy * 1200, y: -dndx * 1200 };
+    return { x: dndy * 420, y: -dndx * 420 };
   }
 
-  function wrap(p, w, h) {
-    const m = 80;
-    let jumped = false;
-    if (p.x < -m) {
-      p.x += w + m * 2;
-      jumped = true;
-    } else if (p.x > w + m) {
-      p.x -= w + m * 2;
-      jumped = true;
-    }
-    if (p.y < -m) {
-      p.y += h + m * 2;
-      jumped = true;
-    } else if (p.y > h + m) {
-      p.y -= h + m * 2;
-      jumped = true;
-    }
-    if (jumped) p.trail = [];
-  }
-
-  function makeDots(w, h) {
+  function makeDots(w, h, durationSec) {
+    const cx = w * 0.5;
+    const cy = h * 0.48;
+    const maxR = Math.min(w, h) * 0.42;
     dots = [];
     for (let i = 0; i < GATHER; i++) {
-      const dir = DIRS[i % 4];
-      const across = -dir.y;
-      const down = dir.x;
-      const along = (Math.random() - 0.5) * (w + h);
-      const side = (Math.random() - 0.5) * Math.min(w, h) * 0.95;
       dots.push({
-        dir,
+        cx,
+        cy,
+        dir: DIRS[i % 4],
         seed: Math.random() * 40,
-        speed: 110 + Math.random() * 160,
-        x: w * 0.5 + dir.x * along + across * side,
-        y: h * 0.5 + dir.y * along + down * side,
+        slide: Math.random() * Math.PI * 2,
+        ang: Math.random() * Math.PI * 2,
+        lift: (Math.random() * 2 - 1) * 0.38,
+        spawn: Math.random() * durationSec,
+        rMax: maxR * (0.2 + Math.random() * 0.8),
         trail: [],
         breath: 0.55 + (i % 6) * 0.2,
         phase: (i % 4) * (Math.PI / 2) + (Math.random() - 0.5) * 0.4,
         r: 0.7 + Math.random() * 1.3,
         color: TINTS[i % TINTS.length],
+        x: cx,
+        y: cy,
       });
     }
+  }
+
+  function gatherPos(p, t) {
+    if (t < p.spawn) return null;
+    const u = sphereU(t, gatherSec);
+    const rotY = SPHERE_Y_MAX * Math.PI / 180 * u;
+    const rotX = (SPHERE_X_FROM + (SPHERE_X_TO - SPHERE_X_FROM) * u) * Math.PI / 180;
+    const rad = p.rMax * (0.08 + 0.92 * u);
+    let x = Math.cos(p.ang) * rad;
+    let y = p.lift * rad;
+    let z = Math.sin(p.ang) * rad;
+    const cy = Math.cos(rotY);
+    const sy = Math.sin(rotY);
+    const x1 = x * cy + z * sy;
+    const z1 = -x * sy + z * cy;
+    const cxr = Math.cos(rotX);
+    const sxr = Math.sin(rotX);
+    const y1 = y * cxr - z1 * sxr;
+    const z2 = y * sxr + z1 * cxr;
+    const s = 1100 / (1100 + z2);
+    return {
+      x: p.cx + x1 * s,
+      y: p.cy + y1 * s,
+    };
   }
 
   function pushTrail(p, x, y) {
@@ -128,11 +145,10 @@ function SparkleField(canvas) {
     if (!on || document.hidden) return;
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
-    const dt = Math.min(0.05, Math.max(0.008, (now - last) / 1000));
     last = now;
     const t = (now - t0) / 1000;
     ctx.globalCompositeOperation = "destination-out";
-    ctx.fillStyle = "rgba(0,0,0,0.07)";
+    ctx.fillStyle = "rgba(0,0,0,0.08)";
     ctx.fillRect(0, 0, w, h);
     ctx.globalCompositeOperation = "lighter";
     for (const p of dots) {
@@ -141,12 +157,15 @@ function SparkleField(canvas) {
       let breathe;
       let scale = 1;
       if (mode === "gather") {
-        const n = curl(p.x, p.y, t, p.seed);
-        p.x += (p.dir.x * p.speed + n.x) * dt;
-        p.y += (p.dir.y * p.speed + n.y) * dt;
-        wrap(p, w, h);
-        x = p.x;
-        y = p.y;
+        const pos = gatherPos(p, t);
+        if (!pos) continue;
+        p.slide += 2.2;
+        const streak = Math.sin(p.slide * 0.04 + p.seed) * 28;
+        const n = curl(pos.x, pos.y, t, p.seed);
+        x = pos.x + p.dir.x * streak + n.x * 0.12;
+        y = pos.y + p.dir.y * streak + n.y * 0.12;
+        p.x = x;
+        p.y = y;
         breathe = 0.5 + 0.5 * Math.sin(t * p.breath + p.phase);
       } else {
         const age = (now - p.burstAt) / 1000;
@@ -177,10 +196,11 @@ function SparkleField(canvas) {
     raf = requestAnimationFrame(tick);
   }
 
-  function start(gatherSec) {
+  function start(durationSec) {
     canvas.hidden = false;
     const { w, h } = size();
-    makeDots(w, h);
+    gatherSec = durationSec || 10;
+    makeDots(w, h, gatherSec);
     mode = "gather";
     t0 = performance.now();
     last = t0;
