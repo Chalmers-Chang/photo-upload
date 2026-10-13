@@ -200,6 +200,18 @@ def create_app():
         flash(msg.project_deleted.format(name=p["name"]), "ok")
         return redirect(url_for("admin_home"))
 
+    @app.post("/admin/projects/<project_id>/reset-photos")
+    @admin_required
+    def admin_reset_photos(project_id):
+        try:
+            p = store.reset_guest_photos(project_id)
+        except ValueError as e:
+            g.log_err = str(e)
+            flash(str(e), "error")
+            return redirect(url_for("admin_home"))
+        flash(msg.reset_photos_ok.format(name=p["name"]), "ok")
+        return redirect(url_for("admin_home"))
+
     @app.post("/admin/projects/<project_id>/asset/<kind>")
     @admin_required
     def admin_save_asset(project_id, kind):

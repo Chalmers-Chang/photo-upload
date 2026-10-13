@@ -94,8 +94,14 @@
     padding: 7px 8px;
     border-radius: 11px;
   }
-  .delete-arm {
+  .card-arms {
     margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-start;
+  }
+  .delete-arm {
     display: flex;
     justify-content: flex-start;
   }
@@ -233,12 +239,21 @@
         </div>
         <span class="more">{{ msg.project_more }}</span>
       </summary>
-      <div class="delete-arm">
-        <button type="button" class="btn danger delete-project js-delete-arm">{{ msg.delete_project }}</button>
-        <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}">
-          <button class="btn danger delete-project" type="submit">{{ msg.delete_confirm }}</button>
-          <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
-        </form>
+      <div class="card-arms">
+        <div class="delete-arm">
+          <button type="button" class="btn small secondary js-delete-arm">{{ msg.reset_photos }}</button>
+          <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_reset_photos', project_id=p.id) }}" onsubmit="sessionStorage.setItem('adminOpenProject', '{{ p.id }}')">
+            <button class="btn small secondary" type="submit">{{ msg.delete_confirm }}</button>
+            <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
+          </form>
+        </div>
+        <div class="delete-arm">
+          <button type="button" class="btn danger delete-project js-delete-arm">{{ msg.delete_project }}</button>
+          <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}">
+            <button class="btn danger delete-project" type="submit">{{ msg.delete_confirm }}</button>
+            <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
+          </form>
+        </div>
       </div>
       <p class="meta">{{ msg.project_meta.format(slug=p.slug, count=p.photo_count) }}</p>
       <div class="asset-grid">
