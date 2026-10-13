@@ -1,26 +1,29 @@
 function SparkleField(canvas) {
   const ctx = canvas.getContext("2d", { alpha: true });
-  const GATHER = 2000;
-  const BURST = 5000;
+  const GATHER = 500;
+  const BURST = 2500;
   const TRAIL = 12;
   const ARC = 0.7;
   const BOB = (96 / 2.54) * 0.25;
   const SPHERE_Y_MAX = 2880;
   const SPHERE_X_FROM = -18;
   const SPHERE_X_TO = 16;
-  const TINTS = [
-    "#f6e08a", "#ffe9b0", "#f6e08a", "#ffe9b0", "#ebcf6e",
-    "#d8dde3", "#c5ccd4", "#e8eef2",
-    "#f4efe6", "#fffcf7",
-  ];
+  const GOLD = ["#f6e08a", "#ffe9b0", "#ebcf6e"];
+  const SILVER = ["#d8dde3", "#c5ccd4", "#e8eef2"];
+  function tintAt(i) {
+    const k = i % 100;
+    if (k === 0) return "#fffcf7";
+    if (k < 76) return GOLD[k % GOLD.length];
+    return SILVER[(k - 76) % SILVER.length];
+  }
+  const N_DIR = 256;
   const AXES = [];
-  for (const sx of [-1, 1]) {
-    for (const sy of [-1, 1]) {
-      for (const sz of [-1, 1]) {
-        const m = Math.hypot(sx, sy, sz);
-        AXES.push({ x: sx / m, y: sy / m, z: sz / m });
-      }
-    }
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < N_DIR; i++) {
+    const y = 1 - (i + 0.5) / N_DIR * 2;
+    const r = Math.sqrt(Math.max(0, 1 - y * y));
+    const th = golden * i;
+    AXES.push({ x: Math.cos(th) * r, y, z: Math.sin(th) * r });
   }
 
   function cross(a, b) {
@@ -67,27 +70,28 @@ function SparkleField(canvas) {
   function makeDots(w, h, durationSec) {
     const cx = w * 0.5;
     const cy = h * 0.48;
-    const maxR = Math.min(w, h) * 0.42;
+    const sphereR = Math.min(w, h) * 0.34;
+    const cap = sphereR * 0.8;
     dots = [];
     for (let i = 0; i < GATHER; i++) {
-      const lane = i % 8;
-      const k = Math.floor(i / 8);
-      const per = Math.ceil(GATHER / 8);
+      const lane = i % N_DIR;
+      const k = Math.floor(i / N_DIR);
+      const per = Math.ceil(GATHER / N_DIR);
       dots.push({
         cx,
         cy,
         ring: ringBasis(AXES[lane]),
         sign: 1,
         seed: Math.random() * 40,
-        theta: (k / per) * Math.PI * 2 + lane * 0.11,
-        omega: 0.55 + lane * 0.03,
+        theta: (k / per) * Math.PI * 2 + lane * 0.03,
+        omega: 0.55 + (lane / N_DIR) * 0.24,
         spawn: Math.random() * Math.min(1.2, durationSec * 0.25),
-        rMax: maxR * (0.62 + Math.random() * 0.38),
-        trail: [],
+        r0: cap * (0.28 + Math.random() * 0.22),
+        rMax: cap * (0.88 + Math.random() * 0.12),
         breath: 0.55 + (i % 6) * 0.2,
         phase: (i % 4) * (Math.PI / 2) + (Math.random() - 0.5) * 0.4,
         r: 0.7 + Math.random() * 1.3,
-        color: TINTS[i % TINTS.length],
+        color: tintAt(i),
         x: cx,
         y: cy,
       });
@@ -116,7 +120,7 @@ function SparkleField(canvas) {
     const u = sphereU(t, gatherSec);
     const rotY = SPHERE_Y_MAX * Math.PI / 180 * u;
     const rotX = (SPHERE_X_FROM + (SPHERE_X_TO - SPHERE_X_FROM) * u) * Math.PI / 180;
-    const rad = p.rMax;
+    const rad = p.r0 + (p.rMax - p.r0) * u;
     const thNow = p.theta + p.sign * (t - p.spawn) * p.omega;
     const pts = [];
     for (let i = 0; i < TRAIL; i++) {
@@ -125,14 +129,6 @@ function SparkleField(canvas) {
       pts.push(projectOnSphere(p, th, rad, rotY, rotX));
     }
     return pts;
-  }
-
-  function pushTrail(p, x, y) {
-    const trail = p.trail;
-    const lastPt = trail[trail.length - 1];
-    if (lastPt && Math.hypot(lastPt.x - x, lastPt.y - y) < 0.6) return;
-    trail.push({ x, y });
-    if (trail.length > TRAIL) trail.shift();
   }
 
   function drawRibbon(pts, color, headW, alpha) {
@@ -167,9 +163,16 @@ function SparkleField(canvas) {
     const h = canvas.clientHeight;
     last = now;
     const t = (now - t0) / 1000;
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.fillStyle = "rgba(0,0,0,0.08)";
-    ctx.fillRect(0, 0, w, h);
+    if (mode === "gather") {
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.fillStyle = "rgba(0,0,0,0.08)";
+      ctx.fillRect(0, 0, w, h);
+    } else {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
     ctx.globalCompositeOperation = "lighter";
     for (const p of dots) {
       let x;
@@ -209,8 +212,6 @@ function SparkleField(canvas) {
       }
       const alpha = (0.85 + 0.15 * breathe) * 0.22;
       const s = p.r * scale;
-      pushTrail(p, x, y);
-      drawRibbon(p.trail, p.color, Math.max(1.2, s * 2.2), alpha);
       ctx.globalAlpha = alpha;
       ctx.fillStyle = p.color;
       ctx.beginPath();
@@ -238,11 +239,7 @@ function SparkleField(canvas) {
   function burst() {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
-    const parents = dots.map((p) => ({
-      x: p.x,
-      y: p.y,
-      trail: p.trail,
-    }));
+    const parents = dots.map((p) => ({ x: p.x, y: p.y }));
     const cols = Math.ceil(Math.sqrt(BURST * w / h));
     const rows = Math.ceil(BURST / cols);
     const now = performance.now();
@@ -258,13 +255,12 @@ function SparkleField(canvas) {
         y0: src.y + (Math.random() - 0.5) * 8,
         tx,
         ty,
-        trail: src.trail ? src.trail.slice(-4) : [],
         burstAt: now,
         bob: 0.4 + Math.random() * 0.7,
         breath: 0.55 + (i % 6) * 0.2,
         phase: (i % 4) * (Math.PI / 2) + (Math.random() - 0.5) * 0.4,
         r: (0.6 + Math.random() * 1.1) * 3,
-        color: TINTS[i % TINTS.length],
+        color: tintAt(i),
       });
     }
     dots = out;
