@@ -12,15 +12,11 @@ function SparkleField(canvas) {
     "#d8dde3", "#c5ccd4", "#e8eef2",
     "#f4efe6", "#fffcf7",
   ];
-  const DIRS = [
-    { x: 1, y: 1 },
-    { x: -1, y: 1 },
-    { x: 1, y: -1 },
-    { x: -1, y: -1 },
-  ].map((d) => {
-    const m = Math.hypot(d.x, d.y);
-    return { x: d.x / m, y: d.y / m };
-  });
+  const s2 = Math.SQRT1_2;
+  const RINGS = [
+    { u: { x: s2, y: s2, z: 0 }, v: { x: 0, y: 0, z: 1 } },
+    { u: { x: -s2, y: s2, z: 0 }, v: { x: 0, y: 0, z: 1 } },
+  ];
 
   let raf = 0;
   let on = false;
@@ -45,17 +41,6 @@ function SparkleField(canvas) {
     return 1 - Math.exp(-k * Math.min(Math.max(t, 0), durationSec));
   }
 
-  function noise(x, y, t, s) {
-    return Math.sin(x * 0.012 + s) * Math.cos(y * 0.01 + t * 1.4 + s * 1.3);
-  }
-
-  function curl(x, y, t, s) {
-    const e = 18;
-    const dndx = (noise(x + e, y, t, s) - noise(x - e, y, t, s)) / (2 * e);
-    const dndy = (noise(x, y + e, t, s) - noise(x, y - e, t, s)) / (2 * e);
-    return { x: dndy * 420, y: -dndx * 420 };
-  }
-
   function makeDots(w, h, durationSec) {
     const cx = w * 0.5;
     const cy = h * 0.48;
@@ -65,13 +50,13 @@ function SparkleField(canvas) {
       dots.push({
         cx,
         cy,
-        dir: DIRS[i % 4],
+        ring: RINGS[i % 2],
+        sign: i % 4 < 2 ? 1 : -1,
         seed: Math.random() * 40,
-        slide: Math.random() * Math.PI * 2,
-        ang: Math.random() * Math.PI * 2,
-        lift: (Math.random() * 2 - 1) * 0.38,
+        theta: Math.random() * Math.PI * 2,
+        omega: 0.9 + Math.random() * 0.7,
         spawn: Math.random() * durationSec,
-        rMax: maxR * (0.2 + Math.random() * 0.8),
+        rMax: maxR * (0.55 + Math.random() * 0.45),
         trail: [],
         breath: 0.55 + (i % 6) * 0.2,
         phase: (i % 4) * (Math.PI / 2) + (Math.random() - 0.5) * 0.4,
@@ -89,9 +74,11 @@ function SparkleField(canvas) {
     const rotY = SPHERE_Y_MAX * Math.PI / 180 * u;
     const rotX = (SPHERE_X_FROM + (SPHERE_X_TO - SPHERE_X_FROM) * u) * Math.PI / 180;
     const rad = p.rMax * (0.08 + 0.92 * u);
-    let x = Math.cos(p.ang) * rad;
-    let y = p.lift * rad;
-    let z = Math.sin(p.ang) * rad;
+    const th = p.theta + p.sign * (t - p.spawn) * p.omega + 0.14 * Math.sin(t * 1.5 + p.seed);
+    const { u: U, v: V } = p.ring;
+    let x = (Math.cos(th) * U.x + Math.sin(th) * V.x) * rad;
+    let y = (Math.cos(th) * U.y + Math.sin(th) * V.y) * rad;
+    let z = (Math.cos(th) * U.z + Math.sin(th) * V.z) * rad;
     const cy = Math.cos(rotY);
     const sy = Math.sin(rotY);
     const x1 = x * cy + z * sy;
@@ -159,11 +146,8 @@ function SparkleField(canvas) {
       if (mode === "gather") {
         const pos = gatherPos(p, t);
         if (!pos) continue;
-        p.slide += 2.2;
-        const streak = Math.sin(p.slide * 0.04 + p.seed) * 28;
-        const n = curl(pos.x, pos.y, t, p.seed);
-        x = pos.x + p.dir.x * streak + n.x * 0.12;
-        y = pos.y + p.dir.y * streak + n.y * 0.12;
+        x = pos.x;
+        y = pos.y;
         p.x = x;
         p.y = y;
         breathe = 0.5 + 0.5 * Math.sin(t * p.breath + p.phase);
