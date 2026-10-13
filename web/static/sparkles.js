@@ -1,6 +1,6 @@
 function SparkleField(canvas) {
   const ctx = canvas.getContext("2d", { alpha: true });
-  const GATHER = 128;
+  const GATHER = 256;
   const BURST = 2500;
   const TRAIL = 12;
   const ARC = 0.7;
@@ -12,7 +12,7 @@ function SparkleField(canvas) {
   function tintAt(i) {
     return TINTS[i % TINTS.length];
   }
-  const N_DIR = 2;
+  const N_DIR = 3;
   const AXES = [];
   const golden = Math.PI * (3 - Math.sqrt(5));
   for (let i = 0; i < N_DIR; i++) {
@@ -80,7 +80,7 @@ function SparkleField(canvas) {
         sign: 1,
         seed: Math.random() * 40,
         theta: (k / per) * Math.PI * 2 + lane * 0.03,
-        omega: 15 * Math.random(),
+        omega: 1 + Math.random() * 15,
         spawn: Math.random() * Math.min(1.2, durationSec * 0.25),
         r0: cap * (0.28 + Math.random() * 0.22),
         rMax: cap * (0.88 + Math.random() * 0.12),
