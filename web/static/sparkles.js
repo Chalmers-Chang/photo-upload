@@ -86,7 +86,7 @@ function SparkleField(canvas) {
         sign: 1,
         seed: Math.random() * 40,
         theta: (k / per) * Math.PI * 2 + lane * 0.03 + (silver ? Math.PI / Math.max(1, per) : 0),
-        omega: 0.4 + Math.random() * 0.03,
+        omega: 0.6 + Math.random() * 0.03,
         spawn: Math.random() * Math.min(1.2, durationSec * 0.25),
         r0: cap * (0.28 + Math.random() * 0.22),
         rMax: cap * (0.88 + Math.random() * 0.12),
