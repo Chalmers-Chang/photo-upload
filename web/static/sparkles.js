@@ -2,7 +2,8 @@ function SparkleField(canvas) {
   const ctx = canvas.getContext("2d", { alpha: true });
   const GATHER = 2000;
   const BURST = 5000;
-  const TRAIL = 10;
+  const TRAIL = 12;
+  const ARC = 0.7;
   const BOB = (96 / 2.54) * 0.25;
   const SPHERE_Y_MAX = 2880;
   const SPHERE_X_FROM = -18;
@@ -12,11 +13,30 @@ function SparkleField(canvas) {
     "#d8dde3", "#c5ccd4", "#e8eef2",
     "#f4efe6", "#fffcf7",
   ];
-  const s2 = Math.SQRT1_2;
-  const RINGS = [
-    { u: { x: s2, y: s2, z: 0 }, v: { x: 0, y: 0, z: 1 } },
-    { u: { x: -s2, y: s2, z: 0 }, v: { x: 0, y: 0, z: 1 } },
-  ];
+  function randAxis() {
+    const z = Math.random() * 2 - 1;
+    const a = Math.random() * Math.PI * 2;
+    const r = Math.sqrt(Math.max(0, 1 - z * z));
+    return { x: r * Math.cos(a), y: z, z: r * Math.sin(a) };
+  }
+
+  function cross(a, b) {
+    return {
+      x: a.y * b.z - a.z * b.y,
+      y: a.z * b.x - a.x * b.z,
+      z: a.x * b.y - a.y * b.x,
+    };
+  }
+
+  function ringBasis(axis) {
+    const ref = Math.abs(axis.y) < 0.9 ? { x: 0, y: 1, z: 0 } : { x: 1, y: 0, z: 0 };
+    const v = cross(axis, ref);
+    const vm = Math.hypot(v.x, v.y, v.z) || 1;
+    const V = { x: v.x / vm, y: v.y / vm, z: v.z / vm };
+    const u = cross(V, axis);
+    const um = Math.hypot(u.x, u.y, u.z) || 1;
+    return { u: { x: u.x / um, y: u.y / um, z: u.z / um }, v: V };
+  }
 
   let raf = 0;
   let on = false;
@@ -47,16 +67,17 @@ function SparkleField(canvas) {
     const maxR = Math.min(w, h) * 0.42;
     dots = [];
     for (let i = 0; i < GATHER; i++) {
+      const axis = randAxis();
       dots.push({
         cx,
         cy,
-        ring: RINGS[i % 2],
-        sign: i % 4 < 2 ? 1 : -1,
+        ring: ringBasis(axis),
+        sign: Math.random() < 0.5 ? 1 : -1,
         seed: Math.random() * 40,
         theta: Math.random() * Math.PI * 2,
-        omega: 0.9 + Math.random() * 0.7,
-        spawn: Math.random() * durationSec,
-        rMax: maxR * (0.55 + Math.random() * 0.45),
+        omega: 0.4 + Math.random() * 0.9,
+        spawn: Math.random() * Math.min(1.2, durationSec * 0.25),
+        rMax: maxR * (0.62 + Math.random() * 0.38),
         trail: [],
         breath: 0.55 + (i % 6) * 0.2,
         phase: (i % 4) * (Math.PI / 2) + (Math.random() - 0.5) * 0.4,
@@ -68,13 +89,7 @@ function SparkleField(canvas) {
     }
   }
 
-  function gatherPos(p, t) {
-    if (t < p.spawn) return null;
-    const u = sphereU(t, gatherSec);
-    const rotY = SPHERE_Y_MAX * Math.PI / 180 * u;
-    const rotX = (SPHERE_X_FROM + (SPHERE_X_TO - SPHERE_X_FROM) * u) * Math.PI / 180;
-    const rad = p.rMax * (0.08 + 0.92 * u);
-    const th = p.theta + p.sign * (t - p.spawn) * p.omega + 0.14 * Math.sin(t * 1.5 + p.seed);
+  function projectOnSphere(p, th, rad, rotY, rotX) {
     const { u: U, v: V } = p.ring;
     let x = (Math.cos(th) * U.x + Math.sin(th) * V.x) * rad;
     let y = (Math.cos(th) * U.y + Math.sin(th) * V.y) * rad;
@@ -88,10 +103,23 @@ function SparkleField(canvas) {
     const y1 = y * cxr - z1 * sxr;
     const z2 = y * sxr + z1 * cxr;
     const s = 1100 / (1100 + z2);
-    return {
-      x: p.cx + x1 * s,
-      y: p.cy + y1 * s,
-    };
+    return { x: p.cx + x1 * s, y: p.cy + y1 * s };
+  }
+
+  function gatherArc(p, t) {
+    if (t < p.spawn) return null;
+    const u = sphereU(t, gatherSec);
+    const rotY = SPHERE_Y_MAX * Math.PI / 180 * u;
+    const rotX = (SPHERE_X_FROM + (SPHERE_X_TO - SPHERE_X_FROM) * u) * Math.PI / 180;
+    const rad = p.rMax;
+    const thNow = p.theta + p.sign * (t - p.spawn) * p.omega;
+    const pts = [];
+    for (let i = 0; i < TRAIL; i++) {
+      const k = i / (TRAIL - 1);
+      const th = thNow - p.sign * ARC * (1 - k);
+      pts.push(projectOnSphere(p, th, rad, rotY, rotX));
+    }
+    return pts;
   }
 
   function pushTrail(p, x, y) {
@@ -144,13 +172,22 @@ function SparkleField(canvas) {
       let breathe;
       let scale = 1;
       if (mode === "gather") {
-        const pos = gatherPos(p, t);
-        if (!pos) continue;
+        const arc = gatherArc(p, t);
+        if (!arc) continue;
+        const pos = arc[arc.length - 1];
         x = pos.x;
         y = pos.y;
         p.x = x;
         p.y = y;
         breathe = 0.5 + 0.5 * Math.sin(t * p.breath + p.phase);
+        const alphaG = (0.85 + 0.15 * breathe) * 0.22;
+        drawRibbon(arc, p.color, Math.max(1.2, p.r * 2.2), alphaG);
+        ctx.globalAlpha = alphaG;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(x, y, Math.max(0.4, p.r), 0, Math.PI * 2);
+        ctx.fill();
+        continue;
       } else {
         const age = (now - p.burstAt) / 1000;
         const u = 1 - Math.exp(-3.2 * age);
@@ -190,6 +227,7 @@ function SparkleField(canvas) {
     last = t0;
     on = true;
     if (!raf) tick(t0);
+    return t0;
   }
 
   function burst() {

@@ -241,8 +241,17 @@
     const again = document.getElementById("again");
     const sparkles = SparkleField(document.getElementById("sparkles"));
     let floaterPhotos = [];
+    const SPHERE_Y_MAX = 2880;
+    const SPHERE_X_FROM = -18;
+    const SPHERE_X_TO = 16;
+    let sphereT0 = 0;
 
-    function startSparkles(gatherSec) { sparkles.start(gatherSec); }
+    function sphereU(t, durationSec) {
+      const k = -Math.log(0.02) / durationSec;
+      return 1 - Math.exp(-k * Math.min(Math.max(t, 0), durationSec));
+    }
+
+    function startSparkles(gatherSec) { sphereT0 = sparkles.start(gatherSec); }
     function burstSparkles() { sparkles.burst(); }
     function stopSparkles() { sparkles.stop(); }
 
@@ -400,7 +409,7 @@
     }
 
     function spinSphere(durationSec) {
-      const t0 = sparkleT0 || performance.now();
+      const t0 = sphereT0 || performance.now();
       return new Promise((resolve) => {
         function frame(now) {
           const t = Math.min((now - t0) / 1000, durationSec);
