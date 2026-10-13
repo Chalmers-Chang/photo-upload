@@ -23,19 +23,6 @@
     padding-top: max(var(--glass), 64px);
     box-sizing: border-box;
   }
-  .back-btn {
-    position: fixed;
-    top: 12px;
-    left: var(--edge);
-    z-index: 30;
-    text-decoration: none;
-    border: 1px solid #fff;
-    background: #fffcf7;
-    color: #1c1915;
-    padding: 8px 14px;
-    border-radius: 999px;
-    font-size: 14px;
-  }
   .up-stage > .glass {
     position: relative;
     min-height: 0;
@@ -76,68 +63,6 @@
     margin: 0;
     padding: 0;
   }
-  .progress-veil {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
-    display: grid;
-    place-items: center;
-    padding: 2cm;
-    box-sizing: border-box;
-  }
-  .progress-veil[hidden] { display: none !important; }
-  .progress-glass {
-    width: 100%;
-    height: 100%;
-    display: grid;
-    place-items: center;
-    gap: 18px;
-    align-content: center;
-    border-radius: 28px;
-    background: rgba(255, 255, 255, 0.42);
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    box-shadow: 0 8px 32px rgba(28, 25, 21, 0.08);
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
-  }
-  .pie {
-    position: relative;
-    width: min(42vw, 220px);
-    aspect-ratio: 1;
-  }
-  .pie svg {
-    width: 100%;
-    height: 100%;
-    transform: rotate(-90deg);
-  }
-  .pie .track {
-    fill: none;
-    stroke: rgba(28, 25, 21, 0.12);
-    stroke-width: 10;
-  }
-  .pie .fill {
-    fill: none;
-    stroke: #d4af37;
-    stroke-width: 10;
-    stroke-linecap: round;
-  }
-  .pie .pct {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    font-size: clamp(22px, 4vw, 36px);
-    font-weight: 700;
-    color: rgba(28, 25, 21, 0.72);
-  }
-  .progress-label {
-    margin: 0;
-    text-align: center;
-    white-space: pre-line;
-    color: rgba(28, 25, 21, 0.48);
-    font-weight: 700;
-    font-size: clamp(16px, 2.4vw, 22px);
-  }
 </style>
 {% endblock %}
 {% block body %}
@@ -161,31 +86,18 @@
   </div>
   {% include "_credit.html" %}
 </div>
-<div class="progress-veil" id="progress" hidden>
-  <div class="progress-glass">
-    <div class="pie">
-      <svg viewBox="0 0 120 120" aria-hidden="true">
-        <circle class="track" cx="60" cy="60" r="45"></circle>
-        <circle class="fill" id="pie-fill" cx="60" cy="60" r="45"
-                stroke-dasharray="282.7" stroke-dashoffset="282.7"></circle>
-      </svg>
-      <span class="pct" id="pie-pct">0%</span>
-    </div>
-    <p class="progress-label" id="progress-label">{{ msg.upload_progress }}</p>
-  </div>
-</div>
+{% include "_progress_veil.html" %}
+<script src="{{ url_for('static', filename='upload_progress.js') }}"></script>
 <script>
   const pick = document.querySelector("input[name=photo]");
   const form = document.getElementById("upload-form");
-  const veil = document.getElementById("progress");
-  const fill = document.getElementById("pie-fill");
-  const pctEl = document.getElementById("pie-pct");
-  const label = document.getElementById("progress-label");
   const tooMany = {{ msg.upload_too_many | tojson }};
-  const uploading = {{ msg.upload_progress | tojson }};
-  const processing = {{ msg.upload_processing | tojson }};
-  const failed = {{ msg.upload_failed | tojson }};
-  const RING = 2 * Math.PI * 45;
+  const pieOpts = {
+    uploading: {{ msg.upload_progress | tojson }},
+    processing: {{ msg.upload_processing | tojson }},
+    failed: {{ msg.upload_failed | tojson }},
+    maxEdge: {{ cfg.jpeg_max_edge }},
+  };
 
   pick.addEventListener("change", () => {
     if (pick.files.length <= 5) return;
@@ -204,44 +116,9 @@
     form.before(p);
   }
 
-  function setPct(n) {
-    const v = Math.max(0, Math.min(100, n));
-    fill.style.strokeDashoffset = String(RING * (1 - v / 100));
-    pctEl.textContent = Math.round(v) + "%";
-  }
-
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    if (!pick.files.length) return;
-    veil.hidden = false;
-    setPct(0);
-    label.textContent = uploading;
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", form.action || location.href);
-    xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
-    xhr.upload.addEventListener("progress", (ev) => {
-      if (!ev.lengthComputable) return;
-      const p = ev.loaded / ev.total;
-      setPct(p * 100);
-      if (p >= 1) label.textContent = processing;
-    });
-    xhr.addEventListener("load", () => {
-      let data = {};
-      try { data = JSON.parse(xhr.responseText); } catch (err) {}
-      if (xhr.status >= 400 || data.error) {
-        veil.hidden = true;
-        alert(data.error || failed);
-        return;
-      }
-      setPct(100);
-      if (data.message) sessionStorage.setItem("uploadFlash", data.message);
-      location.reload();
-    });
-    xhr.addEventListener("error", () => {
-      veil.hidden = true;
-      alert(failed);
-    });
-    xhr.send(new FormData(form));
+    postFormWithPie(form, pieOpts);
   });
 </script>
 {% endblock %}

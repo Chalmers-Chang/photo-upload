@@ -17,7 +17,7 @@ except ImportError:
     pass
 
 
-def _rgb_image(upload):
+def _open_fit(upload):
     data = upload.read()
     if not data:
         raise ValueError(msg.empty_file)
@@ -25,7 +25,9 @@ def _rgb_image(upload):
     img = Image.open(io.BytesIO(data))
     if (img.format or "").upper() == "JPEG":
         img.draft("RGB", (edge, edge))
-    return ImageOps.exif_transpose(img).convert("RGB")
+    img = ImageOps.exif_transpose(img)
+    img.thumbnail((edge, edge), Image.Resampling.BILINEAR, reducing_gap=2.0)
+    return img
 
 
 def _write_jpeg(img: Image.Image, dest: Path):
@@ -34,36 +36,25 @@ def _write_jpeg(img: Image.Image, dest: Path):
 
 
 def save_jpeg(upload, dest: Path):
-    img = _rgb_image(upload)
-    img.thumbnail((appsetting.jpeg_max_edge, appsetting.jpeg_max_edge), Image.Resampling.BILINEAR)
+    img = _open_fit(upload).convert("RGB")
     _write_jpeg(img, dest)
 
 
 def save_mark(upload, dest: Path):
-    data = upload.read()
-    if not data:
-        raise ValueError(msg.empty_file)
-    img = Image.open(io.BytesIO(data))
-    img = ImageOps.exif_transpose(img)
+    img = _open_fit(upload)
     if img.mode == "P":
         img = img.convert("RGBA" if "transparency" in img.info else "RGB")
     elif img.mode in ("RGBA", "LA"):
         img = img.convert("RGBA")
     else:
         img = img.convert("RGB")
-    img.thumbnail(
-        (appsetting.jpeg_max_edge, appsetting.jpeg_max_edge),
-        Image.Resampling.BILINEAR,
-    )
     dest.parent.mkdir(parents=True, exist_ok=True)
     img.save(dest, "PNG")
 
 
 def save_jpeg_and_thumb(upload, dest: Path, thumb_dest: Path):
-    img = _rgb_image(upload)
-    fitted = img.copy()
-    fitted.thumbnail((appsetting.jpeg_max_edge, appsetting.jpeg_max_edge), Image.Resampling.BILINEAR)
-    _write_jpeg(fitted, dest)
+    img = _open_fit(upload).convert("RGB")
+    _write_jpeg(img, dest)
     w, h = img.size
     side = min(w, h)
     left = (w - side) // 2

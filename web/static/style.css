@@ -30,13 +30,14 @@ a { color: inherit; }
 }
 .admin-btn {
   text-decoration: none;
-  border: 1px solid #fff;
-  background: #fffcf7;
+  border: 1px solid rgba(255, 255, 255, 0.55);
   color: #1c1915;
   padding: 8px 14px;
   border-radius: 999px;
   font: inherit;
   font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
   cursor: pointer;
 }
 .site-credit {

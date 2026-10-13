@@ -49,6 +49,7 @@ def write(project_id, line):
         now = datetime.now()
         dest = _dir() / f"{pid}_{now.strftime('%Y%m%d')}.log"
         with dest.open("a", encoding="utf-8") as f:
-            f.write(f"{now.strftime('%Y-%m-%d %H:%M:%S')} {line}\n")
+            text = " ".join(str(line).split())
+            f.write(f"{now.strftime('%Y-%m-%d %H:%M:%S')} {text}\n")
     except OSError:
         return

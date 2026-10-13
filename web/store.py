@@ -13,6 +13,7 @@ from config import msg
 from config import redis as redis_config
 
 _slug_re = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+_GUEST_JPG = re.compile(r"^[0-9a-f]{32}\.jpg$")
 
 _ADVANCE_LUA = """
 local state_key = KEYS[1]
@@ -345,6 +346,19 @@ def wipe_photos(project_id, delete_files):
         d = photo_dir(project_id)
         if d.exists():
             shutil.rmtree(d)
+
+
+def reset_guest_photos(project_id):
+    p = get_project(project_id)
+    if not p:
+        raise ValueError(msg.project_missing)
+    wipe_photos(project_id, delete_files=False)
+    d = photo_dir(project_id)
+    if d.exists():
+        for path in d.iterdir():
+            if path.is_file() and _GUEST_JPG.match(path.name):
+                path.unlink(missing_ok=True)
+    return p
 
 
 def delete_project(project_id, delete_files):

@@ -5,6 +5,7 @@ from datetime import timedelta
 from functools import wraps
 
 import qrcode
+from werkzeug.exceptions import HTTPException
 from flask import (
     Flask,
     abort,
@@ -96,16 +97,28 @@ def create_app():
     def write_project_log(resp):
         if request.endpoint in ("health", "slideshow_api"):
             return resp
+        err = getattr(g, "log_err", None)
         pid = getattr(g, "project_id", None)
-        if not pid:
+        if not pid and not err:
             return resp
         ms = int((time.monotonic() - getattr(g, "log_t0", time.monotonic())) * 1000)
         ip = request.headers.get("X-Real-IP") or request.remote_addr or "-"
-        applog.write(
-            pid,
-            f"{ip} {request.method} {request.path} {resp.status_code} {ms}ms",
-        )
+        line = f"{ip} {request.method} {request.path} {resp.status_code} {ms}ms"
+        if err:
+            line += f" ERROR {err}"
+        elif resp.status_code >= 400:
+            line += " ERROR"
+        applog.write(pid or "app", line)
         return resp
+
+    @app.errorhandler(Exception)
+    def log_unhandled(err):
+        if isinstance(err, HTTPException):
+            if err.code and err.code >= 400:
+                g.log_err = err.name
+            return err
+        g.log_err = f"{type(err).__name__}: {err}"
+        return "Internal Server Error", 500
 
     @app.get("/health")
     def health():
@@ -123,6 +136,7 @@ def create_app():
         try:
             name = store.set_nickname(did, payload.get("nickname"))
         except ValueError as e:
+            g.log_err = str(e)
             return jsonify({"error": str(e)}), 400
         return jsonify({"nickname": name})
 
@@ -167,6 +181,7 @@ def create_app():
                 request.form.get("slug"),
             )
         except ValueError as e:
+            g.log_err = str(e)
             flash(str(e), "error")
             return redirect(url_for("admin_home"))
         g.project_id = p["id"]
@@ -179,21 +194,43 @@ def create_app():
         try:
             p = store.delete_project(project_id, delete_files=True)
         except ValueError as e:
+            g.log_err = str(e)
             flash(str(e), "error")
             return redirect(url_for("admin_home"))
         flash(msg.project_deleted.format(name=p["name"]), "ok")
         return redirect(url_for("admin_home"))
 
+    @app.post("/admin/projects/<project_id>/reset-photos")
+    @admin_required
+    def admin_reset_photos(project_id):
+        try:
+            p = store.reset_guest_photos(project_id)
+        except ValueError as e:
+            g.log_err = str(e)
+            flash(str(e), "error")
+            return redirect(url_for("admin_home"))
+        flash(msg.reset_photos_ok.format(name=p["name"]), "ok")
+        return redirect(url_for("admin_home"))
+
     @app.post("/admin/projects/<project_id>/asset/<kind>")
     @admin_required
     def admin_save_asset(project_id, kind):
-        if not store.get_project(project_id):
-            flash(msg.project_missing, "error")
+        xhr = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+        def reply(text, error=False):
+            if error:
+                g.log_err = getattr(g, "log_err", None) or text
+            if xhr:
+                key = "error" if error else "ok"
+                return jsonify({key: text}), (400 if error else 200)
+            flash(text, "error" if error else "ok")
             return redirect(url_for("admin_home"))
+
+        if not store.get_project(project_id):
+            return reply(msg.project_missing, error=True)
         f = request.files.get("photo")
         if not f or not f.filename:
-            flash(msg.need_photo, "error")
-            return redirect(url_for("admin_home"))
+            return reply(msg.need_photo, error=True)
         try:
             dest = store.asset_path(project_id, kind)
             if kind == "pjt-mark":
@@ -202,12 +239,13 @@ def create_app():
                 thumb = store.asset_thumb_path(project_id, kind)
                 images.save_jpeg_and_thumb(f, dest, thumb)
         except ValueError as e:
-            flash(str(e), "error")
-            return redirect(url_for("admin_home"))
-        except Exception:
-            flash(msg.bad_image, "error")
-            return redirect(url_for("admin_home"))
+            return reply(str(e), error=True)
+        except Exception as e:
+            g.log_err = f"{type(e).__name__}: {e}"
+            return reply(msg.bad_image, error=True)
         flash(msg.asset_saved, "ok")
+        if xhr:
+            return jsonify({"ok": True})
         return redirect(url_for("admin_home"))
 
     @app.post("/admin/projects/<project_id>/asset/<kind>/delete")
@@ -222,6 +260,7 @@ def create_app():
             if kind == "pjt-mark":
                 (store.photo_dir(project_id) / "pjt-mark.jpg").unlink(missing_ok=True)
         except ValueError as e:
+            g.log_err = str(e)
             flash(str(e), "error")
             return redirect(url_for("admin_home"))
         flash(msg.asset_removed, "ok")
@@ -233,6 +272,7 @@ def create_app():
         try:
             store.update_project_settings(project_id, request.form)
         except ValueError as e:
+            g.log_err = str(e)
             flash(str(e), "error")
             return redirect(url_for("admin_home"))
         flash(msg.settings_saved, "ok")
@@ -277,6 +317,8 @@ def create_app():
             xhr = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
             def reply(text, error=False):
+                if error:
+                    g.log_err = getattr(g, "log_err", None) or text
                 if xhr:
                     key = "error" if error else "message"
                     return jsonify({key: text}), (400 if error else 200)
@@ -301,8 +343,9 @@ def create_app():
                 dest = store.photo_path(project["id"], photo_id)
                 try:
                     images.save_jpeg(f, dest)
-                except Exception:
+                except Exception as e:
                     dest.unlink(missing_ok=True)
+                    g.log_err = f"{type(e).__name__}: {e}"
                     continue
                 serial, chances, capped = store.add_photo(
                     project["id"], photo_id, caption, did, rebuild=False
@@ -350,6 +393,7 @@ def create_app():
         try:
             return jsonify(store.draw_lottery(project["id"]))
         except ValueError as e:
+            g.log_err = str(e)
             return jsonify({"error": str(e)}), 400
 
     return app

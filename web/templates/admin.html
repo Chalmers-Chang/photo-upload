@@ -58,10 +58,15 @@
     white-space: nowrap;
     min-height: 44px;
     padding: 10px 18px;
-    line-height: 1.3;
-    color: #1c1915;
-    background: #fffcf7;
-    border: 1px solid #fff;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: rgba(28, 25, 21, {{ 1 - cfg.button_text_fade }});
+    background: rgba(255, 255, 255, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 8px 32px rgba(28, 25, 21, 0.08);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
   }
   .admin-stage > .site-credit {
     position: static;
@@ -89,8 +94,14 @@
     padding: 7px 8px;
     border-radius: 11px;
   }
-  .delete-arm {
+  .card-arms {
     margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-start;
+  }
+  .delete-arm {
     display: flex;
     justify-content: flex-start;
   }
@@ -195,7 +206,7 @@
   </div>
 
   {% for p in projects %}
-    <details class="card project-card">
+    <details class="card project-card" id="project-{{ p.id }}">
       <summary>
         <div class="card-head">
           <h2>
@@ -228,12 +239,21 @@
         </div>
         <span class="more">{{ msg.project_more }}</span>
       </summary>
-      <div class="delete-arm">
-        <button type="button" class="btn danger delete-project js-delete-arm">{{ msg.delete_project }}</button>
-        <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}">
-          <button class="btn danger delete-project" type="submit">{{ msg.delete_confirm }}</button>
-          <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
-        </form>
+      <div class="card-arms">
+        <div class="delete-arm">
+          <button type="button" class="btn secondary delete-project js-delete-arm">{{ msg.reset_photos }}</button>
+          <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_reset_photos', project_id=p.id) }}" onsubmit="sessionStorage.setItem('adminOpenProject', '{{ p.id }}')">
+            <button class="btn secondary delete-project" type="submit">{{ msg.delete_confirm }}</button>
+            <button class="btn secondary delete-project js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
+          </form>
+        </div>
+        <div class="delete-arm">
+          <button type="button" class="btn danger delete-project js-delete-arm">{{ msg.delete_project }}</button>
+          <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}">
+            <button class="btn danger delete-project" type="submit">{{ msg.delete_confirm }}</button>
+            <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
+          </form>
+        </div>
       </div>
       <p class="meta">{{ msg.project_meta.format(slug=p.slug, count=p.photo_count) }}</p>
       <div class="asset-grid">
@@ -250,10 +270,10 @@
         <div class="asset-card">
           <p class="meta">{{ label }}</p>
           {% if p[key + "_thumb_url"] %}<img class="asset-thumb" src="{{ p[key + "_thumb_url"] }}" alt="">{% endif %}
-          <form class="stack" method="post" action="{{ url_for('admin_save_asset', project_id=p.id, kind=kind) }}" enctype="multipart/form-data">
+          <form class="stack js-asset-upload" method="post" action="{{ url_for('admin_save_asset', project_id=p.id, kind=kind) }}" enctype="multipart/form-data"{% if kind == "pjt-mark" %} data-keep-png="1"{% endif %}>
             <label class="btn small asset-pick">
               {{ msg.asset_upload }}
-              <input type="file" name="photo" accept="image/*" required onchange="this.form.submit()">
+              <input type="file" name="photo" accept="image/*" required>
             </label>
           </form>
           {% if p[key + "_url"] %}
@@ -308,6 +328,8 @@
 </div>
 {% include "_credit.html" %}
 </div>
+{% include "_progress_veil.html" %}
+<script src="{{ url_for('static', filename='upload_progress.js') }}"></script>
 <dialog class="qr-dialog" id="qr-modal">
   <h2 id="qr-name"></h2>
   <p class="meta" id="qr-kind"></p>
@@ -379,6 +401,36 @@
   qrModal.addEventListener("click", (e) => {
     if (e.target === qrModal) qrModal.close();
   });
+
+  const pieOpts = {
+    uploading: {{ msg.upload_progress | tojson }},
+    processing: {{ msg.upload_processing | tojson }},
+    failed: {{ msg.upload_failed | tojson }},
+    maxEdge: {{ cfg.jpeg_max_edge }},
+  };
+  document.querySelectorAll("form.js-asset-upload").forEach((form) => {
+    const input = form.querySelector('input[type="file"]');
+    input.addEventListener("change", () => {
+      if (!input.files.length) return;
+      postFormWithPie(form, {
+        ...pieOpts,
+        keepPng: form.dataset.keepPng === "1",
+        onSuccess() {
+          const m = form.action.match(/\/projects\/([^/]+)\/asset\//);
+          if (m) sessionStorage.setItem("adminOpenProject", m[1]);
+        },
+      });
+    });
+  });
+  const openId = sessionStorage.getItem("adminOpenProject");
+  if (openId) {
+    sessionStorage.removeItem("adminOpenProject");
+    const card = document.getElementById("project-" + openId);
+    if (card) {
+      card.open = true;
+      card.scrollIntoView({ block: "nearest" });
+    }
+  }
 </script>
 {% endblock %}
 {% block credit %}{% endblock %}

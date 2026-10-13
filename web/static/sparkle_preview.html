@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sparkle preview</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #1c1915; }
+    canvas { position: fixed; inset: 0; width: 100%; height: 100%; }
+    .bar {
+      position: fixed;
+      left: 16px;
+      bottom: 16px;
+      z-index: 2;
+      display: flex;
+      gap: 8px;
+    }
+    button {
+      font: 700 14px/1.3 "PingFang TC", "Noto Sans TC", sans-serif;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.55);
+      background: rgba(255,255,255,0.42);
+      color: rgba(28,25,21,0.7);
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="sparkles"></canvas>
+  <div class="bar">
+    <button type="button" id="gather">聚集</button>
+    <button type="button" id="burst">爆開</button>
+  </div>
+  <script src="sparkles.js"></script>
+  <script>
+    const cvs = document.getElementById("sparkles");
+    const field = SparkleField(cvs);
+    field.start(10);
+    window.addEventListener("resize", () => field.start(10));
+    document.getElementById("gather").onclick = () => field.start(10);
+    document.getElementById("burst").onclick = () => field.burst();
+  </script>
+</body>
+</html>

@@ -1,23 +1,43 @@
 <style>
+  /* Mobile ≤640px */
+  @media (max-width: 640px) {
+    html { --chrome-inset: {{ cfg.glass_pad_mobile_cm }}cm; }
+  }
+  /* Desktop ≥641px */
+  @media (min-width: 641px) {
+    html { --chrome-inset: {{ cfg.glass_pad_cm }}cm; }
+  }
   .chrome-end {
     position: fixed;
     top: 12px;
-    right: var(--edge, 2cm);
+    right: var(--chrome-inset);
     z-index: 30;
     display: flex;
     align-items: center;
     gap: 8px;
   }
-  .chrome-end .admin-btn {
+  .back-btn {
+    position: fixed;
+    top: 12px;
+    left: var(--chrome-inset);
+    z-index: 30;
+  }
+  .chrome-end .admin-btn,
+  .back-btn {
     text-decoration: none;
-    border: 1px solid #fff;
-    background: #fffcf7;
-    color: #1c1915;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.42);
+    color: rgba(28, 25, 21, {{ 1 - cfg.button_text_fade }});
     padding: 8px 14px;
     border-radius: 999px;
     font: inherit;
     font-size: 14px;
+    font-weight: 700;
+    line-height: 1.35;
     cursor: pointer;
+    box-shadow: 0 8px 32px rgba(28, 25, 21, 0.08);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
   }
 </style>
 <div class="chrome-end">
