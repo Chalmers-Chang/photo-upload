@@ -13,8 +13,8 @@ function SparkleField(canvas) {
   function tintAt(i) {
     const k = i % 100;
     if (k === 0) return "#fffcf7";
-    if (k % 4 === 0) return SILVER[(k / 4) % SILVER.length];
-    return GOLD[k % GOLD.length];
+    if (k % 4 === 0) return GOLD[(k / 4) % GOLD.length];
+    return SILVER[k % SILVER.length];
   }
   const N_DIR = 64;
   const AXES = [];
@@ -78,14 +78,14 @@ function SparkleField(canvas) {
       const k = Math.floor(i / N_DIR);
       const per = Math.ceil(GATHER / N_DIR);
       const color = tintAt(i);
-      const silver = SILVER.includes(color);
+      const gold = GOLD.includes(color);
       dots.push({
         cx,
         cy,
         ring: ringBasis(AXES[lane]),
         sign: 1,
         seed: Math.random() * 40,
-        theta: (k / per) * Math.PI * 2 + lane * 0.03 + (silver ? Math.PI / Math.max(1, per) : 0),
+        theta: (k / per) * Math.PI * 2 + lane * 0.03 + (gold ? Math.PI / Math.max(1, per) : 0),
         omega: 0.6 + Math.random() * 0.03,
         spawn: Math.random() * Math.min(1.2, durationSec * 0.25),
         r0: cap * (0.28 + Math.random() * 0.22),
