@@ -241,10 +241,10 @@
       </summary>
       <div class="card-arms">
         <div class="delete-arm">
-          <button type="button" class="btn small secondary js-delete-arm">{{ msg.reset_photos }}</button>
+          <button type="button" class="btn secondary delete-project js-delete-arm">{{ msg.reset_photos }}</button>
           <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_reset_photos', project_id=p.id) }}" onsubmit="sessionStorage.setItem('adminOpenProject', '{{ p.id }}')">
-            <button class="btn small secondary" type="submit">{{ msg.delete_confirm }}</button>
-            <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
+            <button class="btn secondary delete-project" type="submit">{{ msg.delete_confirm }}</button>
+            <button class="btn secondary delete-project js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
           </form>
         </div>
         <div class="delete-arm">
