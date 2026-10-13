@@ -475,7 +475,7 @@
       const spinSec = data.seconds || seconds;
       startSparkles(spinSec);
       const spinning = spinSphere(spinSec);
-      await new Promise((r) => setTimeout(r, Math.max(0, spinSec - 0.5) * 1000));
+      await new Promise((r) => setTimeout(r, Math.max(0, spinSec - 1.1) * 1000));
       showWinner(data);
       await spinning;
     }
