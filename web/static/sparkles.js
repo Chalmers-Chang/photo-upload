@@ -5,7 +5,7 @@ function SparkleField(canvas) {
   const TRAIL = 12;
   const ARC = 0.7;
   const BOB = (96 / 2.54) * 0.25;
-  const SPHERE_Y_MAX = 1280;
+  const SPHERE_Y_MAX = 960;
   const SPHERE_X_FROM = -18;
   const SPHERE_X_TO = 16;
   const TINTS = ["#ffe9b0", "#f5e6bd", "#ece3ca", "#e2e0d6", "#d8dde3"];
