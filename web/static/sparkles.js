@@ -13,11 +13,14 @@ function SparkleField(canvas) {
     "#d8dde3", "#c5ccd4", "#e8eef2",
     "#f4efe6", "#fffcf7",
   ];
-  function randAxis() {
-    const z = Math.random() * 2 - 1;
-    const a = Math.random() * Math.PI * 2;
-    const r = Math.sqrt(Math.max(0, 1 - z * z));
-    return { x: r * Math.cos(a), y: z, z: r * Math.sin(a) };
+  const AXES = [];
+  for (const sx of [-1, 1]) {
+    for (const sy of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        const m = Math.hypot(sx, sy, sz);
+        AXES.push({ x: sx / m, y: sy / m, z: sz / m });
+      }
+    }
   }
 
   function cross(a, b) {
@@ -67,15 +70,17 @@ function SparkleField(canvas) {
     const maxR = Math.min(w, h) * 0.42;
     dots = [];
     for (let i = 0; i < GATHER; i++) {
-      const axis = randAxis();
+      const lane = i % 8;
+      const k = Math.floor(i / 8);
+      const per = Math.ceil(GATHER / 8);
       dots.push({
         cx,
         cy,
-        ring: ringBasis(axis),
-        sign: Math.random() < 0.5 ? 1 : -1,
+        ring: ringBasis(AXES[lane]),
+        sign: 1,
         seed: Math.random() * 40,
-        theta: Math.random() * Math.PI * 2,
-        omega: 0.4 + Math.random() * 0.9,
+        theta: (k / per) * Math.PI * 2 + lane * 0.11,
+        omega: 0.55 + lane * 0.03,
         spawn: Math.random() * Math.min(1.2, durationSec * 0.25),
         rMax: maxR * (0.62 + Math.random() * 0.38),
         trail: [],
