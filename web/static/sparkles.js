@@ -1,11 +1,11 @@
 function SparkleField(canvas) {
   const ctx = canvas.getContext("2d", { alpha: true });
-  const GATHER = 500;
+  const GATHER = 100;
   const BURST = 2500;
   const TRAIL = 12;
   const ARC = 0.7;
   const BOB = (96 / 2.54) * 0.25;
-  const SPHERE_Y_MAX = 2880;
+  const SPHERE_Y_MAX = 1440;
   const SPHERE_X_FROM = -18;
   const SPHERE_X_TO = 16;
   const GOLD = ["#f6e08a", "#ffe9b0", "#ebcf6e"];
@@ -13,10 +13,10 @@ function SparkleField(canvas) {
   function tintAt(i) {
     const k = i % 100;
     if (k === 0) return "#fffcf7";
-    if (k < 76) return GOLD[k % GOLD.length];
-    return SILVER[(k - 76) % SILVER.length];
+    if (k % 4 === 0) return SILVER[(k / 4) % SILVER.length];
+    return GOLD[k % GOLD.length];
   }
-  const N_DIR = 256;
+  const N_DIR = 512;
   const AXES = [];
   const golden = Math.PI * (3 - Math.sqrt(5));
   for (let i = 0; i < N_DIR; i++) {
@@ -77,21 +77,23 @@ function SparkleField(canvas) {
       const lane = i % N_DIR;
       const k = Math.floor(i / N_DIR);
       const per = Math.ceil(GATHER / N_DIR);
+      const color = tintAt(i);
+      const silver = SILVER.includes(color);
       dots.push({
         cx,
         cy,
         ring: ringBasis(AXES[lane]),
         sign: 1,
         seed: Math.random() * 40,
-        theta: (k / per) * Math.PI * 2 + lane * 0.03,
-        omega: 0.55 + (lane / N_DIR) * 0.24,
+        theta: (k / per) * Math.PI * 2 + lane * 0.03 + (silver ? Math.PI / Math.max(1, per) : 0),
+        omega: 0.18 + Math.random() * 0.09,
         spawn: Math.random() * Math.min(1.2, durationSec * 0.25),
         r0: cap * (0.28 + Math.random() * 0.22),
         rMax: cap * (0.88 + Math.random() * 0.12),
         breath: 0.55 + (i % 6) * 0.2,
         phase: (i % 4) * (Math.PI / 2) + (Math.random() - 0.5) * 0.4,
         r: 0.7 + Math.random() * 1.3,
-        color: tintAt(i),
+        color,
         x: cx,
         y: cy,
       });
