@@ -86,11 +86,15 @@ function KujiTear(box, opts) {
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
 
-  function finish() {
+  function finish(e) {
     done = true;
+    if (drag) {
+      try { box.releasePointerCapture(drag.id); } catch (err) {}
+    }
     drag = null;
     grip.hidden = true;
     box.classList.add("is-torn");
+    if (e && e.preventDefault) e.preventDefault();
     tween({ x: W * 2.1, y: H - Math.min(W, H) * 0.08 }, 420, () => {
       box.classList.add("is-open");
       onOpen();
@@ -115,7 +119,7 @@ function KujiTear(box, opts) {
     const p = local(e);
     P = { x: Math.max(0, p.x - drag.ox), y: Math.min(H * 1.6, Math.max(-H * 0.6, p.y - drag.oy)) };
     render();
-    if (P.x >= W) finish();
+    if (P.x >= W) finish(e);
   });
 
   function release(e) {

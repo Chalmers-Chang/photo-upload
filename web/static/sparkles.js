@@ -220,6 +220,7 @@ function SparkleField(canvas) {
   }
 
   function start(durationSec) {
+    canvas.style.pointerEvents = "none";
     canvas.hidden = false;
     const { w, h } = size();
     gatherSec = durationSec || 10;

@@ -117,6 +117,43 @@
     .mode-full .credit { display: none !important; }
     .mode-full .frame img { border-radius: 0; }
     .mode-full .empty { color: #6b6459; }
+    .ss-zoom {
+      position: fixed;
+      right: var(--ss-zoom-inset);
+      bottom: var(--ss-zoom-inset);
+      z-index: 30;
+      width: var(--ss-zoom-size);
+      height: var(--ss-zoom-size);
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      opacity: 0;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      font-size: 0;
+      color: transparent;
+    }
+    body.is-zoomed .chrome-end,
+    body.is-zoomed .chrome-home,
+    body.is-zoomed .back-btn {
+      opacity: 0;
+      pointer-events: none;
+    }
+    body.mode-full.is-zoomed .stage { padding-top: 0; }
+    @media (max-width: 640px) {
+      html, body {
+        --ss-zoom-size: 44px;
+        --ss-zoom-inset: 12px;
+      }
+    }
+    @media (min-width: 641px) {
+      html, body {
+        --ss-zoom-size: 48px;
+        --ss-zoom-inset: 12px;
+      }
+    }
   </style>
   <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
 </head>
@@ -128,6 +165,9 @@
   {% endif %}
   <a class="back-btn" id="back" href="{{ url_for('project_home', slug=project.slug) }}">{{ msg.lottery_back }}</a>
   {% include "_admin_chrome.html" %}
+  {% if project.slideshow_mode == "full" %}
+  <button type="button" class="ss-zoom" id="ss-zoom" aria-label="{{ msg.slideshow_zoom }}">{{ msg.slideshow_zoom }}</button>
+  {% endif %}
   {% include "_name_modal.html" %}
   {% include "_overlay.html" %}
   <div class="stage">
@@ -195,18 +235,70 @@
       goHome();
     });
 
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
+    function requestFs() {
+      const el = document.documentElement;
+      const fn = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (fn) return fn.call(el).catch(() => {});
+    }
+    function exitFs() {
+      const fn = document.exitFullscreen || document.webkitExitFullscreen;
+      if (fn && (document.fullscreenElement || document.webkitFullscreenElement)) {
+        return fn.call(document).catch(() => {});
+      }
+    }
+    let justUnzoomed = 0;
+    function setZoomed(on) {
+      if (document.body.classList.contains("is-zoomed") === on) return;
+      document.body.classList.toggle("is-zoomed", on);
+      const btn = document.getElementById("ss-zoom");
+      if (btn) {
+        const label = on
+          ? {{ msg.slideshow_zoom_out | tojson }}
+          : {{ msg.slideshow_zoom | tojson }};
+        btn.setAttribute("aria-label", label);
+        btn.textContent = label;
+      }
+      if (on) requestFs();
+      else {
+        justUnzoomed = Date.now();
+        exitFs();
+      }
+    }
+    const zoomBtn = document.getElementById("ss-zoom");
+    if (zoomBtn) {
+      zoomBtn.addEventListener("click", (e) => {
         e.preventDefault();
-        goHome();
+        e.stopPropagation();
+        setZoomed(!document.body.classList.contains("is-zoomed"));
+      });
+    }
+    document.addEventListener("fullscreenchange", () => {
+      if (!document.fullscreenElement && document.body.classList.contains("is-zoomed")) {
+        setZoomed(false);
+      }
+    });
+    document.addEventListener("webkitfullscreenchange", () => {
+      if (!document.webkitFullscreenElement && document.body.classList.contains("is-zoomed")) {
+        setZoomed(false);
       }
     });
 
-    document.addEventListener("click", (e) => {
-      if (e.target.closest(".chrome-end, .chrome-home, .back-btn")) return;
-      const el = document.documentElement;
-      if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
-    }, { once: true });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      if (document.body.classList.contains("is-zoomed") || Date.now() - justUnzoomed < 400) {
+        setZoomed(false);
+        return;
+      }
+      goHome();
+    });
+
+    if (!full) {
+      document.addEventListener("click", (e) => {
+        if (e.target.closest(".chrome-end, .chrome-home, .back-btn")) return;
+        requestFs();
+      }, { once: true });
+    }
 
     function wrapChars(s, n) {
       const t = (s || "").trim();

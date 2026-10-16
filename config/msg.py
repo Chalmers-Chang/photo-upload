@@ -167,6 +167,8 @@ _STRINGS = {
     "no_photos": ("尚無照片", "No photos yet"),
     "slideshow_credit": ("{name}：{caption}", "{name}: {caption}"),
     "guest_name": ("這位朋友", "Friend"),
+    "slideshow_zoom": ("放大", "Zoom in"),
+    "slideshow_zoom_out": ("還原", "Zoom out"),
     # Lottery
     "lottery_title": ("抽獎 · {name}", "Lottery · {name}"),
     "lottery_ready": ("準備抽獎…", "Drawing…"),
