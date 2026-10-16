@@ -44,6 +44,16 @@ lottery_seconds = int(os.environ.get("LOTTERY_SECONDS", "10"))
 lottery_sphere_max = int(os.environ.get("LOTTERY_SPHERE_MAX", "60"))
 # Max lottery tickets per device; draw uses that many newest photos (uploads stay unlimited)
 lottery_chance_max = int(os.environ.get("LOTTERY_CHANCE_MAX", "10"))
+# Default Ichiban Kuji draws per device (each photo with a person earns one, up to this cap)
+kuji_per_user = int(os.environ.get("KUJI_PER_USER", "2"))
+# Person check (detector container): YOLOX-Tiny ONNX model path inside the container
+detector_model = os.environ.get("DETECTOR_MODEL", "/app/models/yolox_tiny.onnx")
+# onnxruntime CPU threads for the detector
+detector_threads = int(os.environ.get("DETECTOR_THREADS", "2"))
+# Min person score (objectness x class) for a photo to count as having a person
+person_score = float(os.environ.get("PERSON_SCORE", "0.45"))
+# Min person box area as a fraction of the photo (skips tiny people far in the background)
+person_min_area = float(os.environ.get("PERSON_MIN_AREA", "0.005"))
 
 
 def _unit(name, default):

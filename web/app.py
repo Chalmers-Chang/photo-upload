@@ -233,7 +233,7 @@ def create_app():
             return reply(msg.need_photo, error=True)
         try:
             dest = store.asset_path(project_id, kind)
-            if kind == "pjt-mark":
+            if store.asset_is_png(kind):
                 images.save_mark(f, dest)
             else:
                 thumb = store.asset_thumb_path(project_id, kind)
@@ -278,6 +278,29 @@ def create_app():
         flash(msg.settings_saved, "ok")
         return redirect(url_for("admin_home"))
 
+    @app.post("/admin/projects/<project_id>/kuji")
+    @admin_required
+    def admin_save_kuji(project_id):
+        try:
+            store.kuji_save(project_id, request.form)
+        except ValueError as e:
+            g.log_err = str(e)
+            flash(str(e), "error")
+            return redirect(url_for("admin_home"))
+        flash(msg.kuji_saved, "ok")
+        return redirect(url_for("admin_home"))
+
+    @app.post("/admin/projects/<project_id>/kuji/reset")
+    @admin_required
+    def admin_reset_kuji(project_id):
+        p = store.get_project(project_id)
+        if not p:
+            flash(msg.project_missing, "error")
+            return redirect(url_for("admin_home"))
+        store.kuji_reset(project_id)
+        flash(msg.kuji_reset_ok.format(name=p["name"]), "ok")
+        return redirect(url_for("admin_home"))
+
     @app.post("/p/<slug>/lottery/reset")
     @admin_required
     def lottery_reset(slug):
@@ -308,7 +331,58 @@ def create_app():
 
     @app.get("/p/<slug>/")
     def project_home(slug):
-        return render_template("project_home.html", project=load_project(slug))
+        project = load_project(slug)
+        return render_template(
+            "project_home.html",
+            project=project,
+            kuji_total=store.kuji_state(project["id"])["total"],
+        )
+
+    @app.get("/p/<slug>/kuji")
+    def kuji(slug):
+        project = load_project(slug)
+        did, _ = device_id()
+        return render_template(
+            "kuji.html",
+            project=project,
+            me=store.kuji_me(project["id"], did),
+            kuji_total=store.kuji_state(project["id"])["total"],
+        )
+
+    @app.get("/p/<slug>/api/kuji/status")
+    def kuji_status(slug):
+        project = load_project(slug)
+        did, _ = device_id()
+        state = store.kuji_state(project["id"])
+        state["me"] = store.kuji_me(project["id"], did)
+        return jsonify(state)
+
+    @app.post("/p/<slug>/api/kuji/draw")
+    def kuji_draw(slug):
+        project = load_project(slug)
+        did, _ = device_id()
+        try:
+            return jsonify(store.kuji_draw(project["id"], did))
+        except ValueError as e:
+            g.log_err = str(e)
+            return jsonify({"error": str(e)}), 400
+
+    @app.get("/p/<slug>/api/kuji/mine")
+    def kuji_mine(slug):
+        project = load_project(slug)
+        did, _ = device_id()
+        return jsonify({"prizes": store.kuji_mine(project["id"], did)})
+
+    @app.post("/p/<slug>/api/kuji/claim/<draw_id>")
+    def kuji_claim(slug, draw_id):
+        project = load_project(slug)
+        did, _ = device_id()
+        try:
+            at = store.kuji_claim(project["id"], did, draw_id)
+        except ValueError as e:
+            g.log_err = str(e)
+            return jsonify({"error": str(e)}), 400
+        return jsonify({"claimed_at": at})
 
     @app.route("/p/<slug>/upload", methods=["GET", "POST"])
     def upload(slug):
@@ -334,10 +408,7 @@ def create_app():
             if len(caption) > 500:
                 return reply(msg.caption_too_long, error=True)
             did, _ = device_id()
-            saved = 0
-            serial = ""
-            chances = 0
-            at_cap = False
+            saved = []
             for f in files:
                 photo_id = uuid.uuid4().hex
                 dest = store.photo_path(project["id"], photo_id)
@@ -347,25 +418,23 @@ def create_app():
                     dest.unlink(missing_ok=True)
                     g.log_err = f"{type(e).__name__}: {e}"
                     continue
-                serial, chances, capped = store.add_photo(
-                    project["id"], photo_id, caption, did, rebuild=False
-                )
-                saved += 1
-                at_cap = at_cap or capped
+                store.add_photo(project["id"], photo_id, caption, did, rebuild=False)
+                saved.append(photo_id)
             if not saved:
                 return reply(msg.bad_image, error=True)
             store.rebuild_slideshow_queue(project["id"])
-            cap = appsetting.lottery_chance_max
-            if at_cap:
-                text = msg.upload_ok_capped.format(max=cap, serial=serial, n=saved)
-            elif saved == 1:
-                text = msg.upload_ok.format(chances=chances, serial=serial)
-            else:
-                text = msg.upload_ok_many.format(
-                    n=saved, chances=chances, serial=serial
-                )
+            text = msg.upload_checking.format(n=len(saved))
+            if xhr:
+                return jsonify({"message": text, "photo_ids": saved})
             return reply(text)
         return render_template("upload.html", project=project)
+
+    @app.get("/p/<slug>/api/photos/status")
+    def photo_status(slug):
+        project = load_project(slug)
+        did, _ = device_id()
+        ids = [x for x in (request.args.get("ids") or "").split(",") if x]
+        return jsonify(store.photo_status(project["id"], did, ids))
 
     @app.get("/p/<slug>/slideshow")
     def slideshow(slug):

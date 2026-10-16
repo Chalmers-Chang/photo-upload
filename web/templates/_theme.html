@@ -1,0 +1,65 @@
+<style>
+  /* Shared design tokens (see web/STYLE.md). Size knobs only inside the two media blocks. */
+  html {
+    --frost-fill: rgba(255, 255, 255, 0.42);
+    --frost-solid: rgba(255, 255, 255, 0.72);
+    --frost-line: rgba(255, 255, 255, 0.55);
+    --frost-shadow: 0 8px 32px rgba(28, 25, 21, 0.08);
+    --frost-blur: blur(28px) saturate(180%);
+    --ink-fade: rgba(28, 25, 21, {{ 1 - cfg.button_text_fade }});
+    --ink-soft: rgba(28, 25, 21, 0.48);
+    --btn-upload: color-mix(in srgb, {{ cfg.upload_btn_color }} {{ (1 - cfg.button_fade) * 100 }}%, transparent);
+    --btn-slideshow: color-mix(in srgb, {{ cfg.slideshow_btn_color }} {{ (1 - cfg.button_fade) * 100 }}%, transparent);
+    --btn-lottery: color-mix(in srgb, {{ cfg.lottery_btn_color }} {{ (1 - cfg.button_fade) * 100 }}%, transparent);
+  }
+
+  /* Mobile ≤640px */
+  @media (max-width: 640px) {
+    html {
+      --glass: {{ cfg.glass_pad_mobile_cm }}cm;
+      --chrome-inset: {{ cfg.glass_pad_mobile_cm }}cm;
+    }
+  }
+
+  /* Desktop ≥641px */
+  @media (min-width: 641px) {
+    html {
+      --glass: {{ cfg.glass_pad_cm }}cm;
+      --chrome-inset: {{ cfg.glass_pad_cm }}cm;
+    }
+  }
+
+  .glass-stage {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 0.1cm;
+    padding: var(--glass);
+    padding-top: max(var(--glass), 64px);
+    box-sizing: border-box;
+  }
+  .glass-stage > .site-credit {
+    position: static;
+    margin: 0;
+    padding: 0;
+  }
+  .glass-card {
+    position: relative;
+    min-height: 0;
+    box-sizing: border-box;
+    border-radius: 28px;
+    background: var(--frost-fill);
+    border: 1px solid var(--frost-line);
+    box-shadow: var(--frost-shadow);
+    backdrop-filter: var(--frost-blur);
+    -webkit-backdrop-filter: var(--frost-blur);
+  }
+  /* Solid frost until the cover JPEG decodes; JS adds .is-ready. */
+  .glass-wait:not(.is-ready) .glass-card {
+    background: var(--frost-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+</style>

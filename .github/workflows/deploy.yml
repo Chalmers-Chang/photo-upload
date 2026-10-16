@@ -10,6 +10,7 @@ on:
 env:
   IMAGE: ghcr.io/chalmers-chang/photo-upload
   IMAGE_NGINX: ghcr.io/chalmers-chang/photo-upload-nginx
+  IMAGE_DETECTOR: ghcr.io/chalmers-chang/photo-upload-detector
 
 defaults:
   run:
@@ -76,6 +77,20 @@ jobs:
           tags: |
             ${{ env.IMAGE_NGINX }}:latest
             ${{ env.IMAGE_NGINX }}:${{ steps.meta.outputs.tag }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker-compose/Dockerfile
+          target: detector
+          platforms: linux/arm64
+          push: true
+          pull: true
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.IMAGE_DETECTOR }}:latest
+            ${{ env.IMAGE_DETECTOR }}:${{ steps.meta.outputs.tag }}
 
   deploy:
     needs: build

@@ -14,6 +14,18 @@ services:
     depends_on:
       - redis
 
+  detector:
+    image: ghcr.io/chalmers-chang/photo-upload-detector:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      PHOTO_DIR: /data/photos
+      REDIS_URL: redis://redis:6379/0
+      DETECTOR_THREADS: "2"
+    volumes:
+      - "${HOST_PHOTO_DIR:-/Volumes/OWC Envoy Pro FX/photo-upload}:/data/photos:ro"
+    depends_on:
+      - redis
+
   nginx:
     image: ghcr.io/chalmers-chang/photo-upload-nginx:${IMAGE_TAG:-latest}
     restart: unless-stopped

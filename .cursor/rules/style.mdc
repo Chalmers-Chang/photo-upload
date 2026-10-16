@@ -1,0 +1,10 @@
+---
+description: Design system for every page
+alwaysApply: true
+---
+
+# Style guide
+
+Before any UI change (templates, CSS, layout, buttons, overlays), read `web/STYLE.md` and follow it. Use the tokens and partials it lists (`_theme.html`, `_cover_layout.html`, `_admin_chrome.html`, `_stage_bg.html`) instead of copying frost or button values.
+
+When you add a page, a token, or a shared partial, update `web/STYLE.md` in the same change.

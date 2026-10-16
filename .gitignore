@@ -220,3 +220,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local POC stack data (docker-compose/poc.sh)
+.poc/

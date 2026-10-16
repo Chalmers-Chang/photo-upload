@@ -3,40 +3,11 @@
 {% block extra_head %}
 <style>
   html, body { height: 100%; overflow: hidden; --edge: 2cm; }
-  /* Mobile ≤640px */
-  @media (max-width: 640px) {
-    html, body { --glass: {{ cfg.glass_pad_mobile_cm }}cm; }
-  }
-  /* Desktop ≥641px */
-  @media (min-width: 641px) {
-    html, body { --glass: {{ cfg.glass_pad_cm }}cm; }
-  }
-  .up-stage {
-    position: fixed;
-    inset: 0;
-    z-index: 1;
-    background: var(--bg);
-    display: grid;
-    grid-template-rows: minmax(0, 1fr) auto;
-    gap: 0.1cm;
-    padding: var(--glass);
-    padding-top: max(var(--glass), 64px);
-    box-sizing: border-box;
-  }
-  .up-stage > .glass {
-    position: relative;
-    min-height: 0;
+  .up-stage > .glass-card {
     overflow: auto;
     display: grid;
     place-items: center;
     padding: 24px;
-    box-sizing: border-box;
-    border-radius: 28px;
-    background: rgba(255, 255, 255, 0.42);
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    box-shadow: 0 8px 32px rgba(28, 25, 21, 0.08);
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
   }
   .glass-body { width: min(720px, 100%); }
   .up-stage h1,
@@ -58,17 +29,12 @@
     color: var(--muted);
     line-height: 1.45;
   }
-  .up-stage > .site-credit {
-    position: static;
-    margin: 0;
-    padding: 0;
-  }
 </style>
 {% endblock %}
 {% block body %}
 <a class="back-btn" href="{{ url_for('project_home', slug=project.slug) }}">{{ msg.lottery_back }}</a>
-<div class="up-stage">
-  <div class="glass">
+<div class="glass-stage up-stage">
+  <div class="glass-card">
     <div class="glass-body">
       <h1>{{ msg.upload_title }}</h1>
       {% for category, message in get_flashed_messages(with_categories=true) %}
@@ -108,17 +74,66 @@
   });
 
   const saved = sessionStorage.getItem("uploadFlash");
+  let flashEl = null;
   if (saved) {
     sessionStorage.removeItem("uploadFlash");
-    const p = document.createElement("p");
-    p.className = "flash ok";
-    p.textContent = saved;
-    form.before(p);
+    flashEl = document.createElement("p");
+    flashEl.className = "flash ok";
+    flashEl.textContent = saved;
+    form.before(flashEl);
   }
+
+  const checkIds = JSON.parse(sessionStorage.getItem("uploadCheck") || "[]");
+  sessionStorage.removeItem("uploadCheck");
+  const statusUrl = {{ url_for('photo_status', slug=project.slug) | tojson }};
+  const copy = {
+    ok: {{ msg.upload_person_ok | tojson }},
+    capped: {{ msg.upload_person_capped | tojson }},
+    none: {{ msg.upload_person_none | tojson }},
+    slow: {{ msg.upload_check_slow | tojson }},
+  };
+  const cap = {{ cfg.lottery_chance_max | tojson }};
+  const fill = (s, vals) => Object.entries(vals).reduce((t, [k, v]) => t.replaceAll("{" + k + "}", String(v)), s);
+
+  async function pollCheck(t0) {
+    let data;
+    try {
+      const res = await fetch(statusUrl + "?ids=" + checkIds.join(","), { cache: "no-store" });
+      data = await res.json();
+    } catch (err) {
+      data = null;
+    }
+    const results = data ? Object.values(data.photos) : [];
+    const done = data && results.length && results.every((v) => v !== null);
+    if (!done) {
+      if (performance.now() - t0 < 20000) setTimeout(() => pollCheck(t0), 1000);
+      else if (flashEl) flashEl.textContent = copy.slow;
+      return;
+    }
+    const yes = results.filter((v) => v === true).length;
+    const no = results.length - yes;
+    const lines = [];
+    if (yes) {
+      lines.push(fill(data.chances >= cap ? copy.capped : copy.ok, {
+        n: yes, chances: data.chances, max: cap, kuji: data.kuji.left,
+      }));
+    }
+    if (no) lines.push(fill(copy.none, { n: no }));
+    if (flashEl) {
+      flashEl.textContent = lines.join("\n");
+      flashEl.className = "flash " + (yes ? "ok" : "error");
+    }
+  }
+  if (checkIds.length && flashEl) pollCheck(performance.now());
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    postFormWithPie(form, pieOpts);
+    postFormWithPie(form, {
+      ...pieOpts,
+      onSuccess(_form, data) {
+        sessionStorage.setItem("uploadCheck", JSON.stringify(data.photo_ids || []));
+      },
+    });
   });
 </script>
 {% endblock %}

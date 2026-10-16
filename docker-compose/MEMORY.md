@@ -7,6 +7,8 @@
 - `cache-from/to: type=gha` re-downloads the whole build cache every run. On the persistent Mac runner use `driver: docker` so layers stay on disk; `uv sync` only re-runs when the lockfile changes. `pull: true` still checks base images but only fetches new layers.
 - `docker/login-action` on the Mac runner fails with `User interaction is not allowed` (osxkeychain). Write `auths` into `$RUNNER_TEMP/docker-config` and set `DOCKER_CONFIG`; same as deploy.
 - Photo files live on the host (`/Volumes/OWC Envoy Pro FX/photo-upload`). Both `app` and `nginx` must bind-mount that path; putting photos only in the image will not work.
+- When `compose up` recreates only `app` (new IP) and leaves `nginx` running, nginx keeps the old upstream IP and returns 502 (`connect() failed (111)` to the old `172.x` address). In compose, give nginx `depends_on: app: {condition: service_started, restart: true}` so it restarts with app.
+- Docker Desktop "manually paused" cannot be resumed from the CLI (`docker desktop start` says already running). Use the whale menu, or `docker desktop restart`.
 - Docker Desktop on the Mac runner does not share `/opt/app`. Bind-mounting anything from `/opt/app` (nginx.conf, `../logs`) fails with "Mounts denied". Bake nginx.conf into `photo-upload-nginx`. Logs bind `$HOST_PHOTO_DIR/logs` (OWC, already shared) to `/logs`. Deploy symlinks `/opt/app/photo-upload/logs` → that folder. nginx must `deny` `/photos/logs/`.
 
 ## TASTE
@@ -15,3 +17,5 @@
 - `PHOTO_DIR=/data/photos` inside the container; host path stays in compose (`HOST_PHOTO_DIR` / default OWC volume).
 - App logs: `LOG_DIR=/logs` in the container, host `$HOST_PHOTO_DIR/logs`. Files are `<project-id>_yyyyMMdd.log`; the app deletes names older than 30 days. Do not log `/api/slideshow` polls.
 - Install Python deps with `uv sync --frozen` from `python/pyproject.toml` + `python/uv.lock`, not a root `requirements.txt`.
+- Local POC: `docker-compose.poc.yaml` (`name: photo-upload-poc`) builds the same Dockerfile targets, bind-mounts `web/` + `config/`, data in repo `.poc/`, port 8001. gunicorn `--reload` plus `--reload-extra-file` for each `web/templates/*` (Jinja caches templates otherwise); edits apply in about 1s. First build about 45s, cached rebuild about 7s. `poc.sh seed` runs `poc_seed.py` in the app container to build the demo project.
+- Dockerfile has a shared `base` stage, then `app`, `detector`, `nginx` targets. `detector` runs `uv sync --group detector` (onnxruntime + numpy stay out of the app image) and bakes YOLOX-Tiny with `ADD --checksum=sha256:...` from the GitHub release (needs `# syntax=docker/dockerfile:1`). Compose `detector` mounts the photo dir read-only and only needs `REDIS_URL` + `PHOTO_DIR`. CI builds `photo-upload-detector` with the same `GITHUB_SHA` tag.
