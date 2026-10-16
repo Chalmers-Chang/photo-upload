@@ -356,8 +356,11 @@
           {% for g in p.kuji.grades %}
           {% call asset_card(p, "kuji-" ~ g.grade.lower(), msg.kuji_grade.format(grade=g.grade)) %}
           <p class="meta">{{ msg.kuji_admin_drawn.format(drawn=g.drawn, total=g.total) }}</p>
-          <label>{{ msg.kuji_label_label }}
-            <input form="kuji-form-{{ p.id }}" name="label_{{ g.grade }}" value="{{ g.label_raw }}" placeholder="{{ msg.kuji_grade.format(grade=g.grade) }}" maxlength="40">
+          <label>{{ msg.kuji_label_zh }}
+            <input form="kuji-form-{{ p.id }}" name="label_{{ g.grade }}" value="{{ g.label_raw }}" placeholder="{{ msg.kuji_grade_zh.format(grade=g.grade) }}" maxlength="40">
+          </label>
+          <label>{{ msg.kuji_label_en }}
+            <input form="kuji-form-{{ p.id }}" name="label_en_{{ g.grade }}" value="{{ g.label_en_raw }}" placeholder="{{ msg.kuji_grade_en.format(grade=g.grade) }}" maxlength="40">
           </label>
           <label>{{ msg.kuji_count_label }}
             <input form="kuji-form-{{ p.id }}" type="number" name="total_{{ g.grade }}" min="{{ g.drawn }}" max="999" value="{{ g.total }}" required>

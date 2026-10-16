@@ -34,7 +34,9 @@ services:
     volumes:
       - "${HOST_PHOTO_DIR:-/Volumes/OWC Envoy Pro FX/photo-upload}:/data/photos:ro"
     depends_on:
-      - app
+      app:
+        condition: service_started
+        restart: true
 
   redis:
     image: redis:7-alpine

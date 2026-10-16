@@ -1090,15 +1090,27 @@ def draw_lottery(project_id):
     }
 
 
-def kuji_label_default(grade):
-    return msg.kuji_grade.format(grade=grade)
-
-
-def kuji_label_raw(raw, grade):
-    s = (raw.get(f"label_{grade}") or "").strip()
+def kuji_label_part(raw, key, fallback):
+    s = (raw.get(key) or "").strip()
     if not s or len(s) > KUJI_LABEL_MAX:
-        return ""
-    return s
+        return "", fallback
+    return s, s
+
+
+def kuji_names_of(raw, grade):
+    zh_raw, zh = kuji_label_part(
+        raw, f"label_{grade}", msg.kuji_grade_zh.format(grade=grade)
+    )
+    en_raw, en = kuji_label_part(
+        raw, f"label_en_{grade}", msg.kuji_grade_en.format(grade=grade)
+    )
+    return {
+        "label": f"{zh} / {en}",
+        "label_zh": zh,
+        "label_en": en,
+        "label_raw": zh_raw,
+        "label_en_raw": en_raw,
+    }
 
 
 def kuji_settings(project_id):
@@ -1106,8 +1118,7 @@ def kuji_settings(project_id):
     out = {
         "per_user": appsetting.kuji_per_user,
         "totals": {},
-        "labels": {},
-        "label_raws": {},
+        "names": {},
     }
     try:
         out["per_user"] = int(raw["per_user"])
@@ -1118,8 +1129,7 @@ def kuji_settings(project_id):
             out["totals"][g] = int(raw.get(g) or 0)
         except ValueError:
             out["totals"][g] = 0
-        out["label_raws"][g] = kuji_label_raw(raw, g)
-        out["labels"][g] = out["label_raws"][g] or kuji_label_default(g)
+        out["names"][g] = kuji_names_of(raw, g)
     return out
 
 
@@ -1137,10 +1147,12 @@ def kuji_save(project_id, form):
         raise ValueError(msg.bad_setting)
     labels = {}
     for g in KUJI_GRADES:
-        s = (form.get(f"label_{g}") or "").strip()
-        if len(s) > KUJI_LABEL_MAX:
+        zh = (form.get(f"label_{g}") or "").strip()
+        en = (form.get(f"label_en_{g}") or "").strip()
+        if len(zh) > KUJI_LABEL_MAX or len(en) > KUJI_LABEL_MAX:
             raise ValueError(msg.kuji_label_too_long)
-        labels[f"label_{g}"] = s
+        labels[f"label_{g}"] = zh
+        labels[f"label_en_{g}"] = en
     bad = _script("kuji_save", _KUJI_SAVE_LUA)(
         keys=[f"kuji:{project_id}", f"kuji_drawn:{project_id}"],
         args=[per, *totals],
@@ -1175,8 +1187,7 @@ def kuji_state(project_id):
         d = min(total, int(drawn.get(g) or 0))
         url, thumb = _prize_urls(project_id, g)
         grades.append(
-            {"grade": g, "label": cfgk["labels"][g],
-             "label_raw": cfgk["label_raws"][g],
+            {"grade": g, **cfgk["names"][g],
              "total": total, "drawn": d, "left": total - d,
              "url": url, "thumb": thumb}
         )
@@ -1234,10 +1245,13 @@ def kuji_draw(project_id, device_id, unlimited=False):
         raise ValueError(msg.kuji_need_photo)
     _, grade, draw_id = res
     url, thumb = _prize_urls(project_id, grade)
+    names = kuji_settings(project_id)["names"][grade]
     return {
         "id": draw_id,
         "grade": grade,
-        "label": kuji_settings(project_id)["labels"][grade],
+        "label": names["label"],
+        "label_zh": names["label_zh"],
+        "label_en": names["label_en"],
         "url": url,
         "thumb": thumb,
         "me": kuji_me(project_id, device_id, unlimited=unlimited),
@@ -1249,7 +1263,7 @@ def kuji_mine(project_id, device_id):
     ids = conn.lrange(f"kuji_mine:{project_id}:{device_id}", 0, -1)
     if not ids:
         return []
-    labels = kuji_settings(project_id)["labels"]
+    names = kuji_settings(project_id)["names"]
     draws = conn.hmget(f"kuji_draws:{project_id}", ids)
     claimed = conn.hmget(f"kuji_claimed:{project_id}", ids)
     out = []
@@ -1258,9 +1272,10 @@ def kuji_mine(project_id, device_id):
             continue
         d = json.loads(raw)
         url, thumb = _prize_urls(project_id, d["grade"])
+        n = names.get(d["grade"]) or kuji_names_of({}, d["grade"])
         out.append(
             {"id": draw_id, "grade": d["grade"],
-             "label": labels.get(d["grade"]) or kuji_label_default(d["grade"]),
+             "label": n["label"], "label_zh": n["label_zh"], "label_en": n["label_en"],
              "ts": d.get("ts"),
              "url": url, "thumb": thumb,
              "claimed_at": int(at) if at else None}

@@ -131,7 +131,7 @@ jobs:
       - name: Start stack
         working-directory: /opt/app/photo-upload/docker-compose
         env:
-          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+          IMAGE_TAG: latest
         run: |
           if docker compose version >/dev/null 2>&1; then
             compose() { docker compose "$@"; }

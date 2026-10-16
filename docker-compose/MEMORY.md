@@ -2,12 +2,13 @@
 
 ## GOTCHA
 
-- Tagging the app image with a Dockerfile hash and skipping `compose pull` when that tag already exists on the Mac leaves stale app code running. Tag with `GITHUB_SHA` and always `compose pull` before `up -d`.
+- Tagging the app image with a Dockerfile hash and skipping `compose pull` when that tag already exists on the Mac leaves stale app code running. Push both `GITHUB_SHA` and `latest`; deploy compose with `IMAGE_TAG=latest` so `up -d` only recreates a service when that digest actually changed. Using the SHA as the compose tag rebuilt nginx and detector on every commit even when their layers were identical.
+- Detector image should not `COPY web` (templates/static). Copy `web/__init__.py`, `store.py`, and `detector.py` plus `config/` so a kuji.html edit does not bounce the detector container.
 - Building `linux/arm64` on `ubuntu-latest` uses QEMU and is very slow. Build on the self-hosted Mac ARM64 runner instead; do not add `setup-qemu-action`. Pinning the Docker engine version does not fix that.
 - `cache-from/to: type=gha` re-downloads the whole build cache every run. On the persistent Mac runner use `driver: docker` so layers stay on disk; `uv sync` only re-runs when the lockfile changes. `pull: true` still checks base images but only fetches new layers.
 - `docker/login-action` on the Mac runner fails with `User interaction is not allowed` (osxkeychain). Write `auths` into `$RUNNER_TEMP/docker-config` and set `DOCKER_CONFIG`; same as deploy.
 - Photo files live on the host (`/Volumes/OWC Envoy Pro FX/photo-upload`). Both `app` and `nginx` must bind-mount that path; putting photos only in the image will not work.
-- When `compose up` recreates only `app` (new IP) and leaves `nginx` running, nginx keeps the old upstream IP and returns 502 (`connect() failed (111)` to the old `172.x` address). In compose, give nginx `depends_on: app: {condition: service_started, restart: true}` so it restarts with app.
+- When `compose up` recreates only `app` (new IP) and leaves `nginx` running, nginx keeps the old upstream IP and returns 502 (`connect() failed (111)` to the old `172.x` address). In compose, give nginx `depends_on: app: {condition: service_started, restart: true}` so it restarts with app. That is a process restart of the same nginx image, not a rebuild.
 - Docker Desktop "manually paused" cannot be resumed from the CLI (`docker desktop start` says already running). Use the whale menu, or `docker desktop restart`.
 - Docker Desktop on the Mac runner does not share `/opt/app`. Bind-mounting anything from `/opt/app` (nginx.conf, `../logs`) fails with "Mounts denied". Bake nginx.conf into `photo-upload-nginx`. Logs bind `$HOST_PHOTO_DIR/logs` (OWC, already shared) to `/logs`. Deploy symlinks `/opt/app/photo-upload/logs` → that folder. nginx must `deny` `/photos/logs/`.
 

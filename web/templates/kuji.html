@@ -142,6 +142,8 @@
     border-radius: 14px;
   }
   .prize-card {
+    z-index: 0;
+    overflow: hidden;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
     place-items: center;
@@ -152,21 +154,24 @@
     border: 2px solid {{ cfg.lottery_btn_color }};
   }
   .prize-card .grade {
+    max-width: 100%;
     font-size: var(--kuji-grade-size);
     font-weight: 800;
-    line-height: 1;
+    line-height: 1.1;
+    text-align: center;
+    overflow-wrap: anywhere;
     color: {{ cfg.lottery_btn_color }};
     text-shadow: 0 1px 0 #fff;
   }
   .prize-card img {
-    max-width: 100%;
-    max-height: 100%;
+    width: 100%;
+    height: 100%;
     min-height: 0;
     object-fit: contain;
     border-radius: 10px;
   }
-  .ticket-front { filter: drop-shadow(0 6px 14px rgba(28, 25, 21, 0.22)); }
-  .ticket-flap-wrap { filter: drop-shadow(0 8px 16px rgba(28, 25, 21, 0.3)); pointer-events: none; }
+  .ticket-front { z-index: 1; filter: drop-shadow(0 6px 14px rgba(28, 25, 21, 0.22)); }
+  .ticket-flap-wrap { z-index: 2; filter: drop-shadow(0 8px 16px rgba(28, 25, 21, 0.3)); pointer-events: none; }
   .ticket-face { overflow: hidden; background: #d4af37; }
   .ticket-face img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
   .ticket-face .ticket-plain {
@@ -192,6 +197,7 @@
   }
   .tear-grip {
     position: absolute;
+    z-index: 3;
     width: 30px;
     height: 30px;
     margin: -15px 0 0 -15px;
@@ -295,7 +301,7 @@
       --kuji-chance-size: 14px;
       --kuji-head-size: 18px;
       --kuji-tile: 64px;
-      --kuji-grade-size: 34px;
+      --kuji-grade-size: 22px;
       --kuji-mine-thumb: 64px;
       --kuji-ticket-frac: 0.84;
     }
@@ -489,7 +495,19 @@
   function prizeName(item) {
     if (!item) return "";
     if (typeof item === "string") return fill(copy.grade, { grade: item });
-    return item.label || fill(copy.grade, { grade: item.grade });
+    if (item.label) return item.label;
+    const zh = item.label_zh || "";
+    const en = item.label_en || "";
+    if (zh && en) return zh + " / " + en;
+    return zh || en || fill(copy.grade, { grade: item.grade });
+  }
+
+  function prizeZh(item) {
+    return (item && item.label_zh) || prizeName(item).split(" / ")[0];
+  }
+
+  function prizeEn(item) {
+    return (item && item.label_en) || prizeName(item).split(" / ").slice(-1)[0];
   }
 
   function prizeFace(el, url, item) {
@@ -551,7 +569,7 @@
   let won = null;
   const tear = KujiTear(tearBox, {
     onOpen() {
-      tearText.textContent = fill(copy.win, { label: prizeName(won) });
+      tearText.textContent = fill(copy.win, { zh: prizeZh(won), en: prizeEn(won) });
       tearMine.hidden = false;
       tearAgain.hidden = !(me && me.left > 0);
       sparkles.start(1);
@@ -575,7 +593,7 @@
   }
 
   function startTear() {
-    $("prize-grade").textContent = prizeName(won).split(" / ")[0];
+    $("prize-grade").textContent = prizeZh(won);
     const img = $("prize-img");
     img.hidden = !won.url;
     if (won.url) img.src = won.url;
