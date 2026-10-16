@@ -1,0 +1,130 @@
+<style>
+  .glass-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    padding: var(--glass);
+    padding-top: max(var(--glass), 64px);
+    box-sizing: border-box;
+    background: rgba(28, 25, 21, 0.28);
+  }
+  .glass-overlay[hidden] { display: none !important; }
+  .glass-overlay > .glass-card {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    padding: 20px;
+    overflow: hidden;
+    width: min(420px, 100%);
+    justify-self: center;
+    align-self: start;
+  }
+  .overlay-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .overlay-head h2 {
+    margin: 0;
+    font-size: 20px;
+    white-space: pre-line;
+    color: var(--ink-fade);
+  }
+  .overlay-close {
+    appearance: none;
+    -webkit-appearance: none;
+    flex-shrink: 0;
+    border: 1px solid var(--frost-line);
+    background: var(--frost-fill);
+    color: var(--ink-fade);
+    padding: 8px 14px;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: var(--frost-shadow);
+  }
+  .overlay-body { min-height: 0; overflow: auto; }
+  body.panel-open .index-stage > .glass-card,
+  body.panel-open .admin-stage > .glass-card { visibility: hidden; }
+  .admin-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 12px;
+  }
+  .admin-title h1 { margin: 0; }
+  .add-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--frost-line);
+    background: var(--frost-fill);
+    color: var(--ink-fade);
+    border-radius: 999px;
+    font: inherit;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: var(--frost-shadow);
+  }
+</style>
+{% if current_user %}
+<div class="glass-overlay" id="panel-password" hidden>
+  <div class="glass-card">
+    <div class="overlay-head">
+      <h2>{{ msg.password_change }}</h2>
+      <button class="overlay-close" type="button" data-close-overlay>{{ msg.close_panel }}</button>
+    </div>
+    <div class="overlay-body">
+      <form class="stack" method="post" action="{{ url_for('account_password') }}">
+        <label>{{ msg.password_old }}</label>
+        <input name="old" type="password" autocomplete="current-password" required>
+        <label>{{ msg.password_new }}</label>
+        <input name="new" type="password" autocomplete="new-password" required minlength="4" maxlength="72">
+        <label>{{ msg.password_again }}</label>
+        <input name="again" type="password" autocomplete="new-password" required minlength="4" maxlength="72">
+        <button class="btn" type="submit">{{ msg.settings_save }}</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+<script>
+  document.querySelectorAll("[data-open-overlay]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const panel = document.getElementById(btn.dataset.openOverlay);
+      if (!panel) return;
+      document.querySelectorAll(".glass-overlay").forEach((p) => { p.hidden = true; });
+      panel.hidden = false;
+      document.body.classList.add("panel-open");
+      document.querySelectorAll(".chrome-drop").forEach((el) => { el.open = false; });
+    });
+  });
+  document.querySelectorAll("[data-close-overlay]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const panel = btn.closest(".glass-overlay");
+      if (panel) panel.hidden = true;
+      if (![...document.querySelectorAll(".glass-overlay")].some((p) => !p.hidden)) {
+        document.body.classList.remove("panel-open");
+      }
+    });
+  });
+  document.querySelectorAll(".glass-overlay").forEach((panel) => {
+    panel.addEventListener("click", (e) => {
+      if (e.target !== panel) return;
+      panel.hidden = true;
+      if (![...document.querySelectorAll(".glass-overlay")].some((p) => !p.hidden)) {
+        document.body.classList.remove("panel-open");
+      }
+    });
+  });
+</script>

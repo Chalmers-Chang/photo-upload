@@ -1,42 +1,13 @@
 {% extends "base.html" %}
-{% block title %}{{ msg.admin }}{% endblock %}
+{% block title %}{{ msg.admin_projects }}{% endblock %}
 {% block extra_head %}
 <style>
   html, body { height: 100%; overflow: hidden; --edge: 2cm; }
-  /* Mobile ≤640px */
-  @media (max-width: 640px) {
-    html, body { --glass: {{ cfg.glass_pad_mobile_cm }}cm; }
-  }
-  /* Desktop ≥641px */
-  @media (min-width: 641px) {
-    html, body { --glass: {{ cfg.glass_pad_cm }}cm; }
-  }
-  .admin-stage {
-    position: fixed;
-    inset: 0;
-    z-index: 1;
-    background: var(--bg);
-    display: grid;
-    grid-template-rows: minmax(0, 1fr) auto;
-    gap: 0.1cm;
-    padding: var(--glass);
-    padding-top: max(var(--glass), 64px);
-    box-sizing: border-box;
-  }
-  .admin-stage > .glass {
-    position: relative;
-    min-height: 0;
+  .admin-stage > .glass-card {
     overflow: hidden;
     display: flex;
     flex-direction: column;
     padding: 24px;
-    box-sizing: border-box;
-    border-radius: 28px;
-    background: rgba(255, 255, 255, 0.42);
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    box-shadow: 0 8px 32px rgba(28, 25, 21, 0.08);
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
   }
   .admin-stage .glass-body {
     width: min(720px, 100%);
@@ -61,17 +32,12 @@
     font-size: 14px;
     font-weight: 700;
     line-height: 1.35;
-    color: rgba(28, 25, 21, {{ 1 - cfg.button_text_fade }});
-    background: rgba(255, 255, 255, 0.42);
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    box-shadow: 0 8px 32px rgba(28, 25, 21, 0.08);
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
-  }
-  .admin-stage > .site-credit {
-    position: static;
-    margin: 0;
-    padding: 0;
+    color: var(--ink-fade);
+    background: var(--frost-fill);
+    border: 1px solid var(--frost-line);
+    box-shadow: var(--frost-shadow);
+    backdrop-filter: var(--frost-blur);
+    -webkit-backdrop-filter: var(--frost-blur);
   }
   .project-card > summary {
     list-style: none;
@@ -182,29 +148,85 @@
   .qr-dialog h2 { margin: 0 0 8px; font-size: 20px; }
   .qr-dialog img { width: min(240px, 100%); height: auto; margin: 12px 0; }
   .qr-dialog .row { justify-content: center; }
+  .admin-sections { display: grid; gap: 12px; margin-top: 12px; }
+  .admin-section > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+  .admin-section > summary::-webkit-details-marker,
+  .admin-section > summary::marker { display: none; content: none; }
+  .admin-section > summary::before { content: "▸ "; }
+  .admin-section[open] > summary::before { content: "▾ "; }
+  .section-settings { margin-top: 12px; }
+  .section-settings > .meta {
+    margin: 0 0 8px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .section-settings form { margin-top: 0; }
+  .kuji-settings summary .meta { font-weight: 400; }
+  .kuji-settings .asset-card .meta { margin: 0; }
+  .kuji-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: stretch;
+    margin-top: 12px;
+  }
+  .kuji-actions .btn.small {
+    min-height: 40px;
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .kuji-actions .btn.small.secondary { border-color: var(--line); }
+  .kuji-actions .delete-arm {
+    display: flex;
+    align-items: stretch;
+    margin: 0;
+  }
+  .admin-block { margin: 0 0 18px; }
 </style>
 {% endblock %}
 {% block body %}
-<div class="admin-stage">
-<div class="glass">
+{% macro asset_card(p, kind, label) %}
+{% set key = kind.replace("-", "_") %}
+<div class="asset-card">
+  <p class="meta">{{ label }}</p>
+  {% if p[key + "_thumb_url"] %}<img class="asset-thumb" src="{{ p[key + "_thumb_url"] }}" alt="">{% endif %}
+  {{ caller() }}
+  <form class="stack js-asset-upload" method="post" action="{{ url_for('admin_save_asset', project_id=p.id, kind=kind) }}" enctype="multipart/form-data"{% if kind in ("pjt-mark", "kuji-mark", "kuji-ticket") %} data-keep-png="1"{% endif %}>
+    <label class="btn small asset-pick">
+      {{ msg.asset_upload }}
+      <input type="file" name="photo" accept="image/*" required>
+    </label>
+  </form>
+  {% if p[key + "_url"] %}
+  <form method="post" action="{{ url_for('admin_delete_asset', project_id=p.id, kind=kind) }}">
+    <button class="btn small secondary" type="submit">{{ msg.asset_delete }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endmacro %}
+<div class="glass-stage admin-stage">
+<div class="glass-card">
 <div class="glass-body">
-  <h1>{{ msg.projects }}</h1>
+  <div class="admin-title">
+    {% if can_create_project %}
+    <button type="button" class="add-btn" data-open-overlay="panel-project" title="{{ msg.new_project }}" aria-label="{{ msg.new_project }}">+</button>
+    {% endif %}
+    <h1>{{ msg.admin_projects }}</h1>
+  </div>
 
   {% for category, message in get_flashed_messages(with_categories=true) %}
     <p class="flash {{ category }}">{{ message }}</p>
   {% endfor %}
 
-  <div class="card">
-    <h2>{{ msg.new_project }}</h2>
-    <form class="stack" method="post" action="{{ url_for('admin_create_project') }}">
-      <label>{{ msg.project_name }}</label>
-      <input name="name" required placeholder="{{ msg.project_name_placeholder }}">
-      <label>{{ msg.project_slug }}</label>
-      <input name="slug" placeholder="wedding">
-      <button class="btn" type="submit">{{ msg.project_add }}</button>
-    </form>
-  </div>
-
+  <div class="admin-block">
   {% for p in projects %}
     <details class="card project-card" id="project-{{ p.id }}">
       <summary>
@@ -247,6 +269,7 @@
             <button class="btn secondary delete-project js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
           </form>
         </div>
+        {% if p.can_delete %}
         <div class="delete-arm">
           <button type="button" class="btn danger delete-project js-delete-arm">{{ msg.delete_project }}</button>
           <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}">
@@ -254,39 +277,34 @@
             <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
           </form>
         </div>
+        {% endif %}
       </div>
       <p class="meta">{{ msg.project_meta.format(slug=p.slug, count=p.photo_count) }}</p>
-      <div class="asset-grid">
-        {% for kind, label in [
-          ("pjt-mark", msg.asset_pjt_mark),
-          ("pjt-desktop", msg.asset_pjt_desktop),
-          ("pjt-mobile", msg.asset_pjt_mobile),
-          ("bkg-desktop", msg.asset_bkg_desktop),
-          ("bkg-mobile", msg.asset_bkg_mobile),
-          ("lot-desktop", msg.asset_lot_desktop),
-          ("lot-mobile", msg.asset_lot_mobile),
-        ] %}
-        {% set key = kind.replace("-", "_") %}
-        <div class="asset-card">
-          <p class="meta">{{ label }}</p>
-          {% if p[key + "_thumb_url"] %}<img class="asset-thumb" src="{{ p[key + "_thumb_url"] }}" alt="">{% endif %}
-          <form class="stack js-asset-upload" method="post" action="{{ url_for('admin_save_asset', project_id=p.id, kind=kind) }}" enctype="multipart/form-data"{% if kind == "pjt-mark" %} data-keep-png="1"{% endif %}>
-            <label class="btn small asset-pick">
-              {{ msg.asset_upload }}
-              <input type="file" name="photo" accept="image/*" required>
-            </label>
-          </form>
-          {% if p[key + "_url"] %}
-          <form method="post" action="{{ url_for('admin_delete_asset', project_id=p.id, kind=kind) }}">
-            <button class="btn small secondary" type="submit">{{ msg.asset_delete }}</button>
-          </form>
-          {% endif %}
+      <div class="admin-sections">
+      <details class="settings admin-section" id="sec-home-{{ p.id }}" data-project="{{ p.id }}">
+        <summary>{{ msg.admin_sec_home }}</summary>
+        <div class="asset-grid">
+          {% for kind, label in [
+            ("pjt-mark", msg.asset_pjt_mark),
+            ("pjt-desktop", msg.asset_pjt_desktop),
+            ("pjt-mobile", msg.asset_pjt_mobile),
+          ] %}
+          {% call asset_card(p, kind, label) %}{% endcall %}
+          {% endfor %}
         </div>
-        {% endfor %}
-      </div>
-      <div class="asset-grid card-foot">
-        <details class="settings">
-          <summary>{{ msg.settings_title }}</summary>
+      </details>
+      <details class="settings admin-section" id="sec-slideshow-{{ p.id }}" data-project="{{ p.id }}">
+        <summary>{{ msg.admin_sec_slideshow }}</summary>
+        <div class="asset-grid">
+          {% for kind, label in [
+            ("bkg-desktop", msg.asset_bkg_desktop),
+            ("bkg-mobile", msg.asset_bkg_mobile),
+          ] %}
+          {% call asset_card(p, kind, label) %}{% endcall %}
+          {% endfor %}
+        </div>
+        <div class="section-settings">
+          <p class="meta">{{ msg.settings_title }}</p>
           <form class="stack" method="post" action="{{ url_for('admin_save_settings', project_id=p.id) }}">
             <fieldset class="mode-picks">
               <legend>{{ msg.set_slideshow_mode }}</legend>
@@ -305,6 +323,23 @@
             <label>{{ msg.set_slideshow_per_device }}
               <input type="number" name="slideshow_per_device" min="1" max="50" value="{{ p.slideshow_per_device }}" required>
             </label>
+            <button class="btn small" type="submit">{{ msg.settings_save }}</button>
+          </form>
+        </div>
+      </details>
+      <details class="settings admin-section" id="sec-lottery-{{ p.id }}" data-project="{{ p.id }}">
+        <summary>{{ msg.admin_sec_lottery }}</summary>
+        <div class="asset-grid">
+          {% for kind, label in [
+            ("lot-desktop", msg.asset_lot_desktop),
+            ("lot-mobile", msg.asset_lot_mobile),
+          ] %}
+          {% call asset_card(p, kind, label) %}{% endcall %}
+          {% endfor %}
+        </div>
+        <div class="section-settings">
+          <p class="meta">{{ msg.settings_title }}</p>
+          <form class="stack" method="post" action="{{ url_for('admin_save_settings', project_id=p.id) }}">
             <label>{{ msg.set_lottery_sphere_max }}
               <input type="number" name="lottery_sphere_max" min="1" max="200" value="{{ p.lottery_sphere_max }}" required>
             </label>
@@ -313,14 +348,61 @@
             </label>
             <button class="btn small" type="submit">{{ msg.settings_save }}</button>
           </form>
-        </details>
+        </div>
+      </details>
+      <details class="settings admin-section kuji-settings" id="sec-kuji-{{ p.id }}" data-project="{{ p.id }}">
+        <summary>{{ msg.admin_sec_kuji }} <span class="meta">· {{ msg.kuji_admin_meta.format(total=p.kuji.total, left=p.kuji.left) }}</span></summary>
+        <div class="asset-grid">
+          {% for g in p.kuji.grades %}
+          {% call asset_card(p, "kuji-" ~ g.grade.lower(), msg.kuji_grade.format(grade=g.grade)) %}
+          <p class="meta">{{ msg.kuji_admin_drawn.format(drawn=g.drawn, total=g.total) }}</p>
+          <label>{{ msg.kuji_label_zh }}
+            <input form="kuji-form-{{ p.id }}" name="label_{{ g.grade }}" value="{{ g.label_raw }}" placeholder="{{ msg.kuji_grade_zh.format(grade=g.grade) }}" maxlength="40">
+          </label>
+          <label>{{ msg.kuji_label_en }}
+            <input form="kuji-form-{{ p.id }}" name="label_en_{{ g.grade }}" value="{{ g.label_en_raw }}" placeholder="{{ msg.kuji_grade_en.format(grade=g.grade) }}" maxlength="40">
+          </label>
+          <label>{{ msg.kuji_count_label }}
+            <input form="kuji-form-{{ p.id }}" type="number" name="total_{{ g.grade }}" min="{{ g.drawn }}" max="999" value="{{ g.total }}" required>
+          </label>
+          {% endcall %}
+          {% endfor %}
+          {% for kind, label in [
+            ("kuji-ticket", msg.asset_kuji_ticket),
+            ("kuji-mark", msg.asset_kuji_mark),
+            ("kuji-desktop", msg.asset_kuji_desktop),
+            ("kuji-mobile", msg.asset_kuji_mobile),
+          ] %}
+          {% call asset_card(p, kind, label) %}{% endcall %}
+          {% endfor %}
+        </div>
+        <div class="section-settings">
+          <p class="meta">{{ msg.settings_title }}</p>
+          <form class="stack" id="kuji-form-{{ p.id }}" method="post" action="{{ url_for('admin_save_kuji', project_id=p.id) }}">
+            <label>{{ msg.kuji_per_user_label }}
+              <input type="number" name="per_user" min="0" max="50" value="{{ p.kuji.per_user }}" required>
+            </label>
+          </form>
+          <div class="kuji-actions">
+            <button class="btn small" type="submit" form="kuji-form-{{ p.id }}">{{ msg.settings_save }}</button>
+            <div class="delete-arm">
+              <button type="button" class="btn small secondary js-delete-arm">{{ msg.kuji_reset_btn }}</button>
+              <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_reset_kuji', project_id=p.id) }}">
+                <button class="btn small secondary" type="submit">{{ msg.delete_confirm }}</button>
+                <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </details>
       </div>
     </details>
   {% else %}
     <p class="lead">{{ msg.no_projects }}</p>
   {% endfor %}
+  </div>
 </div>
-{% if is_admin %}
+{% if current_user %}
 <form class="logout-form" method="post" action="{{ url_for('admin_logout') }}">
   <button class="admin-btn" type="submit">{{ msg.logout }}</button>
 </form>
@@ -422,15 +504,46 @@
       });
     });
   });
+  document.querySelectorAll(".admin-section").forEach((box) => {
+    const remember = () => {
+      sessionStorage.setItem("adminOpenProject", box.dataset.project);
+      sessionStorage.setItem("adminOpenSection", box.id);
+    };
+    box.querySelectorAll("form").forEach((f) => f.addEventListener("submit", remember));
+    box.querySelectorAll('input[type="file"]').forEach((f) => f.addEventListener("change", remember));
+  });
   const openId = sessionStorage.getItem("adminOpenProject");
+  const openSection = sessionStorage.getItem("adminOpenSection");
+  sessionStorage.removeItem("adminOpenSection");
   if (openId) {
     sessionStorage.removeItem("adminOpenProject");
     const card = document.getElementById("project-" + openId);
     if (card) {
       card.open = true;
-      card.scrollIntoView({ block: "nearest" });
+      const sec = openSection && openSection.endsWith("-" + openId) && document.getElementById(openSection);
+      if (sec) sec.open = true;
+      (sec || card).scrollIntoView({ block: "nearest" });
     }
   }
 </script>
+{% if can_create_project %}
+<div class="glass-overlay" id="panel-project" hidden>
+  <div class="glass-card">
+    <div class="overlay-head">
+      <h2>{{ msg.new_project }}</h2>
+      <button class="overlay-close" type="button" data-close-overlay>{{ msg.close_panel }}</button>
+    </div>
+    <div class="overlay-body">
+      <form class="stack" method="post" action="{{ url_for('admin_create_project') }}">
+        <label>{{ msg.project_name }}</label>
+        <input name="name" required placeholder="{{ msg.project_name_placeholder }}">
+        <label>{{ msg.project_slug }}</label>
+        <input name="slug" placeholder="wedding">
+        <button class="btn" type="submit">{{ msg.project_add }}</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 {% block credit %}{% endblock %}

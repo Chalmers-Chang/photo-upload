@@ -1,12 +1,42 @@
 <div id="name-modal" class="name-modal" hidden data-save-error="{{ msg.nickname_save_failed }}">
   <div class="name-modal-card" role="dialog" aria-modal="true" aria-labelledby="name-modal-title">
     <h2 id="name-modal-title">{{ msg.nickname_title }}</h2>
-    <p>{{ msg.nickname_lead }}</p>
+    <p id="name-modal-lead">{{ msg.nickname_lead }}</p>
     <form id="name-form">
+      {% if not current_user %}
+      <div class="lang-pick" role="radiogroup" aria-label="{{ msg.lang_label }}">
+        <label class="lang-opt">
+          <input type="radio" name="ui-lang" value="zh" {% if ui_lang != 'en' %}checked{% endif %}>
+          {{ msg.lang_zh }}
+        </label>
+        <label class="lang-opt">
+          <input type="radio" name="ui-lang" value="en" {% if ui_lang == 'en' %}checked{% endif %}>
+          {{ msg.lang_en }}
+        </label>
+      </div>
+      {% endif %}
       <input id="name-input" name="nickname" maxlength="20" required placeholder="{{ msg.nickname_placeholder }}" autocomplete="nickname">
-      <button type="submit">{{ msg.nickname_ok }}</button>
+      <button type="submit" id="name-modal-ok">{{ msg.nickname_ok }}</button>
     </form>
     <p id="name-modal-error" class="name-modal-error" hidden></p>
   </div>
 </div>
+<script type="application/json" id="name-modal-copy">
+{
+  "zh": {
+    "title": {{ msg.zh.nickname_title | tojson }},
+    "lead": {{ msg.zh.nickname_lead | tojson }},
+    "placeholder": {{ msg.zh.nickname_placeholder | tojson }},
+    "ok": {{ msg.zh.nickname_ok | tojson }},
+    "saveError": {{ msg.zh.nickname_save_failed | tojson }}
+  },
+  "en": {
+    "title": {{ msg.en.nickname_title | tojson }},
+    "lead": {{ msg.en.nickname_lead | tojson }},
+    "placeholder": {{ msg.en.nickname_placeholder | tojson }},
+    "ok": {{ msg.en.nickname_ok | tojson }},
+    "saveError": {{ msg.en.nickname_save_failed | tojson }}
+  }
+}
+</script>
 <script src="{{ url_for('static', filename='profile.js') }}"></script>

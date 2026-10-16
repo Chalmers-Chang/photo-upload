@@ -1,165 +1,10 @@
 {% extends "base.html" %}
 {% block title %}{{ project.name }}{% endblock %}
 {% block extra_head %}
-<style>
-  /* Shared layout. Size knobs: Mobile / Desktop blocks below. */
-  html, body { height: 100%; overflow: hidden; --edge: 2cm; }
-  .pjt-stage {
-    position: fixed;
-    inset: 0;
-    z-index: 1;
-    background: #fff;
-  }
-  .pjt-stage picture,
-  .pjt-stage picture img {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  .pjt-fade {
-    position: absolute;
-    inset: 0;
-    background: #fff;
-    pointer-events: none;
-  }
-  .pjt-ui {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    display: grid;
-    grid-template-rows: minmax(0, 1fr) auto;
-    gap: 0.1cm;
-    padding: var(--glass);
-    padding-top: max(var(--glass), 64px);
-    box-sizing: border-box;
-  }
-  .glass {
-    position: relative;
-    width: 100%;
-    min-height: 0;
-    display: grid;
-    place-items: center;
-    padding: 24px 0.2cm;
-    box-sizing: border-box;
-    border-radius: 28px;
-    background: rgba(255, 255, 255, 0.72);
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    box-shadow: 0 8px 32px rgba(28, 25, 21, 0.08);
-  }
-  .pjt-stage.is-ready .glass {
-    background: rgba(255, 255, 255, 0.42);
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
-  }
-  .glass-body { width: min(720px, 100%); }
-  .pjt-ui > .site-credit {
-    position: static;
-    margin: 0;
-    padding: 0;
-    z-index: 3;
-  }
-  .pjt-title-block {
-    display: grid;
-    justify-items: stretch;
-    width: max-content;
-    max-width: 100%;
-  }
-  .pjt-stage h1 {
-    font-family: "Snell Roundhand", "Savoye LET", "Segoe Script", "Apple Chancery", "Kaiti TC", "STKaiti", "KaiTi", cursive;
-    font-size: var(--pjt-title);
-    font-weight: 400;
-    letter-spacing: 0;
-    line-height: 1.15;
-    text-align: center;
-    margin: 0 0 16px;
-    width: auto;
-    opacity: {{ 1 - cfg.title_fade }};
-  }
-  .pjt-mark {
-    display: block;
-    width: auto;
-    height: auto;
-    max-width: var(--pjt-mark);
-    max-height: var(--pjt-mark);
-    object-fit: contain;
-    justify-self: center;
-    margin: 0 auto 16px;
-    background: transparent;
-  }
-  .pjt-stage .lead {
-    white-space: pre-line;
-    text-align: center;
-    font-size: var(--pjt-lead);
-  }
-  .pjt-stage .actions {
-    display: grid;
-    gap: var(--pjt-btn-gap);
-    width: min(720px, 100%);
-    margin-top: 0.4cm;
-    padding: 0 var(--pjt-btn-inset);
-    justify-self: center;
-    box-sizing: border-box;
-  }
-  .pjt-stage .btn {
-    box-sizing: border-box;
-    width: 100%;
-    height: auto;
-    display: grid;
-    place-items: center;
-    white-space: pre-line;
-    padding: var(--pjt-btn-pad);
-    font-size: var(--pjt-btn-size);
-    font-weight: 700;
-    line-height: 1.35;
-    border-radius: var(--pjt-btn-radius);
-    color: rgba(28, 25, 21, {{ 1 - cfg.button_text_fade }});
-    border: 1px solid #fff;
-  }
-  .pjt-stage .btn:not(.secondary):not(.lottery) {
-    background: color-mix(in srgb, {{ cfg.upload_btn_color }} {{ (1 - cfg.button_fade) * 100 }}%, transparent);
-  }
-  .pjt-stage .btn.secondary {
-    background: color-mix(in srgb, {{ cfg.slideshow_btn_color }} {{ (1 - cfg.button_fade) * 100 }}%, transparent);
-  }
-  .pjt-stage .btn.lottery {
-    background: color-mix(in srgb, {{ cfg.lottery_btn_color }} {{ (1 - cfg.button_fade) * 100 }}%, transparent);
-  }
-
-  /* Mobile ≤640px */
-  @media (max-width: 640px) {
-    html, body {
-      --glass: {{ cfg.glass_pad_mobile_cm }}cm;
-      --pjt-title: clamp(40px, 11vw, 56px);
-      --pjt-mark: 3.9cm;
-      --pjt-lead: 16px;
-      --pjt-btn-size: 16px;
-      --pjt-btn-pad: 16px 14px;
-      --pjt-btn-radius: 14px;
-      --pjt-btn-gap: 0.3cm;
-      --pjt-btn-inset: 0.6cm;
-    }
-  }
-
-  /* Desktop ≥641px */
-  @media (min-width: 641px) {
-    html, body {
-      --glass: {{ cfg.glass_pad_cm }}cm;
-      --pjt-title: clamp(52px, 9vw, 84px);
-      --pjt-mark: 11.7cm;
-      --pjt-lead: 22px;
-      --pjt-btn-size: 18px;
-      --pjt-btn-pad: 22px 20px;
-      --pjt-btn-radius: 16px;
-      --pjt-btn-gap: 0.3cm;
-      --pjt-btn-inset: 0.6cm;
-    }
-  }
-</style>
+{% include "_cover_layout.html" %}
 {% endblock %}
 {% block body %}
-<div class="pjt-stage">
+<div class="pjt-stage glass-wait">
   {% if project.pjt_desktop_show or project.pjt_mobile_show %}
   <picture>
     <source media="(max-width: 640px)" srcset="{{ project.pjt_mobile_show }}">
@@ -167,8 +12,8 @@
   </picture>
   <div class="pjt-fade" style="opacity: {{ cfg.pjt_fade }}"></div>
   {% endif %}
-  <div class="pjt-ui">
-    <div class="glass">
+  <div class="glass-stage pjt-ui">
+    <div class="glass-card">
       <div class="pjt-title-block">
         <h1>{{ project.name }}</h1>
         {% if project.pjt_mark_url %}
@@ -181,7 +26,10 @@
       <div class="actions">
         <a class="btn" href="{{ url_for('upload', slug=project.slug) }}">{{ msg.upload_photos }}</a>
         <a class="btn secondary" href="{{ url_for('slideshow', slug=project.slug) }}">{{ msg.play_slideshow }}</a>
-        {% if is_admin %}
+        {% if kuji_total or can_edit %}
+          <a class="btn lottery" href="{{ url_for('kuji', slug=project.slug) }}">{{ msg.kuji }}</a>
+        {% endif %}
+        {% if can_lottery %}
           <a class="btn lottery" href="{{ url_for('lottery', slug=project.slug) }}">{{ msg.lottery }}</a>
         {% endif %}
       </div>
@@ -189,22 +37,5 @@
     {% include "_credit.html" %}
   </div>
 </div>
-<script>
-  (function () {
-    const stage = document.querySelector(".pjt-stage");
-    if (!stage) return;
-    const visible = [...stage.querySelectorAll("picture img")];
-    const go = () => stage.classList.add("is-ready");
-    if (!visible.length) {
-      requestAnimationFrame(go);
-      return;
-    }
-    Promise.all(
-      visible.map((img) =>
-        img.decode ? img.decode().catch(() => {}) : Promise.resolve()
-      )
-    ).then(() => requestAnimationFrame(go));
-  })();
-</script>
 {% endblock %}
 {% block credit %}{% endblock %}

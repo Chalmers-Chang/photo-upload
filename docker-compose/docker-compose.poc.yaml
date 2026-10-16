@@ -1,0 +1,68 @@
+# Local POC stack (this Mac). Builds from source; does not touch GHCR or the OWC volume.
+# Use ./poc.sh (up | seed | logs | restart | ps | down | reset).
+name: photo-upload-poc
+
+x-build: &build
+  context: ..
+  dockerfile: docker-compose/Dockerfile
+
+services:
+  app:
+    build:
+      <<: *build
+      target: app
+    environment:
+      PHOTO_DIR: /data/photos
+      LOG_DIR: /logs
+      REDIS_URL: redis://redis:6379/0
+    command:
+      - sh
+      - -c
+      - >-
+        exec gunicorn web.wsgi:app --bind 0.0.0.0:8000 --workers 2 --timeout 120 --reload
+        $$(find web/templates -type f -printf ' --reload-extra-file %p')
+    volumes:
+      - ../web:/app/web
+      - ../config:/app/config
+      - ./poc_seed.py:/app/poc_seed.py:ro
+      - ${POC_DATA_DIR:-../.poc}/photos:/data/photos
+      - ${POC_DATA_DIR:-../.poc}/photos/logs:/logs
+    depends_on:
+      - redis
+
+  detector:
+    build:
+      <<: *build
+      target: detector
+    environment:
+      PHOTO_DIR: /data/photos
+      REDIS_URL: redis://redis:6379/0
+      DETECTOR_THREADS: "2"
+    volumes:
+      - ../web:/app/web:ro
+      - ../config:/app/config:ro
+      - ${POC_DATA_DIR:-../.poc}/photos:/data/photos:ro
+    depends_on:
+      - redis
+
+  nginx:
+    build:
+      <<: *build
+      target: nginx
+    ports:
+      - "${POC_PORT:-8001}:80"
+    volumes:
+      - ${POC_DATA_DIR:-../.poc}/photos:/data/photos:ro
+    depends_on:
+      app:
+        condition: service_started
+        restart: true
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:

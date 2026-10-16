@@ -7,13 +7,19 @@ import uuid
 from pathlib import Path
 
 import redis
+from werkzeug.security import check_password_hash, generate_password_hash
 
+from config import admin as admin_config
 from config import appsetting
 from config import msg
 from config import redis as redis_config
 
 _slug_re = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+_USER_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,31}$")
 _GUEST_JPG = re.compile(r"^[0-9a-f]{32}\.jpg$")
+ROLES = ("admin", "maintainer", "guest")
+STAFF_ROLES = ("admin", "maintainer")
+VISITED_MAX = 40
 
 _ADVANCE_LUA = """
 local state_key = KEYS[1]
@@ -56,8 +62,70 @@ redis.call('HSET', state_key,
 return {photo_id, tostring(now), tostring(show_until), tostring(interval), tostring(n)}
 """
 
+KUJI_GRADES = ("A", "B", "C", "D", "E")
+KUJI_TOTAL_MAX = 999
+KUJI_PER_USER_MAX = 50
+KUJI_LABEL_MAX = 40
+
+_KUJI_DRAW_LUA = """
+local cfg, drawn, used, earned, mine, draws, seq =
+  KEYS[1], KEYS[2], KEYS[3], KEYS[4], KEYS[5], KEYS[6], KEYS[7]
+local per = tonumber(redis.call('HGET', cfg, 'per_user') or ARGV[4])
+local have = tonumber(redis.call('GET', earned) or '0')
+local done = tonumber(redis.call('GET', used) or '0')
+local unlimited = tonumber(ARGV[5] or '0')
+if unlimited == 0 and done >= math.min(have, per) then
+  return {'no_chance'}
+end
+local grades = {'A', 'B', 'C', 'D', 'E'}
+local left = {}
+local sum = 0
+for i, g in ipairs(grades) do
+  local l = tonumber(redis.call('HGET', cfg, g) or '0')
+    - tonumber(redis.call('HGET', drawn, g) or '0')
+  if l < 0 then l = 0 end
+  left[i] = l
+  sum = sum + l
+end
+if sum == 0 then
+  return {'sold_out'}
+end
+local pick = math.floor(tonumber(ARGV[1]) * sum)
+if pick >= sum then pick = sum - 1 end
+local grade
+for i, g in ipairs(grades) do
+  if pick < left[i] then
+    grade = g
+    break
+  end
+  pick = pick - left[i]
+end
+redis.call('HINCRBY', drawn, grade, 1)
+redis.call('INCR', used)
+local id = tostring(redis.call('INCR', seq))
+redis.call('HSET', draws, id, cjson.encode({grade = grade, device_id = ARGV[3], ts = tonumber(ARGV[2])}))
+redis.call('RPUSH', mine, id)
+return {'ok', grade, id}
+"""
+
+_KUJI_SAVE_LUA = """
+local grades = {'A', 'B', 'C', 'D', 'E'}
+for i, g in ipairs(grades) do
+  if tonumber(ARGV[i + 1]) < tonumber(redis.call('HGET', KEYS[2], g) or '0') then
+    return g
+  end
+end
+redis.call('HSET', KEYS[1], 'per_user', ARGV[1],
+  'A', ARGV[2], 'B', ARGV[3], 'C', ARGV[4], 'D', ARGV[5], 'E', ARGV[6])
+return ''
+"""
+
+DETECT_Q = "detect_q"
+DETECT_BUSY = "detect_busy"
+
 _pool = None
 _advance = None
+_scripts = {}
 
 
 def r():
@@ -72,6 +140,12 @@ def advance_script():
     if _advance is None:
         _advance = r().register_script(_ADVANCE_LUA)
     return _advance
+
+
+def _script(name, src):
+    if name not in _scripts:
+        _scripts[name] = r().register_script(src)
+    return _scripts[name]
 
 
 def ttl_seconds():
@@ -98,7 +172,20 @@ ASSETS = {
     "bkg-mobile": "bkg-mobile.jpg",
     "lot-desktop": "lot-desktop.jpg",
     "lot-mobile": "lot-mobile.jpg",
+    "kuji-mark": "kuji-mark.png",
+    "kuji-ticket": "kuji-ticket.png",
+    "kuji-desktop": "kuji-desktop.jpg",
+    "kuji-mobile": "kuji-mobile.jpg",
+    "kuji-a": "kuji-a.jpg",
+    "kuji-b": "kuji-b.jpg",
+    "kuji-c": "kuji-c.jpg",
+    "kuji-d": "kuji-d.jpg",
+    "kuji-e": "kuji-e.jpg",
 }
+
+
+def asset_is_png(kind):
+    return ASSETS.get(kind, "").endswith(".png")
 
 _LEGACY = {
     "pjt": "pjt-home.jpg",
@@ -164,6 +251,16 @@ def attach_assets(project):
     )
     project["lot_mobile_show"] = (
         project["lot_mobile_url"] or project["lot_desktop_url"]
+    )
+    project["kuji_desktop_show"] = (
+        project["kuji_desktop_url"]
+        or project["kuji_mobile_url"]
+        or project["pjt_desktop_show"]
+    )
+    project["kuji_mobile_show"] = (
+        project["kuji_mobile_url"]
+        or project["kuji_desktop_url"]
+        or project["pjt_mobile_show"]
     )
     return project
 
@@ -242,11 +339,15 @@ def update_project_settings(project_id, form):
         raise ValueError(msg.project_missing)
     mapping = {}
     for k in SETTINGS:
+        if k not in form:
+            continue
         try:
             n = _parse_setting(k, form.get(k))
         except (TypeError, ValueError):
             raise ValueError(msg.bad_setting)
         mapping[k] = str(n)
+    if not mapping:
+        raise ValueError(msg.bad_setting)
     r().hset(f"project:{project_id}", mapping=mapping)
     cfgp = settings_of(project_id)
     rebuild_slideshow_queue(project_id, cfgp)
@@ -269,20 +370,50 @@ def project_by_slug(slug):
     return get_project(pid)
 
 
-def list_projects():
-    ids = sorted(r().smembers("projects"))
+def list_projects_for_ids(ids):
     out = []
+    seen = set()
     for pid in ids:
+        if pid in seen:
+            continue
+        seen.add(pid)
         p = get_project(pid)
         if not p:
             continue
         p["photo_count"] = r().zcard(f"photos:{pid}")
+        p["kuji"] = kuji_state(pid)
         out.append(p)
     out.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     return out
 
 
-def create_project(name, slug):
+def list_projects():
+    return list_projects_for_ids(sorted(r().smembers("projects")))
+
+
+def projects_by_slugs(slugs):
+    out = []
+    seen = set()
+    for slug in slugs:
+        p = project_by_slug(slug)
+        if p and p["id"] not in seen:
+            seen.add(p["id"])
+            out.append(p)
+    return out
+
+
+def parse_visited(cookie):
+    slugs = []
+    for s in (cookie or "").split(","):
+        s = s.strip().lower()
+        if valid_slug(s) and s not in slugs:
+            slugs.append(s)
+        if len(slugs) >= VISITED_MAX:
+            break
+    return slugs
+
+
+def create_project(name, slug, owner=None):
     name = (name or "").strip()
     slug = (slug or "").strip().lower()
     if not name:
@@ -311,6 +442,8 @@ def create_project(name, slug):
     conn.hset(f"project:{pid}", mapping=mapping)
     conn.set(f"slug:{slug}", pid)
     photo_dir(pid).mkdir(parents=True, exist_ok=True)
+    if owner and not is_root(owner):
+        set_user_role(owner, pid, "admin")
     return get_project(pid)
 
 
@@ -327,8 +460,12 @@ def wipe_tickets(project_id):
     for device_id in devices:
         pipe.delete(f"device_photos:{project_id}:{device_id}")
         pipe.delete(f"device_chance:{project_id}:{device_id}")
-    pipe.delete(f"devices:{project_id}")
+        pipe.delete(f"device_eligible:{project_id}:{device_id}")
+        pipe.delete(f"device_pending:{project_id}:{device_id}")
+        pipe.delete(f"kuji_earned:{project_id}:{device_id}")
     pipe.execute()
+    kuji_reset(project_id)
+    conn.delete(f"devices:{project_id}")
 
 
 def wipe_photos(project_id, delete_files):
@@ -367,10 +504,231 @@ def delete_project(project_id, delete_files):
         raise ValueError(msg.project_missing)
     wipe_photos(project_id, delete_files=delete_files)
     conn = r()
-    conn.delete(f"project:{project_id}")
-    conn.delete(f"slug:{p['slug']}")
-    conn.srem("projects", project_id)
+    users = conn.smembers(f"project_users:{project_id}")
+    pipe = conn.pipeline()
+    for name in users:
+        pipe.hdel(f"user_projects:{name}", project_id)
+    pipe.delete(f"project_users:{project_id}")
+    pipe.delete(f"project:{project_id}")
+    pipe.delete(f"kuji:{project_id}")
+    pipe.delete(f"slug:{p['slug']}")
+    pipe.srem("projects", project_id)
+    pipe.execute()
     return p
+
+
+def ensure_root():
+    name = (admin_config.username or "").strip()
+    if not name:
+        return
+    try:
+        conn = r()
+    except redis.exceptions.ConnectionError:
+        return
+    if conn.exists(f"user:{name}"):
+        return
+    conn.sadd("users", name)
+    conn.hset(
+        f"user:{name}",
+        mapping={
+            "password": generate_password_hash(admin_config.password),
+            "is_root": "1",
+            "lang": "zh",
+            "created_at": str(int(time.time())),
+        },
+    )
+
+
+def valid_username(name):
+    return bool(name) and bool(_USER_RE.match(name))
+
+
+def get_user(name):
+    if not name:
+        return None
+    data = r().hgetall(f"user:{name}")
+    if not data or not data.get("password"):
+        return None
+    data["name"] = name
+    data["is_root"] = data.get("is_root") == "1"
+    data["lang"] = msg.normalize_lang(data.get("lang"))
+    return data
+
+
+def authenticate(name, password):
+    u = get_user((name or "").strip())
+    if not u or not check_password_hash(u["password"], password or ""):
+        return None
+    return u
+
+
+def create_user(name, password):
+    name = (name or "").strip()
+    if not valid_username(name):
+        raise ValueError(msg.bad_username)
+    if not 4 <= len(password or "") <= 72:
+        raise ValueError(msg.bad_password)
+    conn = r()
+    if conn.exists(f"user:{name}"):
+        raise ValueError(msg.username_taken)
+    conn.sadd("users", name)
+    conn.hset(
+        f"user:{name}",
+        mapping={
+            "password": generate_password_hash(password),
+            "is_root": "0",
+            "lang": "zh",
+            "created_at": str(int(time.time())),
+        },
+    )
+    return get_user(name)
+
+
+def set_password(name, password):
+    if not get_user(name):
+        raise ValueError(msg.user_missing)
+    if not 4 <= len(password or "") <= 72:
+        raise ValueError(msg.bad_password)
+    r().hset(f"user:{name}", "password", generate_password_hash(password))
+
+
+def change_password(name, old, new):
+    if not authenticate(name, old):
+        raise ValueError(msg.wrong_password)
+    set_password(name, new)
+
+
+def delete_user(name):
+    u = get_user(name)
+    if not u:
+        raise ValueError(msg.user_missing)
+    if u["is_root"]:
+        raise ValueError(msg.cannot_delete_root)
+    conn = r()
+    pids = conn.hkeys(f"user_projects:{name}")
+    pipe = conn.pipeline()
+    for pid in pids:
+        pipe.srem(f"project_users:{pid}", name)
+    pipe.delete(f"user_projects:{name}")
+    pipe.delete(f"user:{name}")
+    pipe.srem("users", name)
+    pipe.execute()
+
+
+def user_roles(name):
+    return r().hgetall(f"user_projects:{name}") or {}
+
+
+def list_users():
+    names = sorted(r().smembers("users"), key=str.lower)
+    out = []
+    for name in names:
+        u = get_user(name)
+        if not u:
+            continue
+        u["roles"] = user_roles(name)
+        out.append(u)
+    return out
+
+
+def is_root(name):
+    u = get_user(name)
+    return bool(u and u["is_root"])
+
+
+def user_role(name, project_id):
+    u = get_user(name)
+    if not u:
+        return None
+    if u["is_root"]:
+        return "root"
+    role = r().hget(f"user_projects:{name}", project_id)
+    return role if role in ROLES else None
+
+
+def set_user_role(name, project_id, role):
+    u = get_user(name)
+    if not u:
+        raise ValueError(msg.user_missing)
+    if u["is_root"]:
+        raise ValueError(msg.cannot_assign_root)
+    if not r().exists(f"project:{project_id}"):
+        raise ValueError(msg.project_missing)
+    role = (role or "").strip()
+    conn = r()
+    if not role:
+        conn.hdel(f"user_projects:{name}", project_id)
+        conn.srem(f"project_users:{project_id}", name)
+        return
+    if role not in ROLES:
+        raise ValueError(msg.bad_role)
+    conn.hset(f"user_projects:{name}", project_id, role)
+    conn.sadd(f"project_users:{project_id}", name)
+
+
+def save_user_roles(name, form, project_ids):
+    for pid in project_ids:
+        set_user_role(name, pid, form.get(f"role_{pid}"))
+
+
+def user_lang(name):
+    return msg.normalize_lang(r().hget(f"user:{name}", "lang"))
+
+
+def set_user_lang(name, lang):
+    if not get_user(name):
+        raise ValueError(msg.user_missing)
+    lang = msg.normalize_lang(lang)
+    r().hset(f"user:{name}", "lang", lang)
+    return lang
+
+
+def visible_ids(name):
+    u = get_user(name)
+    if not u:
+        return []
+    if u["is_root"]:
+        return sorted(r().smembers("projects"))
+    return list(user_roles(name).keys())
+
+
+def staff_ids(name):
+    u = get_user(name)
+    if not u:
+        return []
+    if u["is_root"]:
+        return sorted(r().smembers("projects"))
+    return [pid for pid, role in user_roles(name).items() if role in STAFF_ROLES]
+
+
+def can_staff(name):
+    u = get_user(name)
+    if not u:
+        return False
+    if u["is_root"]:
+        return True
+    return any(role in STAFF_ROLES for role in user_roles(name).values())
+
+
+def can_create_project(name):
+    u = get_user(name)
+    if not u:
+        return False
+    if u["is_root"]:
+        return True
+    return any(role == "admin" for role in user_roles(name).values())
+
+
+def can_edit(name, project_id):
+    return user_role(name, project_id) in ("root", "admin", "maintainer")
+
+
+def can_delete_project(name, project_id):
+    return user_role(name, project_id) in ("root", "admin")
+
+
+def can_lottery(name, project_id):
+    return user_role(name, project_id) in ("root", "admin", "maintainer", "guest")
 
 
 def chance_count(project_id, device_id):
@@ -408,32 +766,82 @@ def add_ticket(project_id, photo_id, device_id):
 
 
 def add_photo(project_id, photo_id, caption, device_id, rebuild=True):
+    """Save the photo record; chances are granted later by the detector."""
     now = time.time()
+    ttl = ttl_seconds()
     conn = r()
     conn.set(
         f"photo:{project_id}:{photo_id}",
         json.dumps(
-            {"caption": caption, "ts": now, "device_id": device_id},
+            {"caption": caption, "ts": now, "device_id": device_id, "person": None},
             ensure_ascii=False,
         ),
-        ex=ttl_seconds(),
+        ex=ttl,
     )
     conn.zadd(f"photos:{project_id}", {photo_id: now})
     conn.sadd(f"devices:{project_id}", device_id)
     conn.zadd(f"device_photos:{project_id}:{device_id}", {photo_id: now})
-    cap = appsetting.lottery_chance_max
-    chances = chance_count(project_id, device_id)
-    at_cap = chances >= cap
-    if at_cap:
-        drop_oldest_ticket(project_id, device_id)
-    serial, n = add_ticket(project_id, photo_id, device_id)
-    if n > cap:
-        drop_oldest_ticket(project_id, device_id)
-        r().set(f"device_chance:{project_id}:{device_id}", cap, ex=ttl_seconds())
-        n = cap
+    conn.sadd(f"device_pending:{project_id}:{device_id}", photo_id)
+    conn.expire(f"device_pending:{project_id}:{device_id}", ttl)
+    conn.lpush(
+        DETECT_Q,
+        json.dumps(
+            {"project_id": project_id, "photo_id": photo_id, "device_id": device_id}
+        ),
+    )
     if rebuild:
         rebuild_slideshow_queue(project_id)
-    return serial, n, at_cap
+
+
+def grant_person(project_id, photo_id, device_id, ts):
+    cap = appsetting.lottery_chance_max
+    ttl = ttl_seconds()
+    conn = r()
+    if chance_count(project_id, device_id) >= cap:
+        drop_oldest_ticket(project_id, device_id)
+    _, n = add_ticket(project_id, photo_id, device_id)
+    if n > cap:
+        drop_oldest_ticket(project_id, device_id)
+        conn.set(f"device_chance:{project_id}:{device_id}", cap, ex=ttl)
+    conn.zadd(f"device_eligible:{project_id}:{device_id}", {photo_id: ts})
+    conn.expire(f"device_eligible:{project_id}:{device_id}", ttl)
+    conn.incr(f"kuji_earned:{project_id}:{device_id}")
+    conn.expire(f"kuji_earned:{project_id}:{device_id}", ttl)
+
+
+def set_person(project_id, photo_id, device_id, person):
+    """Record the detector result once; a person grants lottery + kuji chances."""
+    conn = r()
+    key = f"photo:{project_id}:{photo_id}"
+    raw = conn.get(key)
+    if not raw:
+        return
+    data = json.loads(raw)
+    if data.get("person") is not None:
+        return
+    data["person"] = bool(person)
+    conn.set(key, json.dumps(data, ensure_ascii=False), keepttl=True)
+    did = data.get("device_id") or device_id
+    conn.srem(f"device_pending:{project_id}:{did}", photo_id)
+    if person:
+        grant_person(project_id, photo_id, did, data.get("ts") or time.time())
+
+
+def photo_status(project_id, device_id, photo_ids):
+    out = {}
+    for pid in photo_ids[:20]:
+        raw = r().get(f"photo:{project_id}:{pid}")
+        if not raw:
+            continue
+        data = json.loads(raw)
+        if data.get("device_id") != device_id:
+            continue
+        out[pid] = data.get("person")
+    return {
+        "photos": out,
+        "chances": chance_count(project_id, device_id),
+        "kuji": kuji_me(project_id, device_id),
+    }
 
 
 def nickname_of(device_id):
@@ -448,6 +856,19 @@ def set_nickname(device_id, name):
         raise ValueError(msg.nickname_bad)
     r().set(f"device_name:{device_id}", name)
     return name
+
+
+def device_lang(device_id):
+    raw = r().get(f"device_lang:{device_id}")
+    if not raw:
+        return ""
+    return msg.normalize_lang(raw)
+
+
+def set_device_lang(device_id, lang):
+    lang = msg.normalize_lang(lang)
+    r().set(f"device_lang:{device_id}", lang)
+    return lang
 
 
 def load_photo(project_id, photo_id):
@@ -583,7 +1004,7 @@ def drop_oldest_ticket(project_id, device_id):
 
 def latest_photo_ids(project_id, device_id, n):
     return set(
-        r().zrevrange(f"device_photos:{project_id}:{device_id}", 0, n - 1)
+        r().zrevrange(f"device_eligible:{project_id}:{device_id}", 0, n - 1)
     )
 
 
@@ -627,7 +1048,7 @@ def lottery_pool(project_id):
     for did in r().smembers(f"devices:{project_id}"):
         if did in won:
             continue
-        for pid in r().zrevrange(f"device_photos:{project_id}:{did}", 0, cap - 1):
+        for pid in r().zrevrange(f"device_eligible:{project_id}:{did}", 0, cap - 1):
             item = load_photo(project_id, pid)
             if item:
                 out.append(item)
@@ -695,3 +1116,207 @@ def draw_lottery(project_id):
         "device_photos": others,
         "sphere": sphere,
     }
+
+
+def kuji_label_part(raw, key, fallback):
+    s = (raw.get(key) or "").strip()
+    if not s or len(s) > KUJI_LABEL_MAX:
+        return "", fallback
+    return s, s
+
+
+def kuji_names_of(raw, grade):
+    zh_raw, zh = kuji_label_part(
+        raw, f"label_{grade}", msg.kuji_grade_zh.format(grade=grade)
+    )
+    en_raw, en = kuji_label_part(
+        raw, f"label_en_{grade}", msg.kuji_grade_en.format(grade=grade)
+    )
+    return {
+        "label": f"{zh} / {en}",
+        "label_zh": zh,
+        "label_en": en,
+        "label_raw": zh_raw,
+        "label_en_raw": en_raw,
+    }
+
+
+def kuji_settings(project_id):
+    raw = r().hgetall(f"kuji:{project_id}") or {}
+    out = {
+        "per_user": appsetting.kuji_per_user,
+        "totals": {},
+        "names": {},
+    }
+    try:
+        out["per_user"] = int(raw["per_user"])
+    except (KeyError, ValueError):
+        pass
+    for g in KUJI_GRADES:
+        try:
+            out["totals"][g] = int(raw.get(g) or 0)
+        except ValueError:
+            out["totals"][g] = 0
+        out["names"][g] = kuji_names_of(raw, g)
+    return out
+
+
+def kuji_save(project_id, form):
+    if not r().exists(f"project:{project_id}"):
+        raise ValueError(msg.project_missing)
+    try:
+        per = int(form.get("per_user"))
+        totals = [int(form.get(f"total_{g}") or 0) for g in KUJI_GRADES]
+    except (TypeError, ValueError):
+        raise ValueError(msg.bad_setting)
+    if not 0 <= per <= KUJI_PER_USER_MAX:
+        raise ValueError(msg.bad_setting)
+    if any(not 0 <= t <= KUJI_TOTAL_MAX for t in totals):
+        raise ValueError(msg.bad_setting)
+    labels = {}
+    for g in KUJI_GRADES:
+        zh = (form.get(f"label_{g}") or "").strip()
+        en = (form.get(f"label_en_{g}") or "").strip()
+        if len(zh) > KUJI_LABEL_MAX or len(en) > KUJI_LABEL_MAX:
+            raise ValueError(msg.kuji_label_too_long)
+        labels[f"label_{g}"] = zh
+        labels[f"label_en_{g}"] = en
+    bad = _script("kuji_save", _KUJI_SAVE_LUA)(
+        keys=[f"kuji:{project_id}", f"kuji_drawn:{project_id}"],
+        args=[per, *totals],
+    )
+    if bad:
+        raise ValueError(msg.kuji_total_below_drawn.format(grade=bad))
+    r().hset(f"kuji:{project_id}", mapping=labels)
+
+
+def kuji_reset(project_id):
+    conn = r()
+    pipe = conn.pipeline()
+    for k in ("kuji_drawn", "kuji_draws", "kuji_claimed", "kuji_seq"):
+        pipe.delete(f"{k}:{project_id}")
+    for did in conn.smembers(f"devices:{project_id}"):
+        pipe.delete(f"kuji_used:{project_id}:{did}")
+        pipe.delete(f"kuji_mine:{project_id}:{did}")
+    pipe.execute()
+
+
+def _prize_urls(project_id, grade):
+    kind = f"kuji-{grade.lower()}"
+    return asset_url(project_id, kind), asset_thumb_url(project_id, kind)
+
+
+def kuji_state(project_id):
+    cfgk = kuji_settings(project_id)
+    drawn = r().hgetall(f"kuji_drawn:{project_id}") or {}
+    grades = []
+    for g in KUJI_GRADES:
+        total = cfgk["totals"][g]
+        d = min(total, int(drawn.get(g) or 0))
+        url, thumb = _prize_urls(project_id, g)
+        grades.append(
+            {"grade": g, **cfgk["names"][g],
+             "total": total, "drawn": d, "left": total - d,
+             "url": url, "thumb": thumb}
+        )
+    return {
+        "per_user": cfgk["per_user"],
+        "grades": grades,
+        "total": sum(x["total"] for x in grades),
+        "left": sum(x["left"] for x in grades),
+    }
+
+
+def kuji_me(project_id, device_id, unlimited=False):
+    conn = r()
+    per = kuji_settings(project_id)["per_user"]
+    earned = int(conn.get(f"kuji_earned:{project_id}:{device_id}") or 0)
+    used = int(conn.get(f"kuji_used:{project_id}:{device_id}") or 0)
+    left = 1 if unlimited else max(0, min(earned, per) - used)
+    return {
+        "earned": earned,
+        "used": used,
+        "per_user": per,
+        "left": left,
+        "unlimited": bool(unlimited),
+        "pending": int(conn.scard(f"device_pending:{project_id}:{device_id}") or 0),
+    }
+
+
+def kuji_draw(project_id, device_id, unlimited=False):
+    res = _script("kuji_draw", _KUJI_DRAW_LUA)(
+        keys=[
+            f"kuji:{project_id}",
+            f"kuji_drawn:{project_id}",
+            f"kuji_used:{project_id}:{device_id}",
+            f"kuji_earned:{project_id}:{device_id}",
+            f"kuji_mine:{project_id}:{device_id}",
+            f"kuji_draws:{project_id}",
+            f"kuji_seq:{project_id}",
+        ],
+        args=[
+            random.random(),
+            time.time(),
+            device_id,
+            appsetting.kuji_per_user,
+            "1" if unlimited else "0",
+        ],
+    )
+    if res[0] == "sold_out":
+        raise ValueError(msg.kuji_sold_out)
+    if res[0] != "ok":
+        me = kuji_me(project_id, device_id, unlimited=unlimited)
+        if not unlimited and me["used"] >= me["per_user"]:
+            raise ValueError(msg.kuji_cap_reached.format(n=me["per_user"]))
+        if me["pending"]:
+            raise ValueError(msg.kuji_pending)
+        raise ValueError(msg.kuji_need_photo)
+    _, grade, draw_id = res
+    url, thumb = _prize_urls(project_id, grade)
+    names = kuji_settings(project_id)["names"][grade]
+    return {
+        "id": draw_id,
+        "grade": grade,
+        "label": names["label"],
+        "label_zh": names["label_zh"],
+        "label_en": names["label_en"],
+        "url": url,
+        "thumb": thumb,
+        "me": kuji_me(project_id, device_id, unlimited=unlimited),
+    }
+
+
+def kuji_mine(project_id, device_id):
+    conn = r()
+    ids = conn.lrange(f"kuji_mine:{project_id}:{device_id}", 0, -1)
+    if not ids:
+        return []
+    names = kuji_settings(project_id)["names"]
+    draws = conn.hmget(f"kuji_draws:{project_id}", ids)
+    claimed = conn.hmget(f"kuji_claimed:{project_id}", ids)
+    out = []
+    for draw_id, raw, at in zip(ids, draws, claimed):
+        if not raw:
+            continue
+        d = json.loads(raw)
+        url, thumb = _prize_urls(project_id, d["grade"])
+        n = names.get(d["grade"]) or kuji_names_of({}, d["grade"])
+        out.append(
+            {"id": draw_id, "grade": d["grade"],
+             "label": n["label"], "label_zh": n["label_zh"], "label_en": n["label_en"],
+             "ts": d.get("ts"),
+             "url": url, "thumb": thumb,
+             "claimed_at": int(at) if at else None}
+        )
+    return out
+
+
+def kuji_claim(project_id, device_id, draw_id):
+    conn = r()
+    raw = conn.hget(f"kuji_draws:{project_id}", draw_id)
+    if not raw or json.loads(raw).get("device_id") != device_id:
+        raise ValueError(msg.kuji_claim_missing)
+    now = int(time.time())
+    if not conn.hsetnx(f"kuji_claimed:{project_id}", draw_id, now):
+        raise ValueError(msg.kuji_already_claimed)
+    return now

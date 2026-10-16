@@ -3,52 +3,18 @@
 {% block extra_head %}
 <style>
   html, body { height: 100%; overflow: hidden; --edge: 2cm; }
-  /* Mobile ≤640px */
-  @media (max-width: 640px) {
-    html, body { --glass: {{ cfg.glass_pad_mobile_cm }}cm; }
-  }
-  /* Desktop ≥641px */
-  @media (min-width: 641px) {
-    html, body { --glass: {{ cfg.glass_pad_cm }}cm; }
-  }
-  .admin-stage {
-    position: fixed;
-    inset: 0;
-    z-index: 1;
-    background: var(--bg);
-    display: grid;
-    grid-template-rows: minmax(0, 1fr) auto;
-    gap: 0.1cm;
-    padding: var(--glass);
-    padding-top: max(var(--glass), 64px);
-    box-sizing: border-box;
-  }
-  .admin-stage > .glass {
-    position: relative;
-    min-height: 0;
+  .admin-stage > .glass-card {
     overflow: auto;
     display: grid;
     place-items: center;
     padding: 24px;
-    box-sizing: border-box;
-    border-radius: 28px;
-    background: rgba(255, 255, 255, 0.42);
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    box-shadow: 0 8px 32px rgba(28, 25, 21, 0.08);
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
   }
   .glass-body { width: min(360px, 100%); }
-  .admin-stage > .site-credit {
-    position: static;
-    margin: 0;
-    padding: 0;
-  }
 </style>
 {% endblock %}
 {% block body %}
-<div class="admin-stage">
-  <div class="glass">
+<div class="glass-stage admin-stage">
+  <div class="glass-card">
     <div class="glass-body">
       <h1>{{ msg.admin }}</h1>
       {% if error %}<p class="flash error">{{ error }}</p>{% endif %}

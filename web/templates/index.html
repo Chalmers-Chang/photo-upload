@@ -1,10 +1,67 @@
 {% extends "base.html" %}
 {% block title %}{{ msg.site_title }}{% endblock %}
+{% block extra_head %}
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  .index-stage > .glass-card {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+  }
+  .index-stage .glass-body {
+    width: min(720px, 100%);
+    margin: 0 auto;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+  .index-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 12px;
+  }
+  .index-title h1 { margin: 0; }
+  .project-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: inherit;
+  }
+  .project-link img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+  .project-link h2 { margin: 0; font-size: 20px; }
+  .index-stage .lead { white-space: pre-line; }
+</style>
+{% endblock %}
 {% block body %}
-  <div class="hero">
-    <div>
-      <h1>{{ msg.site_title }}</h1>
-      <p class="lead">{{ msg.home_lead }}</p>
+<div class="glass-stage index-stage">
+  <div class="glass-card">
+    <div class="glass-body">
+      <div class="index-title">
+        <h1>{{ msg.projects }}</h1>
+      </div>
+      {% for category, message in get_flashed_messages(with_categories=true) %}
+        <p class="flash {{ category }}">{{ message }}</p>
+      {% endfor %}
+      {% for p in projects %}
+        <a class="card project-link" href="{{ url_for('project_home', slug=p.slug) }}">
+          {% if p.pjt_mark_url %}<img src="{{ p.pjt_mark_url }}" alt="">{% endif %}
+          <h2>{{ p.name }}</h2>
+        </a>
+      {% else %}
+        <p class="lead">{{ msg.home_empty_user if current_user else msg.home_empty_guest }}</p>
+      {% endfor %}
     </div>
   </div>
+  {% include "_credit.html" %}
+</div>
 {% endblock %}
+{% block credit %}{% endblock %}

@@ -1,13 +1,13 @@
 # photo-upload
 
-Guests upload photos. Multiple screens play the same slideshow. Admins run a lottery. The supported way to run it is Docker Compose: nginx + gunicorn + Redis.
+Guests upload photos. Multiple screens play the same slideshow. Admins run a lottery, and guests draw Ichiban Kuji (一番賞) prizes. Only photos with a person in them earn lottery and Ichiban Kuji chances. The supported way to run it is Docker Compose: nginx + gunicorn + Redis + a person-detector worker.
 
 ## Requirements
 
 - Docker and Compose, **linux/arm64** images (Apple Silicon)
 - A photo directory the Docker VM can mount (files stay on the host, not in the image)
 - Port **8000** free
-- Pull access to `ghcr.io/chalmers-chang/photo-upload` and `photo-upload-nginx`
+- Pull access to `ghcr.io/chalmers-chang/photo-upload`, `photo-upload-nginx`, and `photo-upload-detector`
 - Redis is started by Compose (`redis-data` named volume)
 
 Flask alone does **not** serve `/photos/` — nginx does. Use Compose for local debugging too.
@@ -24,9 +24,18 @@ docker compose pull
 docker compose up -d
 ```
 
-Open `http://localhost:8000`. Admin is `/admin`.
+Open `http://localhost:8000`. The home page lists projects. Admin is `/admin` (root / `ADMIN_PASSWORD` on first boot).
 
-Pushes to `main` or `feature/**` build `linux/arm64` on the self-hosted Mac runner (native, no QEMU), then `compose pull && compose up -d`.
+Pushes to `main` or `feature/**` build `linux/arm64` on the self-hosted Mac runner (native, no QEMU), then `compose pull && compose up -d` with `:latest`. Compose only recreates a service when that image digest changed (Redis stays; nginx/detector stay on template-only app deploys). nginx still restarts when app gets a new IP so it does not 502. SHA tags are still pushed for rollback (`IMAGE_TAG=<sha> compose up -d`).
+
+### Local POC (no push, no GHCR)
+
+```bash
+docker-compose/poc.sh up     # build from source, http://localhost:8001 (+ LAN URL for phones)
+docker-compose/poc.sh seed   # demo project /p/poc/ with backgrounds, marks, ticket, A–E prizes
+```
+
+Separate Compose project (`photo-upload-poc`): own Redis volume, photos in `.poc/` (gitignored), port `POC_PORT` (default 8001). `web/` and `config/` are bind-mounted and gunicorn runs with `--reload`, so Python and template edits apply on save. `web/detector.py` needs `poc.sh restart detector`. Rebuild (`poc.sh up`) only after changing `python/uv.lock`, the Dockerfile, or `nginx.conf`. `poc.sh reset` wipes POC data.
 
 ## What to change
 
@@ -36,7 +45,7 @@ Pushes to `main` or `feature/**` build `linux/arm64` on the self-hosted Mac runn
 | --- | --- | --- |
 | Photo directory | Compose `HOST_PHOTO_DIR` (or `.env`) | Default `/Volumes/OWC Envoy Pro FX/photo-upload`. Bind the same path on **app** and **nginx**. |
 | App logs | `$HOST_PHOTO_DIR/logs` | One file per project per day. Deploy also symlinks `/opt/app/photo-upload/logs`. Older than 30 days are deleted. |
-| Admin login | `ADMIN_USERNAME` / `ADMIN_PASSWORD` on `app` | Defaults live in `config/admin.py`. Change them. |
+| Admin login | `ADMIN_USERNAME` / `ADMIN_PASSWORD` on `app` | Seeds the root account in Redis on first boot (`config/admin.py`). Later password changes live in Redis. |
 | `SECRET_KEY` | `app` environment | Default in `config/appsetting.py`. Signs cookies. |
 
 **Site-wide defaults** (Compose `app.environment`, or `config/appsetting.py`). New projects copy the slideshow/lottery values; each project can override them in Admin → Settings.
@@ -59,9 +68,13 @@ Pushes to `main` or `feature/**` build `linux/arm64` on the self-hosted Mac runn
 | `GUNICORN_TIMEOUT` | `120` | Keep high for large uploads |
 | `LOTTERY_SECONDS` | `10` | Sphere spin duration |
 | `LOTTERY_SPHERE_MAX` | `60` | Photos on the lottery sphere |
-| `LOTTERY_CHANCE_MAX` | `10` | Lottery tickets per device (newest photos) |
+| `LOTTERY_CHANCE_MAX` | `10` | Lottery tickets per device (newest photos with people) |
+| `KUJI_PER_USER` | `2` | Default Ichiban Kuji draws per device (one per photo with people, up to this cap). Per project in Admin |
+| `DETECTOR_THREADS` | `2` | onnxruntime CPU threads on the `detector` service |
+| `PERSON_SCORE` | `0.45` | Min person score (0–1) for a photo to count |
+| `PERSON_MIN_AREA` | `0.005` | Min person box area as a fraction of the photo (ignores tiny far-away people) |
 
-Look-and-feel (`PJT_FADE`, `BKG_FADE`, button colors, glass padding, `LOTTERY_PAD_CM`) is also in `config/appsetting.py`.
+Look-and-feel (`PJT_FADE`, `BKG_FADE`, button colors, glass padding, `LOTTERY_PAD_CM`) is also in `config/appsetting.py`. Design rules for every page are in `web/STYLE.md`.
 
 **Copy and dependencies**
 
@@ -76,16 +89,18 @@ Look-and-feel (`PJT_FADE`, `BKG_FADE`, button colors, glass padding, `LOTTERY_PA
 3. Per project, optional covers: `pjt-mark` (home mark, PNG), `pjt-desktop`, `pjt-mobile`, `bkg-desktop`, `bkg-mobile`, `lot-desktop`, `lot-mobile`
 4. Lottery is admin-only: `/p/<slug>/lottery`
 5. Project settings (slideshow mode, interval, queue, lottery spin) are on the project card, bottom left
+6. Ichiban Kuji: `/p/<slug>/kuji` (home button 「一番賞」 shows once any prize count is above 0). Admin → project card → 「一番賞 / Ichiban Kuji」 sets the A–E prize counts and photos, the draws per device, the ticket image (`kuji-ticket`, PNG), the page mark (`kuji-mark`), and backgrounds (`kuji-desktop`, `kuji-mobile`; fall back to the home background). 「重置一番賞」 clears draws and claims and refills stock; earned chances stay.
 
 ## Layout
 
 ```
 config/           env defaults, admin login, copy
-web/              Flask app, Redis store, templates
+web/              Flask app, Redis store, templates, detector worker
+web/STYLE.md      design system (tokens, glass, buttons, per-page layout)
 web/static/favicon.png   site icon (replace this PNG to swap)
 art/              source art (favicon zip, etc.)
 python/           uv lockfile only (app code is not here)
-docker-compose/   Dockerfile, compose, nginx.conf
+docker-compose/   Dockerfile, compose, nginx.conf, POC stack (poc.sh)
 ```
 
 Request flow: browser → nginx `:8000` → `/photos/*` from disk, everything else to gunicorn. Redis holds projects, photo records, tickets, and the slideshow playhead. JPEG files live on the host bind.
@@ -99,3 +114,7 @@ The split is small and enough: **routes in `web/app.py`**, **Redis + files in `w
 Uploads are the other cost: Pillow on the gunicorn worker. `JPEG_MAX_EDGE` 2560 and quality 80 (no `optimize=True`) are the right tradeoff. Photos themselves are served by nginx, not Flask.
 
 Tickets and the slideshow playhead belong in Redis (Lua already advances the playhead atomically). Do not put the JPEGs in Redis or in the image.
+
+Person check runs in the `detector` service (`web/detector.py`, image target `detector`): YOLOX-Tiny ONNX (Apache-2.0, baked into the image) on onnxruntime CPU, about 20ms per photo. Upload saves the photo as `person: pending` and pushes a job on the Redis list `detect_q`; the worker moves it to `detect_busy` while it runs (re-queued on restart), then grants the lottery ticket and one Ichiban Kuji chance if a person is found. Photos without people still play in the slideshow. The upload page polls `/p/<slug>/api/photos/status` for the result. If the detector is down, photos stay pending and nothing is granted until it comes back.
+
+Ichiban Kuji draws are one Redis Lua script (check the device's chances, pick a grade weighted by what is left, decrement), so stock cannot oversell across gunicorn workers. Claims use `HSETNX`, so a prize can be claimed once.

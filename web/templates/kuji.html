@@ -1,0 +1,822 @@
+{% extends "base.html" %}
+{% block title %}{{ msg.kuji_title.format(name=project.name) }}{% endblock %}
+{% block extra_head %}
+{% include "_cover_layout.html" %}
+<style>
+  .pjt-stage .kuji-hint {
+    margin: 8px 0 0;
+    text-align: center;
+    white-space: pre-line;
+    font-weight: 400;
+    color: var(--ink-soft);
+    font-size: var(--kuji-chance-size);
+  }
+  .pjt-stage .kuji-chances {
+    margin: 12px 0 0;
+    text-align: center;
+    white-space: pre-line;
+    font-weight: 700;
+    color: var(--ink-fade);
+    font-size: var(--kuji-chance-size);
+  }
+  .pjt-stage .flash {
+    margin: 12px 0 0;
+    white-space: pre-line;
+    text-align: center;
+  }
+  [hidden] { display: none !important; }
+  body.panel-open .pjt-ui { visibility: hidden; pointer-events: none; }
+
+  .kuji-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    padding: var(--glass);
+    padding-top: max(var(--glass), 64px);
+    box-sizing: border-box;
+    background: rgba(28, 25, 21, 0.28);
+  }
+  .kuji-panel > .glass-card {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    padding: 20px;
+    overflow: hidden;
+  }
+  .kuji-panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .kuji-panel-head h2 {
+    margin: 0;
+    font-size: var(--kuji-head-size);
+    white-space: pre-line;
+    color: var(--ink-fade);
+  }
+  .kuji-close {
+    appearance: none;
+    -webkit-appearance: none;
+    flex-shrink: 0;
+    border: 1px solid var(--frost-line);
+    background: var(--frost-fill);
+    color: var(--ink-fade);
+    padding: 8px 14px;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: var(--frost-shadow);
+  }
+  .kuji-panel-body {
+    min-height: 0;
+    overflow: auto;
+  }
+
+  /* Status */
+  .grade-block { margin-bottom: 18px; }
+  .grade-block h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    color: var(--ink-fade);
+    white-space: pre-line;
+  }
+  .grade-block h3 .meta { font-weight: 400; margin-left: 6px; }
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(var(--kuji-tile), 1fr));
+    gap: 8px;
+  }
+  .tile {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--card);
+    border: 1px solid #fff;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 22px;
+    color: var(--ink-fade);
+  }
+  .tile img { width: 100%; height: 100%; object-fit: cover; }
+  .tile.gone::after {
+    content: attr(data-gone);
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: rgba(230, 230, 230, 0.72);
+    color: rgba(28, 25, 21, 0.55);
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    padding: 4px;
+  }
+
+  /* Tear */
+  .tear-panel > .glass-card { grid-template-rows: auto minmax(0, 1fr) auto; }
+  .tear-scene {
+    position: relative;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+  }
+  .tear-box {
+    position: relative;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .prize-card,
+  .ticket-front,
+  .ticket-flap-wrap,
+  .ticket-face,
+  .ticket-flap {
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+  }
+  .prize-card {
+    z-index: 0;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    place-items: center;
+    gap: 8px;
+    padding: 12px 10px 10px;
+    box-sizing: border-box;
+    background: #fffcf7;
+    border: 2px solid {{ cfg.lottery_btn_color }};
+  }
+  .prize-art {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+  .prize-art img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: var(--kuji-prize-fit);
+    max-height: var(--kuji-prize-fit);
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 10px;
+  }
+  .prize-card .grade {
+    flex-shrink: 0;
+    max-width: 100%;
+    font-size: var(--kuji-grade-size);
+    font-weight: 800;
+    line-height: 1.15;
+    text-align: center;
+    overflow-wrap: anywhere;
+    color: {{ cfg.lottery_btn_color }};
+    text-shadow: 0 1px 0 #fff;
+  }
+  .ticket-front { z-index: 1; filter: drop-shadow(0 6px 14px rgba(28, 25, 21, 0.22)); }
+  .ticket-flap-wrap { z-index: 2; filter: drop-shadow(0 8px 16px rgba(28, 25, 21, 0.3)); pointer-events: none; }
+  .ticket-face { overflow: hidden; background: #c0453c; }
+  .ticket-face img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+  .ticket-face .ticket-plain {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    white-space: pre-line;
+    font-weight: 800;
+    font-size: var(--kuji-head-size);
+    color: #fff8e8;
+    letter-spacing: 0.12em;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(255, 220, 140, 0.35), transparent 42%),
+      repeating-linear-gradient(90deg, rgba(255, 232, 176, 0.08) 0 12px, transparent 12px 24px),
+      linear-gradient(165deg, #e8b23a 0%, #c0453c 38%, #8e1f28 100%);
+  }
+  .ticket-chrome {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    border-radius: 14px;
+    box-shadow:
+      inset 0 0 0 3px #f0d48a,
+      inset 0 0 0 6px #8e1f28,
+      inset 0 0 0 8px #f6e7b2;
+  }
+  .ticket-chrome .ticket-mark {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: #8e1f28;
+    color: #ffe9b0;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    white-space: nowrap;
+  }
+  .ticket-chrome .ticket-serial {
+    position: absolute;
+    right: 12px;
+    bottom: 8px;
+    color: #ffe9b0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-shadow: 0 1px 2px rgba(28, 25, 21, 0.45);
+  }
+  .ticket-chrome .ticket-perf {
+    position: absolute;
+    left: 10px;
+    top: 18px;
+    bottom: 18px;
+    border-left: 2px dashed rgba(255, 233, 176, 0.7);
+  }
+  .ticket-flap {
+    transform-origin: 0 0;
+    background-color: #f1e6cf;
+  }
+  .tear-grip {
+    position: absolute;
+    z-index: 3;
+    width: 30px;
+    height: 30px;
+    margin: -15px 0 0 -15px;
+    border-radius: 50%;
+    pointer-events: none;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.7);
+    animation: grip 1.6s ease-out infinite;
+  }
+  .tear-box.is-dragging .tear-grip { animation: none; opacity: 0; }
+  @keyframes grip {
+    0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.7); }
+    100% { box-shadow: 0 0 0 22px rgba(212, 175, 55, 0); }
+  }
+  .tear-box.is-open { pointer-events: none; }
+  .tear-box.is-open .ticket-front,
+  .tear-box.is-open .ticket-flap-wrap {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .tear-box.is-open .prize-card { animation: prize-pop 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+  @keyframes prize-pop {
+    0% { transform: scale(0.92); }
+    60% { transform: scale(1.04); }
+    100% { transform: scale(1); }
+  }
+  .tear-foot {
+    display: grid;
+    gap: 10px;
+    justify-items: center;
+    margin-top: 12px;
+  }
+  .tear-foot p {
+    margin: 0;
+    text-align: center;
+    white-space: pre-line;
+    font-weight: 700;
+    color: var(--ink-fade);
+  }
+  .tear-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+  .tear-actions .kuji-again {
+    background: var(--btn-lottery);
+    border-color: transparent;
+  }
+  .tear-sparkles {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 4;
+    pointer-events: none !important;
+  }
+
+  /* Mine */
+  .mine-row {
+    display: grid;
+    grid-template-columns: var(--kuji-mine-thumb) minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 16px;
+    background: rgba(255, 252, 247, 0.7);
+    border: 1px solid #fff;
+  }
+  .mine-row .thumb {
+    width: var(--kuji-mine-thumb);
+    aspect-ratio: 1;
+    border-radius: 12px;
+    background: var(--card);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    font-weight: 800;
+    font-size: 28px;
+    color: {{ cfg.lottery_btn_color }};
+  }
+  .mine-row .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .mine-row h3 { margin: 0 0 6px; font-size: 16px; white-space: pre-line; color: var(--ink-fade); }
+  .mine-row .claimed { margin: 0; font-size: 13px; color: var(--ok); font-weight: 700; }
+  .mine-row .confirm {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 12px;
+    background: #fff7dc;
+    border: 1px solid {{ cfg.lottery_btn_color }};
+  }
+  .mine-row .confirm p { margin: 0; white-space: pre-line; font-size: 14px; color: var(--ink); }
+  .mine-row .row { margin: 0; }
+  .kuji-empty { text-align: center; white-space: pre-line; color: var(--muted); }
+
+  /* Mobile ≤640px */
+  @media (max-width: 640px) {
+    html, body {
+      --kuji-chance-size: 14px;
+      --kuji-head-size: 18px;
+      --kuji-tile: 64px;
+      --kuji-grade-size: 22px;
+      --kuji-prize-fit: 72%;
+      --kuji-mine-thumb: 64px;
+      --kuji-ticket-frac: 0.84;
+    }
+  }
+
+  /* Desktop ≥641px */
+  @media (min-width: 641px) {
+    html, body {
+      --kuji-chance-size: 16px;
+      --kuji-head-size: 22px;
+      --kuji-tile: 88px;
+      --kuji-grade-size: 48px;
+      --kuji-prize-fit: 80%;
+      --kuji-mine-thumb: 84px;
+      --kuji-ticket-frac: 0.62;
+    }
+  }
+</style>
+{% endblock %}
+{% block body %}
+<a class="back-btn" href="{{ url_for('project_home', slug=project.slug) }}">{{ msg.lottery_back }}</a>
+<div class="pjt-stage glass-wait">
+  {% if project.kuji_desktop_show or project.kuji_mobile_show %}
+  <picture>
+    <source media="(max-width: 640px)" srcset="{{ project.kuji_mobile_show }}">
+    <img src="{{ project.kuji_desktop_show }}" alt="" fetchpriority="high">
+  </picture>
+  <div class="pjt-fade" style="opacity: {{ cfg.pjt_fade }}"></div>
+  {% endif %}
+  <div class="glass-stage pjt-ui">
+    <div class="glass-card">
+      <div class="pjt-title-block">
+        <h1>{{ project.name }}</h1>
+        {% if project.kuji_mark_url %}
+        <img class="pjt-mark" src="{{ project.kuji_mark_url }}" alt="">
+        {% endif %}
+      </div>
+      <div class="glass-body">
+        <p class="lead">{{ msg.kuji_lead }}</p>
+        <p class="kuji-hint">{{ msg.kuji_hint_unlimited if me.unlimited else msg.kuji_hint.format(n=me.per_user) }}</p>
+        <p class="kuji-chances" id="chances"></p>
+        <p class="flash error" id="note" hidden></p>
+      </div>
+      <div class="actions">
+        <button class="btn secondary" type="button" id="open-status">{{ msg.kuji_btn_status }}</button>
+        <button class="btn lottery" type="button" id="open-draw">{{ msg.kuji_btn_draw }}</button>
+        <button class="btn" type="button" id="open-mine">{{ msg.kuji_btn_mine }}</button>
+      </div>
+    </div>
+    {% include "_credit.html" %}
+  </div>
+</div>
+
+<div class="kuji-panel" id="panel-status" hidden>
+  <div class="glass-card">
+    <div class="kuji-panel-head">
+      <h2>{{ msg.kuji_btn_status }}</h2>
+      <button class="kuji-close" type="button">{{ msg.kuji_close }}</button>
+    </div>
+    <div class="kuji-panel-body" id="status-body"></div>
+  </div>
+</div>
+
+<div class="kuji-panel tear-panel" id="panel-tear" hidden>
+  <div class="glass-card">
+    <div class="kuji-panel-head">
+      <h2>{{ msg.kuji_btn_draw }}</h2>
+      <button class="kuji-close" type="button">{{ msg.kuji_close }}</button>
+    </div>
+    <div class="tear-scene" id="tear-scene">
+      <canvas class="tear-sparkles" id="sparkles" hidden></canvas>
+      <div class="tear-box" id="tear-box">
+        <div class="prize-card">
+          <div class="prize-art">
+            <img id="prize-img" alt="" hidden>
+          </div>
+          <div class="grade" id="prize-grade"></div>
+        </div>
+        <div class="ticket-front">
+          <div class="ticket-face">
+            {% if project.kuji_ticket_url %}
+            <img id="ticket-img" src="{{ project.kuji_ticket_url }}" alt="" draggable="false">
+            {% else %}
+            <div class="ticket-plain">一番賞</div>
+            {% endif %}
+            <div class="ticket-chrome" aria-hidden="true">
+              <span class="ticket-mark">一番賞</span>
+              <span class="ticket-perf"></span>
+              <span class="ticket-serial" id="ticket-serial">No. ----</span>
+            </div>
+          </div>
+        </div>
+        <div class="ticket-flap-wrap"><div class="ticket-flap"></div></div>
+        <div class="tear-grip"></div>
+      </div>
+    </div>
+    <div class="tear-foot">
+      <p id="tear-text">{{ msg.kuji_tear_hint }}</p>
+      <div class="tear-actions">
+        <button class="kuji-close kuji-again" type="button" id="tear-again" hidden>{{ msg.kuji_again }}</button>
+        <button class="kuji-close" type="button" id="tear-mine" hidden>{{ msg.kuji_btn_mine }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="kuji-panel" id="panel-mine" hidden>
+  <div class="glass-card">
+    <div class="kuji-panel-head">
+      <h2>{{ msg.kuji_btn_mine }}</h2>
+      <button class="kuji-close" type="button">{{ msg.kuji_close }}</button>
+    </div>
+    <div class="kuji-panel-body" id="mine-body"></div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='sparkles.js') }}"></script>
+<script src="{{ url_for('static', filename='kuji_tear.js') }}"></script>
+<script>
+  const api = {
+    status: {{ url_for('kuji_status', slug=project.slug) | tojson }},
+    draw: {{ url_for('kuji_draw', slug=project.slug) | tojson }},
+    mine: {{ url_for('kuji_mine', slug=project.slug) | tojson }},
+    claim: {{ url_for('kuji_claim', slug=project.slug, draw_id='__ID__') | tojson }},
+  };
+  const copy = {
+    chances: {{ msg.kuji_chances | tojson }},
+    chancesPending: {{ msg.kuji_chances_pending | tojson }},
+    chancesUnlimited: {{ msg.kuji_chances_unlimited | tojson }},
+    grade: {{ msg.kuji_grade | tojson }},
+    left: {{ msg.kuji_left | tojson }},
+    gone: {{ msg.kuji_gone | tojson }},
+    win: {{ msg.kuji_win | tojson }},
+    hint: {{ msg.kuji_tear_hint | tojson }},
+    mineEmpty: {{ msg.kuji_mine_empty | tojson }},
+    claim: {{ msg.kuji_claim | tojson }},
+    claimLead: {{ msg.kuji_claim_lead | tojson }},
+    claimed: {{ msg.kuji_claimed | tojson }},
+    confirm: {{ msg.delete_confirm | tojson }},
+    cancel: {{ msg.delete_cancel | tojson }},
+    failed: {{ msg.kuji_failed | tojson }},
+    notReady: {{ msg.kuji_not_ready | tojson }},
+  };
+  const uiLang = {{ ui_lang | tojson }};
+  let me = {{ me | tojson }};
+  let prizeTotal = {{ kuji_total | tojson }};
+  const fill = (s, vals) => Object.entries(vals).reduce((t, [k, v]) => t.replaceAll("{" + k + "}", String(v)), s);
+  const $ = (id) => document.getElementById(id);
+  const note = $("note");
+  const sparkles = SparkleField($("sparkles"));
+
+  function showNote(text) {
+    note.textContent = text || "";
+    note.hidden = !text;
+  }
+
+  function showChances() {
+    if (me.unlimited) {
+      $("chances").textContent = copy.chancesUnlimited;
+      return;
+    }
+    const t = me.pending ? copy.chancesPending : copy.chances;
+    $("chances").textContent = fill(t, { n: me.left, pending: me.pending });
+  }
+
+  let pollTimer = 0;
+  async function refreshMe() {
+    try {
+      const res = await fetch(api.status, { cache: "no-store" });
+      const data = await res.json();
+      me = data.me;
+      prizeTotal = data.total;
+      showChances();
+      return data;
+    } catch (err) {
+      return null;
+    } finally {
+      clearTimeout(pollTimer);
+      if (me.pending) pollTimer = setTimeout(refreshMe, 3000);
+    }
+  }
+
+  function openPanel(id) {
+    document.querySelectorAll(".kuji-panel").forEach((p) => { p.hidden = p.id !== id; });
+    document.body.classList.add("panel-open");
+  }
+  function closePanels() {
+    document.querySelectorAll(".kuji-panel").forEach((p) => { p.hidden = true; });
+    document.body.classList.remove("panel-open");
+    sparkles.stop();
+  }
+  document.querySelectorAll(".kuji-panel .kuji-close:not(#tear-mine):not(#tear-again)").forEach((b) => b.addEventListener("click", closePanels));
+  document.querySelectorAll(".kuji-panel").forEach((p) => p.addEventListener("click", (e) => {
+    if (e.target === p && p.id !== "panel-tear") closePanels();
+  }));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closePanels();
+  });
+
+  function prizeName(item) {
+    if (!item) return "";
+    if (typeof item === "string") return fill(copy.grade, { grade: item });
+    const zh = item.label_zh || "";
+    const en = item.label_en || "";
+    const picked = uiLang === "en" ? (en || zh) : (zh || en);
+    return picked || fill(copy.grade, { grade: item.grade });
+  }
+
+  function prizeFace(el, url, item) {
+    el.textContent = "";
+    if (url) {
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = "";
+      el.appendChild(img);
+    } else {
+      el.textContent = prizeName(item);
+    }
+  }
+
+  /* Status */
+  $("open-status").addEventListener("click", async () => {
+    showNote("");
+    const data = await refreshMe();
+    if (!data) return showNote(copy.failed);
+    const body = $("status-body");
+    body.textContent = "";
+    data.grades.filter((g) => g.total > 0).forEach((g) => {
+      const block = document.createElement("section");
+      block.className = "grade-block";
+      const h = document.createElement("h3");
+      h.textContent = prizeName(g);
+      const meta = document.createElement("span");
+      meta.className = "meta";
+      meta.textContent = fill(copy.left, { left: g.left, total: g.total });
+      h.appendChild(meta);
+      const tiles = document.createElement("div");
+      tiles.className = "tiles";
+      for (let i = 0; i < g.total; i++) {
+        const t = document.createElement("div");
+        t.className = "tile" + (i >= g.left ? " gone" : "");
+        t.dataset.gone = copy.gone;
+        prizeFace(t, g.thumb, g);
+        tiles.appendChild(t);
+      }
+      block.append(h, tiles);
+      body.appendChild(block);
+    });
+    if (!body.children.length) {
+      const p = document.createElement("p");
+      p.className = "kuji-empty";
+      p.textContent = copy.notReady;
+      body.appendChild(p);
+    }
+    openPanel("panel-status");
+  });
+
+  /* Draw + tear */
+  const tearBox = $("tear-box");
+  const tearScene = $("tear-scene");
+  const tearText = $("tear-text");
+  const tearMine = $("tear-mine");
+  const tearAgain = $("tear-again");
+  const ticketImg = $("ticket-img");
+  let won = null;
+  const tear = KujiTear(tearBox, {
+    onOpen() {
+      tearText.textContent = fill(copy.win, { name: prizeName(won) });
+      tearMine.hidden = false;
+      tearAgain.hidden = !(me && me.left > 0);
+      sparkles.start(1);
+      requestAnimationFrame(() => requestAnimationFrame(() => sparkles.burst()));
+    },
+  });
+
+  function sizeTicket() {
+    const ratio = ticketImg && ticketImg.naturalWidth ? ticketImg.naturalWidth / ticketImg.naturalHeight : 1.6;
+    const sw = tearScene.clientWidth;
+    const sh = tearScene.clientHeight;
+    const frac = parseFloat(getComputedStyle(tearScene).getPropertyValue("--kuji-ticket-frac")) || 0.62;
+    let w = Math.min(sw * frac, 520);
+    let h = w / ratio;
+    if (h > sh * 0.9) {
+      h = sh * 0.9;
+      w = h * ratio;
+    }
+    tearBox.style.width = Math.round(w) + "px";
+    tearBox.style.height = Math.round(h) + "px";
+  }
+
+  function startTear() {
+    $("prize-grade").textContent = prizeName(won);
+    const serial = $("ticket-serial");
+    if (serial) {
+      const id = won && won.id ? String(won.id).replace(/[^a-zA-Z0-9]/g, "").slice(-8) : "";
+      serial.textContent = "No. " + (id ? id.toUpperCase() : "----");
+    }
+    const img = $("prize-img");
+    img.hidden = !won.url;
+    if (won.url) img.src = won.url;
+    tearText.textContent = copy.hint;
+    tearMine.hidden = true;
+    tearAgain.hidden = true;
+    openPanel("panel-tear");
+    const go = () => {
+      sizeTicket();
+      tear.reset();
+    };
+    if (ticketImg && !ticketImg.complete) ticketImg.addEventListener("load", go, { once: true });
+    requestAnimationFrame(go);
+  }
+  window.addEventListener("resize", () => {
+    if (!$("panel-tear").hidden && !tearBox.classList.contains("is-torn")) {
+      sizeTicket();
+      tear.reset();
+    }
+  });
+
+  async function drawTicket(fromTear) {
+    const fail = (text) => {
+      if (fromTear) tearText.textContent = text;
+      else showNote(text);
+      return false;
+    };
+    showNote("");
+    if (!prizeTotal) return fail(copy.notReady);
+    let res;
+    let data;
+    try {
+      res = await fetch(api.draw, { method: "POST", cache: "no-store" });
+      data = await res.json();
+    } catch (err) {
+      return fail(copy.failed);
+    }
+    if (!res.ok) return fail(data.error || copy.failed);
+    won = data;
+    me = data.me;
+    showChances();
+    startTear();
+    return true;
+  }
+  $("open-draw").addEventListener("click", () => drawTicket(false));
+  tearAgain.addEventListener("click", () => {
+    if (tearAgain.disabled) return;
+    tearAgain.disabled = true;
+    drawTicket(true).finally(() => { tearAgain.disabled = false; });
+  });
+
+  /* Mine */
+  function fmtTime(sec) {
+    return new Date(sec * 1000).toLocaleString([], { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+
+  function mineRow(p) {
+    const row = document.createElement("div");
+    row.className = "mine-row";
+    const thumb = document.createElement("div");
+    thumb.className = "thumb";
+    prizeFace(thumb, p.thumb, p);
+    const info = document.createElement("div");
+    const h = document.createElement("h3");
+    h.textContent = prizeName(p);
+    info.appendChild(h);
+    const showClaimed = (at) => {
+      info.querySelectorAll(".row").forEach((el) => el.remove());
+      row.querySelectorAll(".confirm").forEach((el) => el.remove());
+      const c = document.createElement("p");
+      c.className = "claimed";
+      c.textContent = fill(copy.claimed, { time: fmtTime(at) });
+      info.appendChild(c);
+    };
+    row.append(thumb, info);
+    if (p.claimed_at) {
+      showClaimed(p.claimed_at);
+      return row;
+    }
+    const actions = document.createElement("div");
+    actions.className = "row";
+    const claimBtn = document.createElement("button");
+    claimBtn.type = "button";
+    claimBtn.className = "btn small";
+    claimBtn.textContent = copy.claim;
+    actions.appendChild(claimBtn);
+    info.appendChild(actions);
+
+    const confirm = document.createElement("div");
+    confirm.className = "confirm";
+    confirm.hidden = true;
+    const lead = document.createElement("p");
+    lead.textContent = copy.claimLead;
+    const err = document.createElement("p");
+    err.className = "flash error";
+    err.hidden = true;
+    const btns = document.createElement("div");
+    btns.className = "row";
+    const ok = document.createElement("button");
+    ok.type = "button";
+    ok.className = "btn small";
+    ok.textContent = copy.confirm;
+    const no = document.createElement("button");
+    no.type = "button";
+    no.className = "btn small secondary";
+    no.textContent = copy.cancel;
+    btns.append(ok, no);
+    confirm.append(lead, err, btns);
+    row.appendChild(confirm);
+
+    claimBtn.addEventListener("click", () => {
+      claimBtn.hidden = true;
+      confirm.hidden = false;
+    });
+    no.addEventListener("click", () => {
+      confirm.hidden = true;
+      claimBtn.hidden = false;
+    });
+    ok.addEventListener("click", async () => {
+      ok.disabled = true;
+      try {
+        const res = await fetch(api.claim.replace("__ID__", encodeURIComponent(p.id)), { method: "POST", cache: "no-store" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || copy.failed);
+        showClaimed(data.claimed_at);
+      } catch (e) {
+        err.textContent = e.message || copy.failed;
+        err.hidden = false;
+        ok.disabled = false;
+      }
+    });
+    return row;
+  }
+
+  async function openMine() {
+    showNote("");
+    sparkles.stop();
+    let data;
+    try {
+      const res = await fetch(api.mine, { cache: "no-store" });
+      data = await res.json();
+    } catch (err) {
+      return showNote(copy.failed);
+    }
+    const body = $("mine-body");
+    body.textContent = "";
+    const list = (data.prizes || []).slice().reverse();
+    if (!list.length) {
+      const p = document.createElement("p");
+      p.className = "kuji-empty";
+      p.textContent = copy.mineEmpty;
+      body.appendChild(p);
+    }
+    list.forEach((p) => body.appendChild(mineRow(p)));
+    openPanel("panel-mine");
+  }
+  $("open-mine").addEventListener("click", openMine);
+  tearMine.addEventListener("click", openMine);
+
+  showChances();
+  if (me.pending) pollTimer = setTimeout(refreshMe, 3000);
+</script>
+{% endblock %}
+{% block credit %}{% endblock %}

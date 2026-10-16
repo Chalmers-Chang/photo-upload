@@ -1,4 +1,23 @@
 {% if bg_desktop or bg_mobile %}
+<style>
+  html, body { background: #fff; }
+  .stage-bg, .stage-bg img {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .stage-fade {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background: #fff;
+    pointer-events: none;
+  }
+</style>
 <picture class="stage-bg">
   <source media="(max-width: 640px)" srcset="{{ bg_mobile or bg_desktop }}">
   <img src="{{ bg_desktop or bg_mobile }}" alt="" aria-hidden="true">

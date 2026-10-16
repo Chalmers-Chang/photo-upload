@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="{{ html_lang }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,6 +7,7 @@
   {% include "_favicon.html" %}
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
+  {% include "_theme.html" %}
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -16,5 +17,6 @@
   {% block body %}{% endblock %}
   {% block credit %}{% include "_credit.html" %}{% endblock %}
   {% include "_name_modal.html" %}
+  {% include "_overlay.html" %}
 </body>
 </html>
