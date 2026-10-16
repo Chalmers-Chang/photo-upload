@@ -7,13 +7,19 @@ import uuid
 from pathlib import Path
 
 import redis
+from werkzeug.security import check_password_hash, generate_password_hash
 
+from config import admin as admin_config
 from config import appsetting
 from config import msg
 from config import redis as redis_config
 
 _slug_re = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+_USER_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,31}$")
 _GUEST_JPG = re.compile(r"^[0-9a-f]{32}\.jpg$")
+ROLES = ("admin", "maintainer", "guest")
+STAFF_ROLES = ("admin", "maintainer")
+VISITED_MAX = 40
 
 _ADVANCE_LUA = """
 local state_key = KEYS[1]
@@ -59,6 +65,7 @@ return {photo_id, tostring(now), tostring(show_until), tostring(interval), tostr
 KUJI_GRADES = ("A", "B", "C", "D", "E")
 KUJI_TOTAL_MAX = 999
 KUJI_PER_USER_MAX = 50
+KUJI_LABEL_MAX = 40
 
 _KUJI_DRAW_LUA = """
 local cfg, drawn, used, earned, mine, draws, seq =
@@ -362,10 +369,13 @@ def project_by_slug(slug):
     return get_project(pid)
 
 
-def list_projects():
-    ids = sorted(r().smembers("projects"))
+def list_projects_for_ids(ids):
     out = []
+    seen = set()
     for pid in ids:
+        if pid in seen:
+            continue
+        seen.add(pid)
         p = get_project(pid)
         if not p:
             continue
@@ -376,7 +386,33 @@ def list_projects():
     return out
 
 
-def create_project(name, slug):
+def list_projects():
+    return list_projects_for_ids(sorted(r().smembers("projects")))
+
+
+def projects_by_slugs(slugs):
+    out = []
+    seen = set()
+    for slug in slugs:
+        p = project_by_slug(slug)
+        if p and p["id"] not in seen:
+            seen.add(p["id"])
+            out.append(p)
+    return out
+
+
+def parse_visited(cookie):
+    slugs = []
+    for s in (cookie or "").split(","):
+        s = s.strip().lower()
+        if valid_slug(s) and s not in slugs:
+            slugs.append(s)
+        if len(slugs) >= VISITED_MAX:
+            break
+    return slugs
+
+
+def create_project(name, slug, owner=None):
     name = (name or "").strip()
     slug = (slug or "").strip().lower()
     if not name:
@@ -405,6 +441,8 @@ def create_project(name, slug):
     conn.hset(f"project:{pid}", mapping=mapping)
     conn.set(f"slug:{slug}", pid)
     photo_dir(pid).mkdir(parents=True, exist_ok=True)
+    if owner and not is_root(owner):
+        set_user_role(owner, pid, "admin")
     return get_project(pid)
 
 
@@ -465,11 +503,216 @@ def delete_project(project_id, delete_files):
         raise ValueError(msg.project_missing)
     wipe_photos(project_id, delete_files=delete_files)
     conn = r()
-    conn.delete(f"project:{project_id}")
-    conn.delete(f"kuji:{project_id}")
-    conn.delete(f"slug:{p['slug']}")
-    conn.srem("projects", project_id)
+    users = conn.smembers(f"project_users:{project_id}")
+    pipe = conn.pipeline()
+    for name in users:
+        pipe.hdel(f"user_projects:{name}", project_id)
+    pipe.delete(f"project_users:{project_id}")
+    pipe.delete(f"project:{project_id}")
+    pipe.delete(f"kuji:{project_id}")
+    pipe.delete(f"slug:{p['slug']}")
+    pipe.srem("projects", project_id)
+    pipe.execute()
     return p
+
+
+def ensure_root():
+    name = (admin_config.username or "").strip()
+    if not name:
+        return
+    try:
+        conn = r()
+    except redis.exceptions.ConnectionError:
+        return
+    if conn.exists(f"user:{name}"):
+        return
+    conn.sadd("users", name)
+    conn.hset(
+        f"user:{name}",
+        mapping={
+            "password": generate_password_hash(admin_config.password),
+            "is_root": "1",
+            "created_at": str(int(time.time())),
+        },
+    )
+
+
+def valid_username(name):
+    return bool(name) and bool(_USER_RE.match(name))
+
+
+def get_user(name):
+    if not name:
+        return None
+    data = r().hgetall(f"user:{name}")
+    if not data or not data.get("password"):
+        return None
+    data["name"] = name
+    data["is_root"] = data.get("is_root") == "1"
+    return data
+
+
+def authenticate(name, password):
+    u = get_user((name or "").strip())
+    if not u or not check_password_hash(u["password"], password or ""):
+        return None
+    return u
+
+
+def create_user(name, password):
+    name = (name or "").strip()
+    if not valid_username(name):
+        raise ValueError(msg.bad_username)
+    if not 4 <= len(password or "") <= 72:
+        raise ValueError(msg.bad_password)
+    conn = r()
+    if conn.exists(f"user:{name}"):
+        raise ValueError(msg.username_taken)
+    conn.sadd("users", name)
+    conn.hset(
+        f"user:{name}",
+        mapping={
+            "password": generate_password_hash(password),
+            "is_root": "0",
+            "created_at": str(int(time.time())),
+        },
+    )
+    return get_user(name)
+
+
+def set_password(name, password):
+    if not get_user(name):
+        raise ValueError(msg.user_missing)
+    if not 4 <= len(password or "") <= 72:
+        raise ValueError(msg.bad_password)
+    r().hset(f"user:{name}", "password", generate_password_hash(password))
+
+
+def change_password(name, old, new):
+    if not authenticate(name, old):
+        raise ValueError(msg.wrong_password)
+    set_password(name, new)
+
+
+def delete_user(name):
+    u = get_user(name)
+    if not u:
+        raise ValueError(msg.user_missing)
+    if u["is_root"]:
+        raise ValueError(msg.cannot_delete_root)
+    conn = r()
+    pids = conn.hkeys(f"user_projects:{name}")
+    pipe = conn.pipeline()
+    for pid in pids:
+        pipe.srem(f"project_users:{pid}", name)
+    pipe.delete(f"user_projects:{name}")
+    pipe.delete(f"user:{name}")
+    pipe.srem("users", name)
+    pipe.execute()
+
+
+def user_roles(name):
+    return r().hgetall(f"user_projects:{name}") or {}
+
+
+def list_users():
+    names = sorted(r().smembers("users"), key=str.lower)
+    out = []
+    for name in names:
+        u = get_user(name)
+        if not u:
+            continue
+        u["roles"] = user_roles(name)
+        out.append(u)
+    return out
+
+
+def is_root(name):
+    u = get_user(name)
+    return bool(u and u["is_root"])
+
+
+def user_role(name, project_id):
+    u = get_user(name)
+    if not u:
+        return None
+    if u["is_root"]:
+        return "root"
+    role = r().hget(f"user_projects:{name}", project_id)
+    return role if role in ROLES else None
+
+
+def set_user_role(name, project_id, role):
+    u = get_user(name)
+    if not u:
+        raise ValueError(msg.user_missing)
+    if u["is_root"]:
+        raise ValueError(msg.cannot_assign_root)
+    if not r().exists(f"project:{project_id}"):
+        raise ValueError(msg.project_missing)
+    role = (role or "").strip()
+    conn = r()
+    if not role:
+        conn.hdel(f"user_projects:{name}", project_id)
+        conn.srem(f"project_users:{project_id}", name)
+        return
+    if role not in ROLES:
+        raise ValueError(msg.bad_role)
+    conn.hset(f"user_projects:{name}", project_id, role)
+    conn.sadd(f"project_users:{project_id}", name)
+
+
+def save_user_roles(name, form, project_ids):
+    for pid in project_ids:
+        set_user_role(name, pid, form.get(f"role_{pid}"))
+
+
+def visible_ids(name):
+    u = get_user(name)
+    if not u:
+        return []
+    if u["is_root"]:
+        return sorted(r().smembers("projects"))
+    return list(user_roles(name).keys())
+
+
+def staff_ids(name):
+    u = get_user(name)
+    if not u:
+        return []
+    if u["is_root"]:
+        return sorted(r().smembers("projects"))
+    return [pid for pid, role in user_roles(name).items() if role in STAFF_ROLES]
+
+
+def can_staff(name):
+    u = get_user(name)
+    if not u:
+        return False
+    if u["is_root"]:
+        return True
+    return any(role in STAFF_ROLES for role in user_roles(name).values())
+
+
+def can_create_project(name):
+    u = get_user(name)
+    if not u:
+        return False
+    if u["is_root"]:
+        return True
+    return any(role == "admin" for role in user_roles(name).values())
+
+
+def can_edit(name, project_id):
+    return user_role(name, project_id) in ("root", "admin", "maintainer")
+
+
+def can_delete_project(name, project_id):
+    return user_role(name, project_id) in ("root", "admin")
+
+
+def can_lottery(name, project_id):
+    return user_role(name, project_id) in ("root", "admin", "maintainer", "guest")
 
 
 def chance_count(project_id, device_id):
@@ -846,9 +1089,25 @@ def draw_lottery(project_id):
     }
 
 
+def kuji_label_default(grade):
+    return msg.kuji_grade.format(grade=grade)
+
+
+def kuji_label_raw(raw, grade):
+    s = (raw.get(f"label_{grade}") or "").strip()
+    if not s or len(s) > KUJI_LABEL_MAX:
+        return ""
+    return s
+
+
 def kuji_settings(project_id):
     raw = r().hgetall(f"kuji:{project_id}") or {}
-    out = {"per_user": appsetting.kuji_per_user, "totals": {}}
+    out = {
+        "per_user": appsetting.kuji_per_user,
+        "totals": {},
+        "labels": {},
+        "label_raws": {},
+    }
     try:
         out["per_user"] = int(raw["per_user"])
     except (KeyError, ValueError):
@@ -858,6 +1117,8 @@ def kuji_settings(project_id):
             out["totals"][g] = int(raw.get(g) or 0)
         except ValueError:
             out["totals"][g] = 0
+        out["label_raws"][g] = kuji_label_raw(raw, g)
+        out["labels"][g] = out["label_raws"][g] or kuji_label_default(g)
     return out
 
 
@@ -873,12 +1134,19 @@ def kuji_save(project_id, form):
         raise ValueError(msg.bad_setting)
     if any(not 0 <= t <= KUJI_TOTAL_MAX for t in totals):
         raise ValueError(msg.bad_setting)
+    labels = {}
+    for g in KUJI_GRADES:
+        s = (form.get(f"label_{g}") or "").strip()
+        if len(s) > KUJI_LABEL_MAX:
+            raise ValueError(msg.kuji_label_too_long)
+        labels[f"label_{g}"] = s
     bad = _script("kuji_save", _KUJI_SAVE_LUA)(
         keys=[f"kuji:{project_id}", f"kuji_drawn:{project_id}"],
         args=[per, *totals],
     )
     if bad:
         raise ValueError(msg.kuji_total_below_drawn.format(grade=bad))
+    r().hset(f"kuji:{project_id}", mapping=labels)
 
 
 def kuji_reset(project_id):
@@ -906,7 +1174,9 @@ def kuji_state(project_id):
         d = min(total, int(drawn.get(g) or 0))
         url, thumb = _prize_urls(project_id, g)
         grades.append(
-            {"grade": g, "total": total, "drawn": d, "left": total - d,
+            {"grade": g, "label": cfgk["labels"][g],
+             "label_raw": cfgk["label_raws"][g],
+             "total": total, "drawn": d, "left": total - d,
              "url": url, "thumb": thumb}
         )
     return {
@@ -958,6 +1228,7 @@ def kuji_draw(project_id, device_id):
     return {
         "id": draw_id,
         "grade": grade,
+        "label": kuji_settings(project_id)["labels"][grade],
         "url": url,
         "thumb": thumb,
         "me": kuji_me(project_id, device_id),
@@ -969,6 +1240,7 @@ def kuji_mine(project_id, device_id):
     ids = conn.lrange(f"kuji_mine:{project_id}:{device_id}", 0, -1)
     if not ids:
         return []
+    labels = kuji_settings(project_id)["labels"]
     draws = conn.hmget(f"kuji_draws:{project_id}", ids)
     claimed = conn.hmget(f"kuji_claimed:{project_id}", ids)
     out = []
@@ -978,7 +1250,9 @@ def kuji_mine(project_id, device_id):
         d = json.loads(raw)
         url, thumb = _prize_urls(project_id, d["grade"])
         out.append(
-            {"id": draw_id, "grade": d["grade"], "ts": d.get("ts"),
+            {"id": draw_id, "grade": d["grade"],
+             "label": labels.get(d["grade"]) or kuji_label_default(d["grade"]),
+             "ts": d.get("ts"),
              "url": url, "thumb": thumb,
              "claimed_at": int(at) if at else None}
         )

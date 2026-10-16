@@ -20,7 +20,6 @@ from flask import (
     url_for,
 )
 
-from config import admin as admin_config
 from config import appsetting
 from config import msg
 from web import applog, images, store
@@ -33,13 +32,69 @@ def create_app():
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    store.ensure_root()
 
-    def admin_required(fn):
+    def current_name():
+        return session.get("user")
+
+    def login_required(fn):
         @wraps(fn)
         def wrapped(*args, **kwargs):
-            if not session.get("admin"):
+            if not current_name():
                 return redirect(url_for("admin_login", next=request.path))
             return fn(*args, **kwargs)
+
+        return wrapped
+
+    def staff_required(fn):
+        @wraps(fn)
+        def wrapped(*args, **kwargs):
+            name = current_name()
+            if not name:
+                return redirect(url_for("admin_login", next=request.path))
+            if not store.can_staff(name):
+                flash(msg.staff_only, "error")
+                return redirect(url_for("index"))
+            return fn(*args, **kwargs)
+
+        return wrapped
+
+    def root_required(fn):
+        @wraps(fn)
+        def wrapped(*args, **kwargs):
+            name = current_name()
+            if not name:
+                return redirect(url_for("admin_login", next=request.path))
+            if not store.is_root(name):
+                flash(msg.staff_only, "error")
+                return redirect(url_for("admin_home" if store.can_staff(name) else "index"))
+            return fn(*args, **kwargs)
+
+        return wrapped
+
+    def edit_required(fn):
+        @wraps(fn)
+        def wrapped(project_id, *args, **kwargs):
+            name = current_name()
+            if not name:
+                return redirect(url_for("admin_login", next=request.path))
+            if not store.can_edit(name, project_id):
+                flash(msg.staff_only, "error")
+                return redirect(url_for("admin_home" if store.can_staff(name) else "index"))
+            return fn(project_id, *args, **kwargs)
+
+        return wrapped
+
+    def delete_required(fn):
+        @wraps(fn)
+        def wrapped(project_id, *args, **kwargs):
+            name = current_name()
+            if not name:
+                return redirect(url_for("admin_login", next=request.path))
+            if not store.can_delete_project(name, project_id):
+                flash(msg.staff_only, "error")
+                return redirect(url_for("admin_home" if store.can_staff(name) else "index"))
+            return fn(project_id, *args, **kwargs)
 
         return wrapped
 
@@ -48,6 +103,7 @@ def create_app():
         if not p:
             abort(404)
         g.project_id = p["id"]
+        g.project_slug = p["slug"]
         return p
 
     def device_id():
@@ -75,15 +131,27 @@ def create_app():
 
     @app.context_processor
     def inject_admin():
+        name = current_name()
+        pid = getattr(g, "project_id", None)
         return {
-            "is_admin": bool(session.get("admin")),
             "msg": msg,
             "cfg": appsetting,
+            "current_user": name,
+            "is_root": store.is_root(name) if name else False,
+            "can_staff": store.can_staff(name) if name else False,
+            "can_create_project": store.can_create_project(name) if name else False,
+            "can_lottery": store.can_lottery(name, pid) if name and pid else False,
+            "can_edit": store.can_edit(name, pid) if name and pid else False,
+            "is_admin": store.can_staff(name) if name else False,
         }
 
     @app.before_request
     def log_start():
         g.log_t0 = time.monotonic()
+        store.ensure_root()
+        name = current_name()
+        if name and not store.get_user(name):
+            session.clear()
         args = request.view_args or {}
         if args.get("project_id"):
             g.project_id = args["project_id"]
@@ -91,7 +159,21 @@ def create_app():
     @app.after_request
     def remember_device(resp):
         did, is_new = device_id()
-        return with_device_cookie(resp, did, is_new)
+        resp = with_device_cookie(resp, did, is_new)
+        slug = getattr(g, "project_slug", None)
+        if slug:
+            slugs = store.parse_visited(request.cookies.get("visited"))
+            if slug in slugs:
+                slugs.remove(slug)
+            slugs.insert(0, slug)
+            resp.set_cookie(
+                "visited",
+                ",".join(slugs[: store.VISITED_MAX]),
+                max_age=60 * 60 * 24 * 400,
+                httponly=True,
+                samesite="Lax",
+            )
+        return resp
 
     @app.after_request
     def write_project_log(resp):
@@ -142,54 +224,158 @@ def create_app():
 
     @app.get("/")
     def index():
-        return render_template("index.html")
+        name = current_name()
+        if name:
+            projects = store.list_projects_for_ids(store.visible_ids(name))
+        else:
+            projects = store.projects_by_slugs(
+                store.parse_visited(request.cookies.get("visited"))
+            )
+        return render_template("index.html", projects=projects)
 
     @app.route("/admin/login", methods=["GET", "POST"])
     def admin_login():
+        store.ensure_root()
         nxt = request.args.get("next") or url_for("admin_home")
-        if session.get("admin"):
-            return redirect(nxt)
+        if current_name():
+            if store.can_staff(current_name()):
+                return redirect(nxt)
+            return redirect(url_for("index"))
         error = None
         if request.method == "POST":
-            user = request.form.get("username") or ""
-            pw = request.form.get("password") or ""
-            if user == admin_config.username and pw == admin_config.password:
+            u = store.authenticate(
+                request.form.get("username"),
+                request.form.get("password"),
+            )
+            if u:
                 session.clear()
-                session["admin"] = True
+                session["user"] = u["name"]
                 session.permanent = True
-                return redirect(nxt)
+                if store.can_staff(u["name"]):
+                    return redirect(nxt)
+                return redirect(url_for("index"))
             error = msg.login_failed
         return render_template("admin_login.html", error=error)
 
     @app.post("/admin/logout")
-    @admin_required
+    @login_required
     def admin_logout():
         session.clear()
         return redirect(url_for("index"))
 
+    @app.post("/account/password")
+    @login_required
+    def account_password():
+        new = request.form.get("new") or ""
+        again = request.form.get("again") or ""
+        if new != again:
+            flash(msg.password_mismatch, "error")
+            return redirect(request.referrer or url_for("index"))
+        try:
+            store.change_password(current_name(), request.form.get("old"), new)
+        except ValueError as e:
+            g.log_err = str(e)
+            flash(str(e), "error")
+            return redirect(request.referrer or url_for("index"))
+        flash(msg.password_changed, "ok")
+        return redirect(request.referrer or url_for("index"))
+
     @app.get("/admin")
-    @admin_required
+    @staff_required
     def admin_home():
-        return render_template("admin.html", projects=store.list_projects())
+        name = current_name()
+        projects = store.list_projects_for_ids(store.staff_ids(name))
+        for p in projects:
+            p["can_delete"] = store.can_delete_project(name, p["id"])
+        users = store.list_users() if store.is_root(name) else []
+        all_projects = store.list_projects() if store.is_root(name) else []
+        return render_template(
+            "admin.html",
+            projects=projects,
+            users=users,
+            all_projects=all_projects,
+        )
 
     @app.post("/admin/projects")
-    @admin_required
+    @login_required
     def admin_create_project():
+        name = current_name()
+        if not store.can_create_project(name):
+            flash(msg.staff_only, "error")
+            return redirect(url_for("index"))
         try:
             p = store.create_project(
                 request.form.get("name"),
                 request.form.get("slug"),
+                owner=name,
             )
         except ValueError as e:
             g.log_err = str(e)
             flash(str(e), "error")
-            return redirect(url_for("admin_home"))
+            return redirect(url_for("index"))
         g.project_id = p["id"]
         flash(msg.project_created.format(name=p["name"]), "ok")
+        return redirect(url_for("index"))
+
+    @app.post("/admin/users")
+    @root_required
+    def admin_create_user():
+        try:
+            u = store.create_user(
+                request.form.get("username"),
+                request.form.get("password"),
+            )
+        except ValueError as e:
+            g.log_err = str(e)
+            flash(str(e), "error")
+            return redirect(url_for("index"))
+        flash(msg.user_created.format(name=u["name"]), "ok")
+        return redirect(url_for("admin_home"))
+
+    @app.post("/admin/users/<username>/roles")
+    @root_required
+    def admin_save_roles(username):
+        try:
+            ids = [p["id"] for p in store.list_projects()]
+            store.save_user_roles(username, request.form, ids)
+        except ValueError as e:
+            g.log_err = str(e)
+            flash(str(e), "error")
+            return redirect(url_for("admin_home"))
+        flash(msg.roles_saved.format(name=username), "ok")
+        return redirect(url_for("admin_home"))
+
+    @app.post("/admin/users/<username>/password")
+    @root_required
+    def admin_reset_password(username):
+        new = request.form.get("new") or ""
+        again = request.form.get("again") or ""
+        if new != again:
+            flash(msg.password_mismatch, "error")
+            return redirect(url_for("admin_home"))
+        try:
+            store.set_password(username, new)
+        except ValueError as e:
+            g.log_err = str(e)
+            flash(str(e), "error")
+            return redirect(url_for("admin_home"))
+        flash(msg.password_changed, "ok")
+        return redirect(url_for("admin_home"))
+
+    @app.post("/admin/users/<username>/delete")
+    @root_required
+    def admin_delete_user(username):
+        try:
+            store.delete_user(username)
+        except ValueError as e:
+            g.log_err = str(e)
+            flash(str(e), "error")
+            return redirect(url_for("admin_home"))
+        flash(msg.user_deleted.format(name=username), "ok")
         return redirect(url_for("admin_home"))
 
     @app.post("/admin/projects/<project_id>/delete")
-    @admin_required
+    @delete_required
     def admin_delete_project(project_id):
         try:
             p = store.delete_project(project_id, delete_files=True)
@@ -201,7 +387,7 @@ def create_app():
         return redirect(url_for("admin_home"))
 
     @app.post("/admin/projects/<project_id>/reset-photos")
-    @admin_required
+    @edit_required
     def admin_reset_photos(project_id):
         try:
             p = store.reset_guest_photos(project_id)
@@ -213,7 +399,7 @@ def create_app():
         return redirect(url_for("admin_home"))
 
     @app.post("/admin/projects/<project_id>/asset/<kind>")
-    @admin_required
+    @edit_required
     def admin_save_asset(project_id, kind):
         xhr = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
@@ -249,7 +435,7 @@ def create_app():
         return redirect(url_for("admin_home"))
 
     @app.post("/admin/projects/<project_id>/asset/<kind>/delete")
-    @admin_required
+    @edit_required
     def admin_delete_asset(project_id, kind):
         if not store.get_project(project_id):
             flash(msg.project_missing, "error")
@@ -267,7 +453,7 @@ def create_app():
         return redirect(url_for("admin_home"))
 
     @app.post("/admin/projects/<project_id>/settings")
-    @admin_required
+    @edit_required
     def admin_save_settings(project_id):
         try:
             store.update_project_settings(project_id, request.form)
@@ -279,7 +465,7 @@ def create_app():
         return redirect(url_for("admin_home"))
 
     @app.post("/admin/projects/<project_id>/kuji")
-    @admin_required
+    @edit_required
     def admin_save_kuji(project_id):
         try:
             store.kuji_save(project_id, request.form)
@@ -291,7 +477,7 @@ def create_app():
         return redirect(url_for("admin_home"))
 
     @app.post("/admin/projects/<project_id>/kuji/reset")
-    @admin_required
+    @edit_required
     def admin_reset_kuji(project_id):
         p = store.get_project(project_id)
         if not p:
@@ -302,9 +488,11 @@ def create_app():
         return redirect(url_for("admin_home"))
 
     @app.post("/p/<slug>/lottery/reset")
-    @admin_required
+    @login_required
     def lottery_reset(slug):
         project = load_project(slug)
+        if not store.can_edit(current_name(), project["id"]):
+            abort(403)
         store.reset_lottery_winners(project["id"])
         return redirect(url_for("lottery", slug=slug))
 
@@ -315,7 +503,7 @@ def create_app():
     }
 
     @app.get("/admin/projects/<project_id>/qr/<kind>.png")
-    @admin_required
+    @edit_required
     def admin_qr(project_id, kind):
         endpoint = _qr_pages.get(kind)
         p = store.get_project(project_id)
@@ -446,9 +634,11 @@ def create_app():
         return jsonify(store.slideshow_state(project["id"]))
 
     @app.get("/p/<slug>/lottery")
-    @admin_required
+    @login_required
     def lottery(slug):
         project = load_project(slug)
+        if not store.can_lottery(current_name(), project["id"]):
+            abort(403)
         return render_template(
             "lottery.html",
             project=project,
@@ -456,9 +646,11 @@ def create_app():
         )
 
     @app.post("/p/<slug>/api/lottery/draw")
-    @admin_required
+    @login_required
     def lottery_draw(slug):
         project = load_project(slug)
+        if not store.can_lottery(current_name(), project["id"]):
+            abort(403)
         try:
             return jsonify(store.draw_lottery(project["id"]))
         except ValueError as e:

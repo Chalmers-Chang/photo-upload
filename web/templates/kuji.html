@@ -3,6 +3,14 @@
 {% block extra_head %}
 {% include "_cover_layout.html" %}
 <style>
+  .pjt-stage .kuji-hint {
+    margin: 8px 0 0;
+    text-align: center;
+    white-space: pre-line;
+    font-weight: 400;
+    color: var(--ink-soft);
+    font-size: var(--kuji-chance-size);
+  }
   .pjt-stage .kuji-chances {
     margin: 12px 0 0;
     text-align: center;
@@ -316,6 +324,7 @@
       </div>
       <div class="glass-body">
         <p class="lead">{{ msg.kuji_lead }}</p>
+        <p class="kuji-hint">{{ msg.kuji_hint.format(n=me.per_user) }}</p>
         <p class="kuji-chances" id="chances"></p>
         <p class="flash error" id="note" hidden></p>
       </div>
@@ -459,7 +468,13 @@
     if (e.key === "Escape") closePanels();
   });
 
-  function prizeFace(el, url, grade) {
+  function prizeName(item) {
+    if (!item) return "";
+    if (typeof item === "string") return fill(copy.grade, { grade: item });
+    return item.label || fill(copy.grade, { grade: item.grade });
+  }
+
+  function prizeFace(el, url, item) {
     el.textContent = "";
     if (url) {
       const img = document.createElement("img");
@@ -467,7 +482,7 @@
       img.alt = "";
       el.appendChild(img);
     } else {
-      el.textContent = grade;
+      el.textContent = prizeName(item);
     }
   }
 
@@ -482,7 +497,7 @@
       const block = document.createElement("section");
       block.className = "grade-block";
       const h = document.createElement("h3");
-      h.textContent = fill(copy.grade, { grade: g.grade });
+      h.textContent = prizeName(g);
       const meta = document.createElement("span");
       meta.className = "meta";
       meta.textContent = fill(copy.left, { left: g.left, total: g.total });
@@ -493,7 +508,7 @@
         const t = document.createElement("div");
         t.className = "tile" + (i >= g.left ? " gone" : "");
         t.dataset.gone = copy.gone;
-        prizeFace(t, g.thumb, g.grade);
+        prizeFace(t, g.thumb, g);
         tiles.appendChild(t);
       }
       block.append(h, tiles);
@@ -517,7 +532,7 @@
   let won = null;
   const tear = KujiTear(tearBox, {
     onOpen() {
-      tearText.textContent = fill(copy.win, { grade: won.grade });
+      tearText.textContent = fill(copy.win, { label: prizeName(won) });
       tearMine.hidden = false;
       sparkles.start(1);
       requestAnimationFrame(() => requestAnimationFrame(() => sparkles.burst()));
@@ -540,7 +555,7 @@
   }
 
   function startTear() {
-    $("prize-grade").textContent = fill(copy.grade, { grade: won.grade }).split(" / ")[0];
+    $("prize-grade").textContent = prizeName(won).split(" / ")[0];
     const img = $("prize-img");
     img.hidden = !won.url;
     if (won.url) img.src = won.url;
@@ -589,10 +604,10 @@
     row.className = "mine-row";
     const thumb = document.createElement("div");
     thumb.className = "thumb";
-    prizeFace(thumb, p.thumb, p.grade);
+    prizeFace(thumb, p.thumb, p);
     const info = document.createElement("div");
     const h = document.createElement("h3");
-    h.textContent = fill(copy.grade, { grade: p.grade });
+    h.textContent = prizeName(p);
     info.appendChild(h);
     const showClaimed = (at) => {
       info.querySelectorAll(".row").forEach((el) => el.remove());

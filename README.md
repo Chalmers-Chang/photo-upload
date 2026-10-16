@@ -24,7 +24,7 @@ docker compose pull
 docker compose up -d
 ```
 
-Open `http://localhost:8000`. Admin is `/admin`.
+Open `http://localhost:8000`. The home page lists projects. Admin is `/admin` (root / `ADMIN_PASSWORD` on first boot).
 
 Pushes to `main` or `feature/**` build `linux/arm64` on the self-hosted Mac runner (native, no QEMU), then `compose pull && compose up -d`.
 
@@ -45,7 +45,7 @@ Separate Compose project (`photo-upload-poc`): own Redis volume, photos in `.poc
 | --- | --- | --- |
 | Photo directory | Compose `HOST_PHOTO_DIR` (or `.env`) | Default `/Volumes/OWC Envoy Pro FX/photo-upload`. Bind the same path on **app** and **nginx**. |
 | App logs | `$HOST_PHOTO_DIR/logs` | One file per project per day. Deploy also symlinks `/opt/app/photo-upload/logs`. Older than 30 days are deleted. |
-| Admin login | `ADMIN_USERNAME` / `ADMIN_PASSWORD` on `app` | Defaults live in `config/admin.py`. Change them. |
+| Admin login | `ADMIN_USERNAME` / `ADMIN_PASSWORD` on `app` | Seeds the root account in Redis on first boot (`config/admin.py`). Later password changes live in Redis. |
 | `SECRET_KEY` | `app` environment | Default in `config/appsetting.py`. Signs cookies. |
 
 **Site-wide defaults** (Compose `app.environment`, or `config/appsetting.py`). New projects copy the slideshow/lottery values; each project can override them in Admin → Settings.

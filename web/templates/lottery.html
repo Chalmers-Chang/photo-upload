@@ -188,10 +188,13 @@
   {% set bg_mobile = project.lot_mobile_show %}
   {% include "_stage_bg.html" %}
   {% include "_admin_chrome.html" %}
+  {% include "_overlay.html" %}
   <a class="back-btn" id="back" href="{{ url_for('project_home', slug=project.slug) }}" hidden>{{ msg.lottery_back }}</a>
+  {% if can_edit %}
   <form class="reset-lottery" method="post" action="{{ url_for('lottery_reset', slug=project.slug) }}" onsubmit="return confirm({{ msg.confirm_reset_lottery|tojson }});">
     <button type="submit">{{ msg.reset_lottery }}</button>
   </form>
+  {% endif %}
   {% include "_name_modal.html" %}
   <div class="stage">
     <canvas class="sparkles" id="sparkles" hidden></canvas>

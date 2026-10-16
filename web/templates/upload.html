@@ -115,7 +115,7 @@
     const lines = [];
     if (yes) {
       lines.push(fill(data.chances >= cap ? copy.capped : copy.ok, {
-        n: yes, chances: data.chances, max: cap, kuji: data.kuji.left,
+        n: yes, chances: data.chances, max: cap, kuji: data.kuji.left, cap: data.kuji.per_user,
       }));
     }
     if (no) lines.push(fill(copy.none, { n: no }));

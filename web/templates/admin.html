@@ -189,6 +189,23 @@
     align-items: stretch;
     margin: 0;
   }
+  .admin-block { margin: 0 0 18px; }
+  .admin-block > h2 { margin: 0 0 10px; font-size: 18px; }
+  .account-card .role-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .account-card .role-row span { font-size: 13px; color: var(--muted); }
+  .account-card select {
+    font: inherit;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--card);
+  }
 </style>
 {% endblock %}
 {% block body %}
@@ -214,23 +231,62 @@
 <div class="glass-stage admin-stage">
 <div class="glass-card">
 <div class="glass-body">
-  <h1>{{ msg.projects }}</h1>
+  <h1>{{ msg.admin }}</h1>
 
   {% for category, message in get_flashed_messages(with_categories=true) %}
     <p class="flash {{ category }}">{{ message }}</p>
   {% endfor %}
 
-  <div class="card">
-    <h2>{{ msg.new_project }}</h2>
-    <form class="stack" method="post" action="{{ url_for('admin_create_project') }}">
-      <label>{{ msg.project_name }}</label>
-      <input name="name" required placeholder="{{ msg.project_name_placeholder }}">
-      <label>{{ msg.project_slug }}</label>
-      <input name="slug" placeholder="wedding">
-      <button class="btn" type="submit">{{ msg.project_add }}</button>
-    </form>
+  {% if is_root %}
+  <div class="admin-block">
+    <h2>{{ msg.admin_accounts }}</h2>
+    {% for u in users %}
+    <details class="card account-card" id="user-{{ u.name }}">
+      <summary>
+        <div class="card-head">
+          <h2>{{ u.name }}{% if u.is_root %} · root{% endif %}</h2>
+        </div>
+      </summary>
+      {% if not u.is_root %}
+      <form class="stack" method="post" action="{{ url_for('admin_save_roles', username=u.name) }}">
+        {% for p in all_projects %}
+        <label class="role-row">
+          <span>{{ p.name }}</span>
+          <select name="role_{{ p.id }}">
+            <option value="">{{ msg.role_none }}</option>
+            {% for role, label in [("guest", msg.role_guest), ("maintainer", msg.role_maintainer), ("admin", msg.role_admin)] %}
+            <option value="{{ role }}" {% if u.roles.get(p.id) == role %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        {% else %}
+        <p class="meta">{{ msg.no_projects }}</p>
+        {% endfor %}
+        <button class="btn small" type="submit">{{ msg.settings_save }}</button>
+      </form>
+      <form class="stack" method="post" action="{{ url_for('admin_reset_password', username=u.name) }}" style="margin-top:12px">
+        <label>{{ msg.password_reset }}</label>
+        <input name="new" type="password" autocomplete="new-password" required minlength="4" maxlength="72" placeholder="{{ msg.password_new }}">
+        <input name="again" type="password" autocomplete="new-password" required minlength="4" maxlength="72" placeholder="{{ msg.password_again }}">
+        <button class="btn small" type="submit">{{ msg.password_reset }}</button>
+      </form>
+      <div class="card-arms">
+        <div class="delete-arm">
+          <button type="button" class="btn danger delete-project js-delete-arm">{{ msg.delete_user }}</button>
+          <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_delete_user', username=u.name) }}">
+            <button class="btn danger delete-project" type="submit">{{ msg.delete_confirm }}</button>
+            <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+    </details>
+    {% endfor %}
   </div>
+  {% endif %}
 
+  <div class="admin-block">
+  <h2>{{ msg.admin_projects }}</h2>
   {% for p in projects %}
     <details class="card project-card" id="project-{{ p.id }}">
       <summary>
@@ -273,6 +329,7 @@
             <button class="btn secondary delete-project js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
           </form>
         </div>
+        {% if p.can_delete %}
         <div class="delete-arm">
           <button type="button" class="btn danger delete-project js-delete-arm">{{ msg.delete_project }}</button>
           <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_delete_project', project_id=p.id) }}">
@@ -280,6 +337,7 @@
             <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
           </form>
         </div>
+        {% endif %}
       </div>
       <p class="meta">{{ msg.project_meta.format(slug=p.slug, count=p.photo_count) }}</p>
       <div class="admin-sections">
@@ -358,6 +416,9 @@
           {% for g in p.kuji.grades %}
           {% call asset_card(p, "kuji-" ~ g.grade.lower(), msg.kuji_grade.format(grade=g.grade)) %}
           <p class="meta">{{ msg.kuji_admin_drawn.format(drawn=g.drawn, total=g.total) }}</p>
+          <label>{{ msg.kuji_label_label }}
+            <input form="kuji-form-{{ p.id }}" name="label_{{ g.grade }}" value="{{ g.label_raw }}" placeholder="{{ msg.kuji_grade.format(grade=g.grade) }}" maxlength="40">
+          </label>
           <label>{{ msg.kuji_count_label }}
             <input form="kuji-form-{{ p.id }}" type="number" name="total_{{ g.grade }}" min="{{ g.drawn }}" max="999" value="{{ g.total }}" required>
           </label>
@@ -396,8 +457,9 @@
   {% else %}
     <p class="lead">{{ msg.no_projects }}</p>
   {% endfor %}
+  </div>
 </div>
-{% if is_admin %}
+{% if current_user %}
 <form class="logout-form" method="post" action="{{ url_for('admin_logout') }}">
   <button class="admin-btn" type="submit">{{ msg.logout }}</button>
 </form>
@@ -507,9 +569,17 @@
     box.querySelectorAll("form").forEach((f) => f.addEventListener("submit", remember));
     box.querySelectorAll('input[type="file"]').forEach((f) => f.addEventListener("change", remember));
   });
+  document.querySelectorAll(".account-card form").forEach((f) => {
+    f.addEventListener("submit", () => {
+      const card = f.closest(".account-card");
+      if (card) sessionStorage.setItem("adminOpenUser", card.id);
+    });
+  });
   const openId = sessionStorage.getItem("adminOpenProject");
   const openSection = sessionStorage.getItem("adminOpenSection");
+  const openUser = sessionStorage.getItem("adminOpenUser");
   sessionStorage.removeItem("adminOpenSection");
+  sessionStorage.removeItem("adminOpenUser");
   if (openId) {
     sessionStorage.removeItem("adminOpenProject");
     const card = document.getElementById("project-" + openId);
@@ -518,6 +588,13 @@
       const sec = openSection && openSection.endsWith("-" + openId) && document.getElementById(openSection);
       if (sec) sec.open = true;
       (sec || card).scrollIntoView({ block: "nearest" });
+    }
+  }
+  if (openUser) {
+    const card = document.getElementById(openUser);
+    if (card) {
+      card.open = true;
+      card.scrollIntoView({ block: "nearest" });
     }
   }
 </script>

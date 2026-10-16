@@ -26,10 +26,10 @@
       <div class="actions">
         <a class="btn" href="{{ url_for('upload', slug=project.slug) }}">{{ msg.upload_photos }}</a>
         <a class="btn secondary" href="{{ url_for('slideshow', slug=project.slug) }}">{{ msg.play_slideshow }}</a>
-        {% if kuji_total or is_admin %}
+        {% if kuji_total or can_edit %}
           <a class="btn lottery" href="{{ url_for('kuji', slug=project.slug) }}">{{ msg.kuji }}</a>
         {% endif %}
-        {% if is_admin %}
+        {% if can_lottery %}
           <a class="btn lottery" href="{{ url_for('lottery', slug=project.slug) }}">{{ msg.lottery }}</a>
         {% endif %}
       </div>

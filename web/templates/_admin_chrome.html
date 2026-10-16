@@ -8,6 +8,13 @@
     align-items: center;
     gap: 8px;
   }
+  .chrome-home {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+  }
   .back-btn {
     position: fixed;
     top: 12px;
@@ -15,6 +22,7 @@
     z-index: 30;
   }
   .chrome-end .admin-btn,
+  .chrome-home,
   .back-btn {
     text-decoration: none;
     border: 1px solid var(--frost-line);
@@ -31,7 +39,53 @@
     backdrop-filter: var(--frost-blur);
     -webkit-backdrop-filter: var(--frost-blur);
   }
+  .chrome-account { position: relative; }
+  .chrome-account > summary {
+    list-style: none;
+    appearance: none;
+  }
+  .chrome-account > summary::-webkit-details-marker,
+  .chrome-account > summary::marker { display: none; content: none; }
+  .chrome-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    min-width: 160px;
+    padding: 6px;
+    border-radius: 14px;
+    background: var(--frost-solid);
+    border: 1px solid var(--frost-line);
+    box-shadow: var(--frost-shadow);
+    display: grid;
+    gap: 4px;
+  }
+  .chrome-menu button,
+  .chrome-menu .admin-btn {
+    width: 100%;
+    text-align: left;
+    padding: 8px 12px;
+    border-radius: 10px;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .chrome-menu form { margin: 0; }
 </style>
+{% if request.endpoint != "index" %}
+<a class="chrome-home" href="{{ url_for('index') }}">{{ msg.nav_home }}</a>
+{% endif %}
 <div class="chrome-end">
+  {% if not current_user or can_staff %}
   <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
+  {% endif %}
+  {% if current_user %}
+  <details class="chrome-account">
+    <summary class="admin-btn">{{ current_user }}</summary>
+    <div class="chrome-menu">
+      <button class="admin-btn" type="button" data-open-overlay="panel-password">{{ msg.password_change }}</button>
+      <form method="post" action="{{ url_for('admin_logout') }}">
+        <button class="admin-btn" type="submit">{{ msg.logout }}</button>
+      </form>
+    </div>
+  </details>
+  {% endif %}
 </div>
