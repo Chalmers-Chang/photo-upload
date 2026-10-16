@@ -129,14 +129,24 @@ def create_app():
             )
         return resp
 
+    def resolve_lang():
+        name = current_name()
+        if name:
+            return store.user_lang(name)
+        did, _ = device_id()
+        return store.device_lang(did) or msg.normalize_lang(request.cookies.get("lang"))
+
     @app.context_processor
     def inject_admin():
         name = current_name()
         pid = getattr(g, "project_id", None)
+        lang = getattr(g, "lang", None) or resolve_lang()
         return {
             "msg": msg,
             "cfg": appsetting,
             "current_user": name,
+            "ui_lang": lang,
+            "html_lang": "en" if lang == "en" else "zh-Hant",
             "is_root": store.is_root(name) if name else False,
             "can_staff": store.can_staff(name) if name else False,
             "can_create_project": store.can_create_project(name) if name else False,
@@ -155,11 +165,20 @@ def create_app():
         args = request.view_args or {}
         if args.get("project_id"):
             g.project_id = args["project_id"]
+        g.lang = resolve_lang()
 
     @app.after_request
     def remember_device(resp):
         did, is_new = device_id()
         resp = with_device_cookie(resp, did, is_new)
+        lang = getattr(g, "lang", None)
+        if lang:
+            resp.set_cookie(
+                "lang",
+                lang,
+                max_age=60 * 60 * 24 * 400,
+                samesite="Lax",
+            )
         slug = getattr(g, "project_slug", None)
         if slug:
             slugs = store.parse_visited(request.cookies.get("visited"))
@@ -209,7 +228,10 @@ def create_app():
     @app.get("/api/profile")
     def profile_get():
         did, _ = device_id()
-        return {"nickname": store.nickname_of(did)}
+        return {
+            "nickname": store.nickname_of(did),
+            "lang": store.device_lang(did) or g.lang,
+        }
 
     @app.post("/api/profile")
     def profile_post():
@@ -217,10 +239,12 @@ def create_app():
         payload = request.get_json(silent=True) or request.form
         try:
             name = store.set_nickname(did, payload.get("nickname"))
+            if not current_name() and payload.get("lang"):
+                g.lang = store.set_device_lang(did, payload.get("lang"))
         except ValueError as e:
             g.log_err = str(e)
             return jsonify({"error": str(e)}), 400
-        return jsonify({"nickname": name})
+        return jsonify({"nickname": name, "lang": g.lang})
 
     @app.get("/")
     def index():
@@ -263,6 +287,32 @@ def create_app():
         session.clear()
         return redirect(url_for("index"))
 
+    @app.post("/account/lang")
+    @login_required
+    def account_lang():
+        try:
+            g.lang = store.set_user_lang(current_name(), request.form.get("lang"))
+        except ValueError as e:
+            g.log_err = str(e)
+            flash(str(e), "error")
+            return redirect(request.referrer or url_for("index"))
+        flash(msg.lang_saved, "ok")
+        return redirect(request.referrer or url_for("index"))
+
+    @app.post("/admin/users/<username>/lang")
+    @root_required
+    def admin_set_lang(username):
+        try:
+            lang = store.set_user_lang(username, request.form.get("lang"))
+        except ValueError as e:
+            g.log_err = str(e)
+            flash(str(e), "error")
+            return redirect(url_for("admin_accounts"))
+        if username == current_name():
+            g.lang = lang
+        flash(msg.lang_saved, "ok")
+        return redirect(url_for("admin_accounts"))
+
     @app.post("/account/password")
     @login_required
     def account_password():
@@ -296,6 +346,7 @@ def create_app():
         return render_template(
             "admin_accounts.html",
             users=users,
+            root_user=store.get_user(current_name()),
             all_projects=store.list_projects(),
         )
 

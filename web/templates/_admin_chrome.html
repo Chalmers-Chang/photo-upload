@@ -72,6 +72,7 @@
     box-sizing: border-box;
   }
   .chrome-menu form { margin: 0; }
+  .chrome-menu button:disabled { opacity: 0.45; cursor: default; }
 </style>
 {% if request.endpoint != "index" %}
 <a class="chrome-home" href="{{ url_for('index') }}">{{ msg.nav_home }}</a>
@@ -92,6 +93,10 @@
   <details class="chrome-drop">
     <summary class="admin-btn">{{ current_user }}</summary>
     <div class="chrome-menu">
+      <form method="post" action="{{ url_for('account_lang') }}">
+        <button class="admin-btn" type="submit" name="lang" value="zh"{% if ui_lang == 'zh' %} disabled{% endif %}>{{ msg.lang_zh }}</button>
+        <button class="admin-btn" type="submit" name="lang" value="en"{% if ui_lang == 'en' %} disabled{% endif %}>{{ msg.lang_en }}</button>
+      </form>
       <button class="admin-btn" type="button" data-open-overlay="panel-password">{{ msg.password_change }}</button>
       <form method="post" action="{{ url_for('admin_logout') }}">
         <button class="admin-btn" type="submit">{{ msg.logout }}</button>

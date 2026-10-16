@@ -145,34 +145,48 @@
     z-index: 0;
     overflow: hidden;
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
     place-items: center;
-    gap: 6px;
-    padding: 10px;
+    gap: 8px;
+    padding: 12px 10px 10px;
     box-sizing: border-box;
     background: #fffcf7;
     border: 2px solid {{ cfg.lottery_btn_color }};
   }
+  .prize-art {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+  .prize-art img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: var(--kuji-prize-fit);
+    max-height: var(--kuji-prize-fit);
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 10px;
+  }
   .prize-card .grade {
+    flex-shrink: 0;
     max-width: 100%;
     font-size: var(--kuji-grade-size);
     font-weight: 800;
-    line-height: 1.1;
+    line-height: 1.15;
     text-align: center;
     overflow-wrap: anywhere;
     color: {{ cfg.lottery_btn_color }};
     text-shadow: 0 1px 0 #fff;
   }
-  .prize-card img {
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    object-fit: contain;
-    border-radius: 10px;
-  }
   .ticket-front { z-index: 1; filter: drop-shadow(0 6px 14px rgba(28, 25, 21, 0.22)); }
   .ticket-flap-wrap { z-index: 2; filter: drop-shadow(0 8px 16px rgba(28, 25, 21, 0.3)); pointer-events: none; }
-  .ticket-face { overflow: hidden; background: #d4af37; }
+  .ticket-face { overflow: hidden; background: #c0453c; }
   .ticket-face img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
   .ticket-face .ticket-plain {
     position: absolute;
@@ -183,13 +197,54 @@
     white-space: pre-line;
     font-weight: 800;
     font-size: var(--kuji-head-size);
-    color: rgba(28, 25, 21, 0.62);
+    color: #fff8e8;
+    letter-spacing: 0.12em;
     background:
-      radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.55), transparent 55%),
-      linear-gradient(135deg, #f3d77a, {{ cfg.lottery_btn_color }} 60%, #b8902a);
-    border: 3px dashed rgba(255, 255, 255, 0.75);
+      radial-gradient(circle at 50% 0%, rgba(255, 220, 140, 0.35), transparent 42%),
+      repeating-linear-gradient(90deg, rgba(255, 232, 176, 0.08) 0 12px, transparent 12px 24px),
+      linear-gradient(165deg, #e8b23a 0%, #c0453c 38%, #8e1f28 100%);
+  }
+  .ticket-chrome {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
     border-radius: 14px;
-    box-sizing: border-box;
+    box-shadow:
+      inset 0 0 0 3px #f0d48a,
+      inset 0 0 0 6px #8e1f28,
+      inset 0 0 0 8px #f6e7b2;
+  }
+  .ticket-chrome .ticket-mark {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: #8e1f28;
+    color: #ffe9b0;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    white-space: nowrap;
+  }
+  .ticket-chrome .ticket-serial {
+    position: absolute;
+    right: 12px;
+    bottom: 8px;
+    color: #ffe9b0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-shadow: 0 1px 2px rgba(28, 25, 21, 0.45);
+  }
+  .ticket-chrome .ticket-perf {
+    position: absolute;
+    left: 10px;
+    top: 18px;
+    bottom: 18px;
+    border-left: 2px dashed rgba(255, 233, 176, 0.7);
   }
   .ticket-flap {
     transform-origin: 0 0;
@@ -302,6 +357,7 @@
       --kuji-head-size: 18px;
       --kuji-tile: 64px;
       --kuji-grade-size: 22px;
+      --kuji-prize-fit: 72%;
       --kuji-mine-thumb: 64px;
       --kuji-ticket-frac: 0.84;
     }
@@ -314,6 +370,7 @@
       --kuji-head-size: 22px;
       --kuji-tile: 88px;
       --kuji-grade-size: 48px;
+      --kuji-prize-fit: 80%;
       --kuji-mine-thumb: 84px;
       --kuji-ticket-frac: 0.62;
     }
@@ -373,16 +430,23 @@
     <div class="tear-scene" id="tear-scene">
       <div class="tear-box" id="tear-box">
         <div class="prize-card">
+          <div class="prize-art">
+            <img id="prize-img" alt="" hidden>
+          </div>
           <div class="grade" id="prize-grade"></div>
-          <img id="prize-img" alt="" hidden>
         </div>
         <div class="ticket-front">
           <div class="ticket-face">
             {% if project.kuji_ticket_url %}
             <img id="ticket-img" src="{{ project.kuji_ticket_url }}" alt="" draggable="false">
             {% else %}
-            <div class="ticket-plain">{{ msg.kuji }}</div>
+            <div class="ticket-plain">一番賞</div>
             {% endif %}
+            <div class="ticket-chrome" aria-hidden="true">
+              <span class="ticket-mark">一番賞</span>
+              <span class="ticket-perf"></span>
+              <span class="ticket-serial" id="ticket-serial">No. ----</span>
+            </div>
           </div>
         </div>
         <div class="ticket-flap-wrap"><div class="ticket-flap"></div></div>
@@ -437,6 +501,7 @@
     failed: {{ msg.kuji_failed | tojson }},
     notReady: {{ msg.kuji_not_ready | tojson }},
   };
+  const uiLang = {{ ui_lang | tojson }};
   let me = {{ me | tojson }};
   let prizeTotal = {{ kuji_total | tojson }};
   const fill = (s, vals) => Object.entries(vals).reduce((t, [k, v]) => t.replaceAll("{" + k + "}", String(v)), s);
@@ -495,19 +560,10 @@
   function prizeName(item) {
     if (!item) return "";
     if (typeof item === "string") return fill(copy.grade, { grade: item });
-    if (item.label) return item.label;
     const zh = item.label_zh || "";
     const en = item.label_en || "";
-    if (zh && en) return zh + " / " + en;
-    return zh || en || fill(copy.grade, { grade: item.grade });
-  }
-
-  function prizeZh(item) {
-    return (item && item.label_zh) || prizeName(item).split(" / ")[0];
-  }
-
-  function prizeEn(item) {
-    return (item && item.label_en) || prizeName(item).split(" / ").slice(-1)[0];
+    const picked = uiLang === "en" ? (en || zh) : (zh || en);
+    return picked || fill(copy.grade, { grade: item.grade });
   }
 
   function prizeFace(el, url, item) {
@@ -569,7 +625,7 @@
   let won = null;
   const tear = KujiTear(tearBox, {
     onOpen() {
-      tearText.textContent = fill(copy.win, { zh: prizeZh(won), en: prizeEn(won) });
+      tearText.textContent = fill(copy.win, { name: prizeName(won) });
       tearMine.hidden = false;
       tearAgain.hidden = !(me && me.left > 0);
       sparkles.start(1);
@@ -593,7 +649,12 @@
   }
 
   function startTear() {
-    $("prize-grade").textContent = prizeZh(won);
+    $("prize-grade").textContent = prizeName(won);
+    const serial = $("ticket-serial");
+    if (serial) {
+      const id = won && won.id ? String(won.id).replace(/[^a-zA-Z0-9]/g, "").slice(-8) : "";
+      serial.textContent = "No. " + (id ? id.toUpperCase() : "----");
+    }
     const img = $("prize-img");
     img.hidden = !won.url;
     if (won.url) img.src = won.url;

@@ -100,6 +100,26 @@
     <p class="flash {{ category }}">{{ message }}</p>
   {% endfor %}
 
+  {% if root_user %}
+    <details class="card account-card" id="user-{{ root_user.name }}">
+      <summary>
+        <div class="card-head">
+          <h2>{{ root_user.name }}</h2>
+        </div>
+      </summary>
+      <form class="stack" method="post" action="{{ url_for('admin_set_lang', username=root_user.name) }}">
+        <label class="role-row">
+          <span>{{ msg.lang_label }}</span>
+          <select name="lang">
+            <option value="zh" {% if root_user.lang == 'zh' %}selected{% endif %}>{{ msg.lang_zh }}</option>
+            <option value="en" {% if root_user.lang == 'en' %}selected{% endif %}>{{ msg.lang_en }}</option>
+          </select>
+        </label>
+        <button class="btn small" type="submit">{{ msg.settings_save }}</button>
+      </form>
+    </details>
+  {% endif %}
+
   {% for u in users %}
     <details class="card account-card" id="user-{{ u.name }}">
       <summary>
@@ -107,6 +127,16 @@
           <h2>{{ u.name }}</h2>
         </div>
       </summary>
+      <form class="stack" method="post" action="{{ url_for('admin_set_lang', username=u.name) }}">
+        <label class="role-row">
+          <span>{{ msg.lang_label }}</span>
+          <select name="lang">
+            <option value="zh" {% if u.lang == 'zh' %}selected{% endif %}>{{ msg.lang_zh }}</option>
+            <option value="en" {% if u.lang == 'en' %}selected{% endif %}>{{ msg.lang_en }}</option>
+          </select>
+        </label>
+        <button class="btn small" type="submit">{{ msg.settings_save }}</button>
+      </form>
       <form class="stack" method="post" action="{{ url_for('admin_save_roles', username=u.name) }}">
         {% for p in all_projects %}
         <label class="role-row">

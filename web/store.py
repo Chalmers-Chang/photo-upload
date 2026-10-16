@@ -533,6 +533,7 @@ def ensure_root():
         mapping={
             "password": generate_password_hash(admin_config.password),
             "is_root": "1",
+            "lang": "zh",
             "created_at": str(int(time.time())),
         },
     )
@@ -550,6 +551,7 @@ def get_user(name):
         return None
     data["name"] = name
     data["is_root"] = data.get("is_root") == "1"
+    data["lang"] = msg.normalize_lang(data.get("lang"))
     return data
 
 
@@ -575,6 +577,7 @@ def create_user(name, password):
         mapping={
             "password": generate_password_hash(password),
             "is_root": "0",
+            "lang": "zh",
             "created_at": str(int(time.time())),
         },
     )
@@ -666,6 +669,18 @@ def set_user_role(name, project_id, role):
 def save_user_roles(name, form, project_ids):
     for pid in project_ids:
         set_user_role(name, pid, form.get(f"role_{pid}"))
+
+
+def user_lang(name):
+    return msg.normalize_lang(r().hget(f"user:{name}", "lang"))
+
+
+def set_user_lang(name, lang):
+    if not get_user(name):
+        raise ValueError(msg.user_missing)
+    lang = msg.normalize_lang(lang)
+    r().hset(f"user:{name}", "lang", lang)
+    return lang
 
 
 def visible_ids(name):
@@ -841,6 +856,19 @@ def set_nickname(device_id, name):
         raise ValueError(msg.nickname_bad)
     r().set(f"device_name:{device_id}", name)
     return name
+
+
+def device_lang(device_id):
+    raw = r().get(f"device_lang:{device_id}")
+    if not raw:
+        return ""
+    return msg.normalize_lang(raw)
+
+
+def set_device_lang(device_id, lang):
+    lang = msg.normalize_lang(lang)
+    r().set(f"device_lang:{device_id}", lang)
+    return lang
 
 
 def load_photo(project_id, photo_id):

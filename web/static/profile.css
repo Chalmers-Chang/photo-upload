@@ -19,6 +19,29 @@
 .name-modal-card h2 { margin: 0 0 8px; font-size: 22px; white-space: pre-line; }
 .name-modal-card p { margin: 0 0 16px; color: #6b6459; font-size: 14px; white-space: pre-line; }
 .name-modal-card form { display: grid; gap: 12px; }
+.lang-pick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.lang-opt {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 10px 8px;
+  border-radius: 12px;
+  border: 1px solid #ddd4c6;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.lang-opt:has(input:checked) {
+  border-color: #1c1915;
+  background: #1c1915;
+  color: #fffcf7;
+}
+.lang-opt input { position: absolute; opacity: 0; pointer-events: none; }
 .name-modal-card input,
 .name-modal-card button {
   font: inherit;
