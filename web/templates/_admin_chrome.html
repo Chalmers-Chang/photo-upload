@@ -39,13 +39,13 @@
     backdrop-filter: var(--frost-blur);
     -webkit-backdrop-filter: var(--frost-blur);
   }
-  .chrome-account { position: relative; }
-  .chrome-account > summary {
+  .chrome-drop { position: relative; }
+  .chrome-drop > summary {
     list-style: none;
     appearance: none;
   }
-  .chrome-account > summary::-webkit-details-marker,
-  .chrome-account > summary::marker { display: none; content: none; }
+  .chrome-drop > summary::-webkit-details-marker,
+  .chrome-drop > summary::marker { display: none; content: none; }
   .chrome-menu {
     position: absolute;
     right: 0;
@@ -61,12 +61,15 @@
   }
   .chrome-menu button,
   .chrome-menu .admin-btn {
+    display: block;
     width: 100%;
     text-align: left;
     padding: 8px 12px;
     border-radius: 10px;
     box-shadow: none;
     backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-sizing: border-box;
   }
   .chrome-menu form { margin: 0; }
 </style>
@@ -74,11 +77,19 @@
 <a class="chrome-home" href="{{ url_for('index') }}">{{ msg.nav_home }}</a>
 {% endif %}
 <div class="chrome-end">
-  {% if not current_user or can_staff %}
-  <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin }}</a>
+  {% if can_staff %}
+  <details class="chrome-drop">
+    <summary class="admin-btn">{{ msg.admin }}</summary>
+    <div class="chrome-menu">
+      {% if is_root %}
+      <a class="admin-btn" href="{{ url_for('admin_accounts') }}">{{ msg.admin_accounts }}</a>
+      {% endif %}
+      <a class="admin-btn" href="{{ url_for('admin_home') }}">{{ msg.admin_projects }}</a>
+    </div>
+  </details>
   {% endif %}
   {% if current_user %}
-  <details class="chrome-account">
+  <details class="chrome-drop">
     <summary class="admin-btn">{{ current_user }}</summary>
     <div class="chrome-menu">
       <button class="admin-btn" type="button" data-open-overlay="panel-password">{{ msg.password_change }}</button>
@@ -87,5 +98,7 @@
       </form>
     </div>
   </details>
+  {% elif request.endpoint != "admin_login" %}
+  <a class="admin-btn" href="{{ url_for('admin_login', next=request.path) }}">{{ msg.login }}</a>
   {% endif %}
 </div>

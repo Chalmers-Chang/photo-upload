@@ -230,6 +230,16 @@
     font-weight: 700;
     color: var(--ink-fade);
   }
+  .tear-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+  .tear-actions .kuji-again {
+    background: var(--btn-lottery);
+    border-color: transparent;
+  }
   .tear-sparkles {
     position: fixed;
     inset: 0;
@@ -324,7 +334,7 @@
       </div>
       <div class="glass-body">
         <p class="lead">{{ msg.kuji_lead }}</p>
-        <p class="kuji-hint">{{ msg.kuji_hint.format(n=me.per_user) }}</p>
+        <p class="kuji-hint">{{ msg.kuji_hint_unlimited if me.unlimited else msg.kuji_hint.format(n=me.per_user) }}</p>
         <p class="kuji-chances" id="chances"></p>
         <p class="flash error" id="note" hidden></p>
       </div>
@@ -375,7 +385,10 @@
     </div>
     <div class="tear-foot">
       <p id="tear-text">{{ msg.kuji_tear_hint }}</p>
-      <button class="kuji-close" type="button" id="tear-mine" hidden>{{ msg.kuji_btn_mine }}</button>
+      <div class="tear-actions">
+        <button class="kuji-close kuji-again" type="button" id="tear-again" hidden>{{ msg.kuji_again }}</button>
+        <button class="kuji-close" type="button" id="tear-mine" hidden>{{ msg.kuji_btn_mine }}</button>
+      </div>
     </div>
   </div>
 </div>
@@ -403,6 +416,7 @@
   const copy = {
     chances: {{ msg.kuji_chances | tojson }},
     chancesPending: {{ msg.kuji_chances_pending | tojson }},
+    chancesUnlimited: {{ msg.kuji_chances_unlimited | tojson }},
     grade: {{ msg.kuji_grade | tojson }},
     left: {{ msg.kuji_left | tojson }},
     gone: {{ msg.kuji_gone | tojson }},
@@ -430,6 +444,10 @@
   }
 
   function showChances() {
+    if (me.unlimited) {
+      $("chances").textContent = copy.chancesUnlimited;
+      return;
+    }
     const t = me.pending ? copy.chancesPending : copy.chances;
     $("chances").textContent = fill(t, { n: me.left, pending: me.pending });
   }
@@ -460,7 +478,7 @@
     document.body.classList.remove("panel-open");
     sparkles.stop();
   }
-  document.querySelectorAll(".kuji-panel .kuji-close:not(#tear-mine)").forEach((b) => b.addEventListener("click", closePanels));
+  document.querySelectorAll(".kuji-panel .kuji-close:not(#tear-mine):not(#tear-again)").forEach((b) => b.addEventListener("click", closePanels));
   document.querySelectorAll(".kuji-panel").forEach((p) => p.addEventListener("click", (e) => {
     if (e.target === p && p.id !== "panel-tear") closePanels();
   }));
@@ -528,12 +546,14 @@
   const tearScene = $("tear-scene");
   const tearText = $("tear-text");
   const tearMine = $("tear-mine");
+  const tearAgain = $("tear-again");
   const ticketImg = $("ticket-img");
   let won = null;
   const tear = KujiTear(tearBox, {
     onOpen() {
       tearText.textContent = fill(copy.win, { label: prizeName(won) });
       tearMine.hidden = false;
+      tearAgain.hidden = !(me && me.left > 0);
       sparkles.start(1);
       requestAnimationFrame(() => requestAnimationFrame(() => sparkles.burst()));
     },
@@ -561,6 +581,7 @@
     if (won.url) img.src = won.url;
     tearText.textContent = copy.hint;
     tearMine.hidden = true;
+    tearAgain.hidden = true;
     openPanel("panel-tear");
     const go = () => {
       sizeTicket();
@@ -576,22 +597,34 @@
     }
   });
 
-  $("open-draw").addEventListener("click", async () => {
+  async function drawTicket(fromTear) {
+    const fail = (text) => {
+      if (fromTear) tearText.textContent = text;
+      else showNote(text);
+      return false;
+    };
     showNote("");
-    if (!prizeTotal) return showNote(copy.notReady);
+    if (!prizeTotal) return fail(copy.notReady);
     let res;
     let data;
     try {
       res = await fetch(api.draw, { method: "POST", cache: "no-store" });
       data = await res.json();
     } catch (err) {
-      return showNote(copy.failed);
+      return fail(copy.failed);
     }
-    if (!res.ok) return showNote(data.error || copy.failed);
+    if (!res.ok) return fail(data.error || copy.failed);
     won = data;
     me = data.me;
     showChances();
     startTear();
+    return true;
+  }
+  $("open-draw").addEventListener("click", () => drawTicket(false));
+  tearAgain.addEventListener("click", () => {
+    if (tearAgain.disabled) return;
+    tearAgain.disabled = true;
+    drawTicket(true).finally(() => { tearAgain.disabled = false; });
   });
 
   /* Mine */

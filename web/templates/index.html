@@ -23,54 +23,6 @@
     margin: 0 0 12px;
   }
   .index-title h1 { margin: 0; }
-  .add-menu { position: relative; flex-shrink: 0; }
-  .add-menu > summary {
-    list-style: none;
-    width: 40px;
-    height: 40px;
-    display: grid;
-    place-items: center;
-    border: 1px solid var(--frost-line);
-    background: var(--frost-fill);
-    color: var(--ink-fade);
-    border-radius: 999px;
-    font-size: 22px;
-    font-weight: 700;
-    line-height: 1;
-    cursor: pointer;
-    box-shadow: var(--frost-shadow);
-  }
-  .add-menu > summary::-webkit-details-marker,
-  .add-menu > summary::marker { display: none; content: none; }
-  .add-pop {
-    position: absolute;
-    left: 0;
-    top: calc(100% + 6px);
-    z-index: 4;
-    min-width: 200px;
-    padding: 6px;
-    border-radius: 14px;
-    background: var(--card);
-    border: 1px solid var(--line);
-    box-shadow: var(--frost-shadow);
-    display: grid;
-    gap: 4px;
-  }
-  .add-pop button {
-    appearance: none;
-    border: 0;
-    background: transparent;
-    color: var(--ink);
-    font: inherit;
-    font-size: 14px;
-    font-weight: 700;
-    text-align: left;
-    padding: 10px 12px;
-    border-radius: 10px;
-    cursor: pointer;
-    white-space: pre-line;
-  }
-  .add-pop button:hover { background: var(--bg); }
   .project-link {
     display: flex;
     align-items: center;
@@ -94,19 +46,6 @@
   <div class="glass-card">
     <div class="glass-body">
       <div class="index-title">
-        {% if can_create_project or is_root %}
-        <details class="add-menu" id="add-menu">
-          <summary title="{{ msg.add_menu }}" aria-label="{{ msg.add_menu }}">+</summary>
-          <div class="add-pop">
-            {% if can_create_project %}
-            <button type="button" data-open-overlay="panel-project">{{ msg.new_project }}</button>
-            {% endif %}
-            {% if is_root %}
-            <button type="button" data-open-overlay="panel-user">{{ msg.new_account }}</button>
-            {% endif %}
-          </div>
-        </details>
-        {% endif %}
         <h1>{{ msg.projects }}</h1>
       </div>
       {% for category, message in get_flashed_messages(with_categories=true) %}
@@ -124,43 +63,5 @@
   </div>
   {% include "_credit.html" %}
 </div>
-{% if can_create_project %}
-<div class="glass-overlay" id="panel-project" hidden>
-  <div class="glass-card">
-    <div class="overlay-head">
-      <h2>{{ msg.new_project }}</h2>
-      <button class="overlay-close" type="button" data-close-overlay>{{ msg.close_panel }}</button>
-    </div>
-    <div class="overlay-body">
-      <form class="stack" method="post" action="{{ url_for('admin_create_project') }}">
-        <label>{{ msg.project_name }}</label>
-        <input name="name" required placeholder="{{ msg.project_name_placeholder }}">
-        <label>{{ msg.project_slug }}</label>
-        <input name="slug" placeholder="wedding">
-        <button class="btn" type="submit">{{ msg.project_add }}</button>
-      </form>
-    </div>
-  </div>
-</div>
-{% endif %}
-{% if is_root %}
-<div class="glass-overlay" id="panel-user" hidden>
-  <div class="glass-card">
-    <div class="overlay-head">
-      <h2>{{ msg.new_account }}</h2>
-      <button class="overlay-close" type="button" data-close-overlay>{{ msg.close_panel }}</button>
-    </div>
-    <div class="overlay-body">
-      <form class="stack" method="post" action="{{ url_for('admin_create_user') }}">
-        <label>{{ msg.username }}</label>
-        <input name="username" autocomplete="off" required>
-        <label>{{ msg.password }}</label>
-        <input name="password" type="password" autocomplete="new-password" required minlength="4" maxlength="72">
-        <button class="btn" type="submit">{{ msg.project_add }}</button>
-      </form>
-    </div>
-  </div>
-</div>
-{% endif %}
 {% endblock %}
 {% block credit %}{% endblock %}

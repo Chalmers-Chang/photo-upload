@@ -8,7 +8,7 @@ Read this before any UI change. Update it when you add a page, a token, or a sha
 | --- | --- |
 | `web/templates/_theme.html` | Design tokens (`--frost-*`, `--ink-*`, `--btn-*`), `--glass` / `--chrome-inset` per viewport, `.glass-stage`, `.glass-card`, `.glass-wait` |
 | `web/templates/_cover_layout.html` | Cover-photo page layout (`.pjt-stage`, title, mark, lead, big buttons, `--pjt-*` sizes) plus the decode-then-blur script. Used by project home and Ichiban Kuji |
-| `web/templates/_admin_chrome.html` | Top-right 「管理 / Admin」 (and account) pills, centered 「首頁 / Home」, top-left `.back-btn` |
+| `web/templates/_admin_chrome.html` | Top-right Login (guests) or 「管理 / Admin」 dropdown + username pill (logged in), centered 「首頁 / Home」, top-left `.back-btn` |
 | `web/templates/_overlay.html` | Shared `.glass-overlay` CSS, change-password panel, open/close script |
 | `web/templates/_stage_bg.html` | Full-screen `<picture>` background + white fade (slideshow, lottery). Set `bg_desktop` / `bg_mobile` before including |
 | `web/templates/_progress_veil.html` | Upload pie overlay |
@@ -74,7 +74,7 @@ Fonts: body `"PingFang TC", "Noto Sans TC", sans-serif`. Project title on cover 
 ### Buttons
 
 - Big cover buttons (`.pjt-stage .btn`): full width inside `.actions`, bold `--ink-fade` label, 1px white border, `white-space: pre-line` for the two-line 中文 / English label. Fill: default `--btn-upload`, `.secondary` `--btn-slideshow`, `.lottery` `--btn-lottery`. Sizes come from `--pjt-btn-*` (desktop 18px / `22px 20px` / radius 16; mobile 16px / `16px 14px` / radius 14).
-- Chrome pills (`.back-btn`, `.chrome-home`, `.chrome-end .admin-btn`): frost fill + border, `8px 14px`, 14px bold `--ink-fade`, radius 999px, `top: 12px`. Back left, 「首頁 / Home」 centered (hidden on `/`), Admin right, inset `--chrome-inset`. Back is always 「返回 / Back」 (`msg.lottery_back`) to the project home. Logged-in username pill in `.chrome-end` opens 改密碼 / 登出. Guest-only accounts do not see Admin.
+- Chrome pills (`.back-btn`, `.chrome-home`, `.chrome-end .admin-btn`): frost fill + border, `8px 14px`, 14px bold `--ink-fade`, radius 999px, `top: 12px`. Back left, 「首頁 / Home」 centered (hidden on `/`), Admin/Login right, inset `--chrome-inset`. Back is always 「返回 / Back」 (`msg.lottery_back`) to the project home. Guests see Login (`/admin/login`, hidden on the login page). After login the username pill opens 改密碼 / 登出. Staff also get the Admin `.chrome-drop`: 帳號管理 (`/admin/accounts`, root) and 專案管理 (`/admin`). Guest-only accounts do not see Admin.
 - Admin list: `.btn` (ink), `.btn.secondary` (card), `.btn.small`, `.btn.danger.delete-project` (~70% size). Logout uses the pill look, min-height 44px, `appearance: none`.
 - Destructive actions use the in-page confirm pattern: a `.delete-arm` with an arm button and a hidden `.delete-confirm` form (「確認」/「取消」). Do not use `window.confirm` (the lottery reset is the one legacy exception).
 
@@ -83,7 +83,7 @@ Fonts: body `"PingFang TC", "Noto Sans TC", sans-serif`. Project title on cover 
 - Progress veil: fixed, inset 2cm, frost glass, gold pie. Show with `.is-on` only (never an unscoped `display: grid`, it beats `hidden`).
 - Full-screen dim for previews: `rgba(28,25,21,0.82)`, click to close.
 - Modal card (nickname): `#fffcf7`, radius 16px, `rgba(28,25,21,0.55)` backdrop.
-- Glass panel overlays (Ichiban Kuji `.kuji-panel`, create/password `.glass-overlay` in `_overlay.html`): fixed, inset `var(--glass)` (top at least 64px), `rgba(28,25,21,0.28)` backdrop, `.glass-card` inside, scroll inside the card, close pill top-right of the card. Below the chrome (z-index 20 vs 30) so Back and Admin stay usable. While a panel is open, `body.panel-open` hides the page glass so it does not blur through as a smudge.
+- Glass panel overlays (Ichiban Kuji `.kuji-panel`, create/password `.glass-overlay` in `_overlay.html`): fixed, inset `var(--glass)` (top at least 64px), `rgba(28,25,21,0.28)` backdrop, `.glass-card` inside, scroll inside the card, close pill top-right of the card. Below the chrome (z-index 20 vs 30) so Back and Admin stay usable. While a panel is open, `body.panel-open` hides the page glass so it does not blur through as a smudge. Create-project overlay lives on `/admin`; create-account overlay lives on `/admin/accounts`. Title-row `+` (`.add-btn`) opens the matching overlay.
 - Anything with a `[hidden]` state and its own `display` needs `[hidden] { display: none !important; }`.
 
 ### Backgrounds
@@ -101,14 +101,15 @@ Fonts: body `"PingFang TC", "Noto Sans TC", sans-serif`. Project title on cover 
 
 | Page | Template | Layout |
 | --- | --- | --- |
-| Site landing `/` | `index.html` | Cream glass stage. Title row: optional `+` dropdown (新增子專案 / 新增管理帳號) then 「專案 / Projects」. List of project links. Empty copy differs for logged-in vs guest. Create forms are `.glass-overlay` panels |
+| Site landing `/` | `index.html` | Cream glass stage. Title 「專案 / Projects」 then project links. Empty copy differs for logged-in vs guest. Create project/account is not on this page |
 | Project home `/p/<slug>/` | `project_home.html` + `_cover_layout.html` | `pjt-*` cover photo, `.glass-wait` glass with script title, optional `pjt-mark`, lead, big buttons: 上傳照片 (upload) / 輪播照片 (secondary) / 一番賞 (lottery gold) / 抽獎 (lottery gold, visible when the account has a role on this project, including guest) |
 | Upload `/p/<slug>/upload` | `upload.html` | Cream glass stage, left-aligned bilingual labels, centered submit, Back pill, progress veil |
 | Slideshow `/p/<slug>/slideshow` | `slideshow.html` | Dark page. `wall`: `bkg-*` background, name glass above, photo (22px corners, 2cm inset), note glass below. `full`: cream letterbox, photo only. Chrome fades after 5s idle |
 | Lottery `/p/<slug>/lottery` (admin) | `lottery.html` | `lot-*` background, 3D sphere, sparkles canvas, winner contain-and-center inset `LOTTERY_PAD_CM`, side thumbs, gold pill 「再抽一位」, white bold 「重置抽獎」 bottom-left |
-| Ichiban Kuji `/p/<slug>/kuji` | `kuji.html` + `_cover_layout.html` | Same cover layout as home with `kuji-*` background (falls back to `pjt-*`) and `kuji-mark`. Lead, then a hint that person photos add draws up to the cap, then chance line. Buttons: 查看獎品狀態 (secondary) / 抽一番賞 (lottery gold) / 我的獎品 (upload). Glass panel overlays for status, tear, and my prizes |
+| Ichiban Kuji `/p/<slug>/kuji` | `kuji.html` + `_cover_layout.html` | Same cover layout as home with `kuji-*` background (falls back to `pjt-*`) and `kuji-mark`. Lead, then a hint that person photos add draws up to the cap, then chance line (root: unlimited copy, no cap). Buttons: 查看獎品狀態 (secondary) / 抽一番賞 (lottery gold) / 我的獎品 (upload). Glass panel overlays for status, tear, and my prizes. After a tear, 「再抽一次」 (gold pill) shows when `me.left > 0` |
 | Admin login `/admin/login` | `admin_login.html` | Cream glass stage, 360px body |
-| Admin list `/admin` | `admin.html` | Cream glass stage, scroll inside the glass. Two blocks: 管理帳號 (root only: per-project role, reset password, delete) and 管理專案 (`<details>` cards). After 「更多」: four collapsed blocks (首頁 / 輪播 / 抽獎 / 一番賞). 一番賞 A–E cards keep the grade title; each has a 顯示名稱 field (empty = default `{grade}賞 / Prize {grade}`). 2-col asset grid (1 col on mobile). Logout pill above the credit |
+| Admin projects `/admin` | `admin.html` | Cream glass stage, scroll inside the glass. Title row: `+` (if `can_create_project`) opens 新增專案 overlay, then 「管理專案」. Project `<details>` cards. After 「更多」: four collapsed blocks (首頁 / 輪播 / 抽獎 / 一番賞). 一番賞 A–E cards keep the grade title; each has a 顯示名稱 field (empty = default `{grade}賞 / Prize {grade}`). 2-col asset grid (1 col on mobile). Logout pill above the credit |
+| Admin accounts `/admin/accounts` | `admin_accounts.html` | Same glass stage as `/admin`. Root only. Title row: `+` opens 新增帳號 overlay, then 「管理帳號」. One `<details>` card per account except root: per-project role, reset password, delete |
 
 ## New-page checklist
 

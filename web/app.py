@@ -287,13 +287,16 @@ def create_app():
         projects = store.list_projects_for_ids(store.staff_ids(name))
         for p in projects:
             p["can_delete"] = store.can_delete_project(name, p["id"])
-        users = store.list_users() if store.is_root(name) else []
-        all_projects = store.list_projects() if store.is_root(name) else []
+        return render_template("admin.html", projects=projects)
+
+    @app.get("/admin/accounts")
+    @root_required
+    def admin_accounts():
+        users = [u for u in store.list_users() if not u["is_root"]]
         return render_template(
-            "admin.html",
-            projects=projects,
+            "admin_accounts.html",
             users=users,
-            all_projects=all_projects,
+            all_projects=store.list_projects(),
         )
 
     @app.post("/admin/projects")
@@ -302,7 +305,7 @@ def create_app():
         name = current_name()
         if not store.can_create_project(name):
             flash(msg.staff_only, "error")
-            return redirect(url_for("index"))
+            return redirect(url_for("admin_home" if store.can_staff(name) else "index"))
         try:
             p = store.create_project(
                 request.form.get("name"),
@@ -312,10 +315,10 @@ def create_app():
         except ValueError as e:
             g.log_err = str(e)
             flash(str(e), "error")
-            return redirect(url_for("index"))
+            return redirect(url_for("admin_home"))
         g.project_id = p["id"]
         flash(msg.project_created.format(name=p["name"]), "ok")
-        return redirect(url_for("index"))
+        return redirect(url_for("admin_home"))
 
     @app.post("/admin/users")
     @root_required
@@ -328,9 +331,9 @@ def create_app():
         except ValueError as e:
             g.log_err = str(e)
             flash(str(e), "error")
-            return redirect(url_for("index"))
+            return redirect(url_for("admin_accounts"))
         flash(msg.user_created.format(name=u["name"]), "ok")
-        return redirect(url_for("admin_home"))
+        return redirect(url_for("admin_accounts"))
 
     @app.post("/admin/users/<username>/roles")
     @root_required
@@ -341,9 +344,9 @@ def create_app():
         except ValueError as e:
             g.log_err = str(e)
             flash(str(e), "error")
-            return redirect(url_for("admin_home"))
+            return redirect(url_for("admin_accounts"))
         flash(msg.roles_saved.format(name=username), "ok")
-        return redirect(url_for("admin_home"))
+        return redirect(url_for("admin_accounts"))
 
     @app.post("/admin/users/<username>/password")
     @root_required
@@ -352,15 +355,15 @@ def create_app():
         again = request.form.get("again") or ""
         if new != again:
             flash(msg.password_mismatch, "error")
-            return redirect(url_for("admin_home"))
+            return redirect(url_for("admin_accounts"))
         try:
             store.set_password(username, new)
         except ValueError as e:
             g.log_err = str(e)
             flash(str(e), "error")
-            return redirect(url_for("admin_home"))
+            return redirect(url_for("admin_accounts"))
         flash(msg.password_changed, "ok")
-        return redirect(url_for("admin_home"))
+        return redirect(url_for("admin_accounts"))
 
     @app.post("/admin/users/<username>/delete")
     @root_required
@@ -370,9 +373,9 @@ def create_app():
         except ValueError as e:
             g.log_err = str(e)
             flash(str(e), "error")
-            return redirect(url_for("admin_home"))
+            return redirect(url_for("admin_accounts"))
         flash(msg.user_deleted.format(name=username), "ok")
-        return redirect(url_for("admin_home"))
+        return redirect(url_for("admin_accounts"))
 
     @app.post("/admin/projects/<project_id>/delete")
     @delete_required
@@ -526,6 +529,10 @@ def create_app():
             kuji_total=store.kuji_state(project["id"])["total"],
         )
 
+    def kuji_unlimited():
+        name = current_name()
+        return bool(name and store.is_root(name))
+
     @app.get("/p/<slug>/kuji")
     def kuji(slug):
         project = load_project(slug)
@@ -533,7 +540,7 @@ def create_app():
         return render_template(
             "kuji.html",
             project=project,
-            me=store.kuji_me(project["id"], did),
+            me=store.kuji_me(project["id"], did, unlimited=kuji_unlimited()),
             kuji_total=store.kuji_state(project["id"])["total"],
         )
 
@@ -542,7 +549,7 @@ def create_app():
         project = load_project(slug)
         did, _ = device_id()
         state = store.kuji_state(project["id"])
-        state["me"] = store.kuji_me(project["id"], did)
+        state["me"] = store.kuji_me(project["id"], did, unlimited=kuji_unlimited())
         return jsonify(state)
 
     @app.post("/p/<slug>/api/kuji/draw")
@@ -550,7 +557,7 @@ def create_app():
         project = load_project(slug)
         did, _ = device_id()
         try:
-            return jsonify(store.kuji_draw(project["id"], did))
+            return jsonify(store.kuji_draw(project["id"], did, unlimited=kuji_unlimited()))
         except ValueError as e:
             g.log_err = str(e)
             return jsonify({"error": str(e)}), 400

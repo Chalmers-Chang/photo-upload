@@ -73,7 +73,8 @@ local cfg, drawn, used, earned, mine, draws, seq =
 local per = tonumber(redis.call('HGET', cfg, 'per_user') or ARGV[4])
 local have = tonumber(redis.call('GET', earned) or '0')
 local done = tonumber(redis.call('GET', used) or '0')
-if done >= math.min(have, per) then
+local unlimited = tonumber(ARGV[5] or '0')
+if unlimited == 0 and done >= math.min(have, per) then
   return {'no_chance'}
 end
 local grades = {'A', 'B', 'C', 'D', 'E'}
@@ -1187,21 +1188,23 @@ def kuji_state(project_id):
     }
 
 
-def kuji_me(project_id, device_id):
+def kuji_me(project_id, device_id, unlimited=False):
     conn = r()
     per = kuji_settings(project_id)["per_user"]
     earned = int(conn.get(f"kuji_earned:{project_id}:{device_id}") or 0)
     used = int(conn.get(f"kuji_used:{project_id}:{device_id}") or 0)
+    left = 1 if unlimited else max(0, min(earned, per) - used)
     return {
         "earned": earned,
         "used": used,
         "per_user": per,
-        "left": max(0, min(earned, per) - used),
+        "left": left,
+        "unlimited": bool(unlimited),
         "pending": int(conn.scard(f"device_pending:{project_id}:{device_id}") or 0),
     }
 
 
-def kuji_draw(project_id, device_id):
+def kuji_draw(project_id, device_id, unlimited=False):
     res = _script("kuji_draw", _KUJI_DRAW_LUA)(
         keys=[
             f"kuji:{project_id}",
@@ -1212,13 +1215,19 @@ def kuji_draw(project_id, device_id):
             f"kuji_draws:{project_id}",
             f"kuji_seq:{project_id}",
         ],
-        args=[random.random(), time.time(), device_id, appsetting.kuji_per_user],
+        args=[
+            random.random(),
+            time.time(),
+            device_id,
+            appsetting.kuji_per_user,
+            "1" if unlimited else "0",
+        ],
     )
     if res[0] == "sold_out":
         raise ValueError(msg.kuji_sold_out)
     if res[0] != "ok":
-        me = kuji_me(project_id, device_id)
-        if me["used"] >= me["per_user"]:
+        me = kuji_me(project_id, device_id, unlimited=unlimited)
+        if not unlimited and me["used"] >= me["per_user"]:
             raise ValueError(msg.kuji_cap_reached.format(n=me["per_user"]))
         if me["pending"]:
             raise ValueError(msg.kuji_pending)
@@ -1231,7 +1240,7 @@ def kuji_draw(project_id, device_id):
         "label": kuji_settings(project_id)["labels"][grade],
         "url": url,
         "thumb": thumb,
-        "me": kuji_me(project_id, device_id),
+        "me": kuji_me(project_id, device_id, unlimited=unlimited),
     }
 
 

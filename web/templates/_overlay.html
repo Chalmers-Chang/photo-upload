@@ -50,6 +50,32 @@
   .overlay-body { min-height: 0; overflow: auto; }
   body.panel-open .index-stage > .glass-card,
   body.panel-open .admin-stage > .glass-card { visibility: hidden; }
+  .admin-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 12px;
+  }
+  .admin-title h1 { margin: 0; }
+  .add-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--frost-line);
+    background: var(--frost-fill);
+    color: var(--ink-fade);
+    border-radius: 999px;
+    font: inherit;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: var(--frost-shadow);
+  }
 </style>
 {% if current_user %}
 <div class="glass-overlay" id="panel-password" hidden>
@@ -80,9 +106,7 @@
       document.querySelectorAll(".glass-overlay").forEach((p) => { p.hidden = true; });
       panel.hidden = false;
       document.body.classList.add("panel-open");
-      const add = document.getElementById("add-menu");
-      if (add) add.open = false;
-      document.querySelectorAll(".chrome-account").forEach((el) => { el.open = false; });
+      document.querySelectorAll(".chrome-drop").forEach((el) => { el.open = false; });
     });
   });
   document.querySelectorAll("[data-close-overlay]").forEach((btn) => {

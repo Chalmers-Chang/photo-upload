@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}{{ msg.admin_accounts }}{% endblock %}
+{% block extra_head %}
+<style>
+  html, body { height: 100%; overflow: hidden; --edge: 2cm; }
+  .admin-stage > .glass-card {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+  }
+  .admin-stage .glass-body {
+    width: min(720px, 100%);
+    margin: 0 auto;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+  .admin-stage .logout-form {
+    flex-shrink: 0;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    padding: 12px 0 4px;
+  }
+  .logout-form .admin-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    white-space: nowrap;
+    min-height: 44px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--ink-fade);
+    background: var(--frost-fill);
+    border: 1px solid var(--frost-line);
+    box-shadow: var(--frost-shadow);
+    backdrop-filter: var(--frost-blur);
+    -webkit-backdrop-filter: var(--frost-blur);
+  }
+  .account-card > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+  .account-card > summary::-webkit-details-marker,
+  .account-card > summary::marker { display: none; content: none; }
+  .btn.delete-project {
+    width: auto;
+    font-size: 10.5px;
+    padding: 7px 8px;
+    border-radius: 11px;
+  }
+  .card-arms {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-start;
+  }
+  .delete-arm {
+    display: flex;
+    justify-content: flex-start;
+  }
+  .delete-confirm {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  .delete-confirm[hidden] { display: none !important; }
+  .account-card .role-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .account-card .role-row span { font-size: 13px; color: var(--muted); }
+  .account-card select {
+    font: inherit;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--card);
+  }
+</style>
+{% endblock %}
+{% block body %}
+<div class="glass-stage admin-stage">
+<div class="glass-card">
+<div class="glass-body">
+  <div class="admin-title">
+    <button type="button" class="add-btn" data-open-overlay="panel-user" title="{{ msg.new_account }}" aria-label="{{ msg.new_account }}">+</button>
+    <h1>{{ msg.admin_accounts }}</h1>
+  </div>
+
+  {% for category, message in get_flashed_messages(with_categories=true) %}
+    <p class="flash {{ category }}">{{ message }}</p>
+  {% endfor %}
+
+  {% for u in users %}
+    <details class="card account-card" id="user-{{ u.name }}">
+      <summary>
+        <div class="card-head">
+          <h2>{{ u.name }}</h2>
+        </div>
+      </summary>
+      <form class="stack" method="post" action="{{ url_for('admin_save_roles', username=u.name) }}">
+        {% for p in all_projects %}
+        <label class="role-row">
+          <span>{{ p.name }}</span>
+          <select name="role_{{ p.id }}">
+            <option value="">{{ msg.role_none }}</option>
+            {% for role, label in [("guest", msg.role_guest), ("maintainer", msg.role_maintainer), ("admin", msg.role_admin)] %}
+            <option value="{{ role }}" {% if u.roles.get(p.id) == role %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        {% else %}
+        <p class="meta">{{ msg.no_projects }}</p>
+        {% endfor %}
+        <button class="btn small" type="submit">{{ msg.settings_save }}</button>
+      </form>
+      <form class="stack" method="post" action="{{ url_for('admin_reset_password', username=u.name) }}" style="margin-top:12px">
+        <label>{{ msg.password_reset }}</label>
+        <input name="new" type="password" autocomplete="new-password" required minlength="4" maxlength="72" placeholder="{{ msg.password_new }}">
+        <input name="again" type="password" autocomplete="new-password" required minlength="4" maxlength="72" placeholder="{{ msg.password_again }}">
+        <button class="btn small" type="submit">{{ msg.password_reset }}</button>
+      </form>
+      <div class="card-arms">
+        <div class="delete-arm">
+          <button type="button" class="btn danger delete-project js-delete-arm">{{ msg.delete_user }}</button>
+          <form class="delete-confirm" hidden method="post" action="{{ url_for('admin_delete_user', username=u.name) }}">
+            <button class="btn danger delete-project" type="submit">{{ msg.delete_confirm }}</button>
+            <button class="btn small secondary js-delete-cancel" type="button">{{ msg.delete_cancel }}</button>
+          </form>
+        </div>
+      </div>
+    </details>
+  {% else %}
+    <p class="lead">{{ msg.no_accounts }}</p>
+  {% endfor %}
+</div>
+{% if current_user %}
+<form class="logout-form" method="post" action="{{ url_for('admin_logout') }}">
+  <button class="admin-btn" type="submit">{{ msg.logout }}</button>
+</form>
+{% endif %}
+</div>
+{% include "_credit.html" %}
+</div>
+<script>
+  document.querySelectorAll(".delete-arm").forEach((box) => {
+    const arm = box.querySelector(".js-delete-arm");
+    const form = box.querySelector(".delete-confirm");
+    const cancel = box.querySelector(".js-delete-cancel");
+    arm.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      arm.hidden = true;
+      form.hidden = false;
+    });
+    cancel.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      form.hidden = true;
+      arm.hidden = false;
+    });
+  });
+  document.querySelectorAll(".account-card form").forEach((f) => {
+    f.addEventListener("submit", () => {
+      const card = f.closest(".account-card");
+      if (card) sessionStorage.setItem("adminOpenUser", card.id);
+    });
+  });
+  const openUser = sessionStorage.getItem("adminOpenUser");
+  sessionStorage.removeItem("adminOpenUser");
+  if (openUser) {
+    const card = document.getElementById(openUser);
+    if (card) {
+      card.open = true;
+      card.scrollIntoView({ block: "nearest" });
+    }
+  }
+</script>
+<div class="glass-overlay" id="panel-user" hidden>
+  <div class="glass-card">
+    <div class="overlay-head">
+      <h2>{{ msg.new_account }}</h2>
+      <button class="overlay-close" type="button" data-close-overlay>{{ msg.close_panel }}</button>
+    </div>
+    <div class="overlay-body">
+      <form class="stack" method="post" action="{{ url_for('admin_create_user') }}">
+        <label>{{ msg.username }}</label>
+        <input name="username" autocomplete="off" required>
+        <label>{{ msg.password }}</label>
+        <input name="password" type="password" autocomplete="new-password" required minlength="4" maxlength="72">
+        <button class="btn" type="submit">{{ msg.project_add }}</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block credit %}{% endblock %}
