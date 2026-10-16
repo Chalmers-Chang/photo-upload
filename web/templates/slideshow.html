@@ -100,12 +100,14 @@
     }
     .chrome-end,
     .chrome-home,
-    .back-btn {
+    .back-btn,
+    .ss-zoom {
       transition: opacity 0.4s ease;
     }
     body.chrome-idle .chrome-end,
     body.chrome-idle .chrome-home,
-    body.chrome-idle .back-btn {
+    body.chrome-idle .back-btn,
+    body.chrome-idle .ss-zoom {
       opacity: 0;
       pointer-events: none;
     }
@@ -122,18 +124,22 @@
       right: var(--ss-zoom-inset);
       bottom: var(--ss-zoom-inset);
       z-index: 30;
-      width: var(--ss-zoom-size);
-      height: var(--ss-zoom-size);
       margin: 0;
-      padding: 0;
-      border: 0;
-      background: transparent;
-      opacity: 0;
+      padding: 8px 14px;
+      border: 1px solid var(--frost-line);
+      background: var(--frost-fill);
+      color: var(--ink-fade);
+      border-radius: 999px;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.35;
       cursor: pointer;
+      box-shadow: var(--frost-shadow);
+      backdrop-filter: var(--frost-blur);
+      -webkit-backdrop-filter: var(--frost-blur);
       appearance: none;
       -webkit-appearance: none;
-      font-size: 0;
-      color: transparent;
     }
     body.is-zoomed .chrome-end,
     body.is-zoomed .chrome-home,
@@ -141,18 +147,13 @@
       opacity: 0;
       pointer-events: none;
     }
+    body.is-zoomed .stage { padding-top: var(--edge); }
     body.mode-full.is-zoomed .stage { padding-top: 0; }
     @media (max-width: 640px) {
-      html, body {
-        --ss-zoom-size: 44px;
-        --ss-zoom-inset: 12px;
-      }
+      html, body { --ss-zoom-inset: 12px; }
     }
     @media (min-width: 641px) {
-      html, body {
-        --ss-zoom-size: 48px;
-        --ss-zoom-inset: 12px;
-      }
+      html, body { --ss-zoom-inset: 12px; }
     }
   </style>
   <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
@@ -165,9 +166,7 @@
   {% endif %}
   <a class="back-btn" id="back" href="{{ url_for('project_home', slug=project.slug) }}">{{ msg.lottery_back }}</a>
   {% include "_admin_chrome.html" %}
-  {% if project.slideshow_mode == "full" %}
   <button type="button" class="ss-zoom" id="ss-zoom" aria-label="{{ msg.slideshow_zoom }}">{{ msg.slideshow_zoom }}</button>
-  {% endif %}
   {% include "_name_modal.html" %}
   {% include "_overlay.html" %}
   <div class="stage">
@@ -213,7 +212,7 @@
     }
     document.addEventListener("mousemove", bumpChrome);
     document.addEventListener("pointerdown", bumpChrome);
-    document.querySelectorAll(".chrome-end, .chrome-home, .back-btn").forEach((el) => {
+    document.querySelectorAll(".chrome-end, .chrome-home, .back-btn, .ss-zoom").forEach((el) => {
       el.addEventListener("mouseenter", () => {
         overChrome = true;
         showChrome();
@@ -292,13 +291,6 @@
       }
       goHome();
     });
-
-    if (!full) {
-      document.addEventListener("click", (e) => {
-        if (e.target.closest(".chrome-end, .chrome-home, .back-btn")) return;
-        requestFs();
-      }, { once: true });
-    }
 
     function wrapChars(s, n) {
       const t = (s || "").trim();
